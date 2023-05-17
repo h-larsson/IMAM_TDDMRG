@@ -1,0 +1,35 @@
+
+
+mps_info = MPSInfo(0)
+mps_info.load_data(tmpdir + "/" + fname)
+mps = MPS(mps_info)
+mps.load_data()
+
+
+1) What exactly do these functions do?
+      mps.save_data() : tag, qn 
+      mps.save_mutable() : tensors
+      mps_info.save_data() : qn  , came later
+      mps_info.save_mutable() : bonddim
+
+
+      mps.deallocate()
+      
+
+2) What exactly are the difference between?
+      mps_info.save_data(path)
+      mps.info.save_data(path)
+
+
+3) There seems to be two categories of files describing an MPS, the one that is produced by
+      mps_info.save_data(path),
+   (for example the "GS_MPS_INFO" file) and the other one that uses the tag in the file.
+   Usually the second category include the site index in their filenames?
+   Are these two categories of MPS-describing file equivalent or complementary?
+
+
+Do autocorrelation.
+
+Two ways of initiating MPS_info:
+ - load_data() 
+ - via hamiltonian
