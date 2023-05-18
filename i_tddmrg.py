@@ -63,7 +63,7 @@ else:
 
 import tools; tools.init(SpinLabel)
 from tools import saveMPStoDir, mkDir
-
+from gfdmrg import orbital_reorder
 
 
         
@@ -76,11 +76,6 @@ else:
 
 
 
-
-
-
-    
-
 def _print(*args, **kwargs):
     if MPI.rank == 0:
         print(*args, **kwargs)
@@ -90,78 +85,23 @@ class MYTDDMRGError(Exception):
     pass
 
 
-def orbital_reorder(h1e, g2e, method='gaopt'):
-    """
-    Find an optimal ordering of orbitals for DMRG.
-    Ref: J. Chem. Phys. 142, 034102 (2015)
-
-    Args:
-        method :
-            'gaopt' - genetic algorithm, take several seconds
-            'fiedler' - very fast, may be slightly worse than 'gaopt'
-
-    Return a index array "midx":
-        reordered_orb_sym = original_orb_sym[midx]
-    """
-    n_sites = h1e.shape[0]
-    hmat = np.zeros((n_sites, n_sites))
-    xmat = np.zeros((n_sites, n_sites))
-    from pyscf import ao2mo
-    if not isinstance(h1e, tuple):
-        hmat[:] = np.abs(h1e[:])
-        g2e = ao2mo.restore(1, g2e, n_sites)
-        for i in range(0, n_sites):
-            for j in range(0, n_sites):
-                xmat[i, j] = abs(g2e[i, j, j, i])
-    else:
-        assert SpinLabel == SZ
-        assert isinstance(h1e, tuple) and len(h1e) == 2
-        assert isinstance(g2e, tuple) and len(g2e) == 3
-        hmat[:] = 0.5 * np.abs(h1e[0][:]) + 0.5 * np.abs(h1e[1][:])
-        g2eaa = ao2mo.restore(1, g2e[0], n_sites)
-        g2ebb = ao2mo.restore(1, g2e[1], n_sites)
-        g2eab = ao2mo.restore(1, g2e[2], n_sites)
-        for i in range(0, n_sites):
-            for j in range(0, n_sites):
-                xmat[i, j] = 0.25 * abs(g2eaa[i, j, j, i]) \
-                    + 0.25 * abs(g2ebb[i, j, j, i]) \
-                    + 0.5 * abs(g2eab[i, j, j, i])
-    kmat = VectorDouble((np.array(hmat) * 1E-7 + np.array(xmat)).flatten())
-    if method == 'gaopt':
-        n_tasks = 32
-        opts = dict(
-            n_generations=10000, n_configs=n_sites * 2,
-            n_elite=8, clone_rate=0.1, mutate_rate=0.1
-        )
-        midx, mf = None, None
-        for _ in range(0, n_tasks):
-            idx = OrbitalOrdering.ga_opt(n_sites, kmat, **opts)
-            f = OrbitalOrdering.evaluate(n_sites, kmat, idx)
-            idx = np.array(idx)
-            if mf is None or f < mf:
-                midx, mf = idx, f
-    elif method == 'fiedler':
-        idx = OrbitalOrdering.fiedler(n_sites, kmat)
-        midx = np.array(idx)
-    else:
-        midx = np.array(range(n_sites))
-    return midx
-
 
 class MYTDDMRG:
     """
     DDMRG++ for Green's Function for molecules.
     """
 
-    def __init__(self, scratch='./nodex', memory=1 * 1E9, omp_threads=8, verbose=2,
-                 print_statistics=True, mpi=None, dctr=True):
+    def __init__(self, scratch='./nodex', memory=1*1E9, isize=2E8, omp_threads=8, verbose=2,
+                 print_statistics=True, mpi=None, delayed_contraction=True):
         """
         Memory is in bytes.
         verbose = 0 (quiet), 2 (per sweep), 3 (per iteration)
         """
 
         Random.rand_seed(0)
-        isize = min(int(memory * 0.1), 200000000)
+        isize = int(isize)
+        assert isize < memory
+#OLD        isize = min(int(memory * 0.1), 200000000)
         init_memory(isize=isize, dsize=int(memory - isize), save_dir=scratch)
         Global.threading = Threading(
             ThreadingTypes.OperatorBatchedGEMM | ThreadingTypes.Global, omp_threads, omp_threads, 1)
@@ -170,6 +110,7 @@ class MYTDDMRG:
         Global.frame.save_buffering = False
         Global.frame.use_main_stack = False
         Global.frame.minimal_disk_usage = True
+        
         self.fcidump = None
         self.hamil = None
         self.verbose = verbose
@@ -177,7 +118,7 @@ class MYTDDMRG:
         self.mpo_orig = None
         self.print_statistics = print_statistics
         self.mpi = mpi
-        self.delayed_contraction = dctr
+        self.delayed_contraction = delayed_contraction
         self.idx = None # reorder
         self.ridx = None # inv reorder
 
@@ -515,7 +456,7 @@ class MYTDDMRG:
 
     ##################################################################
     def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, idxs,
-                   addition, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
+                   cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
                    outmps_name='ANN_KET'):
         """Green's function."""
 ##        ops = [None] * len(idxs)
@@ -536,22 +477,17 @@ class MYTDDMRG:
         mps = MPS(mps_info)
         mps.load_data()
 
+        
         if self.mpi is not None:
             if SpinLabel == SU2:
                 from block2.su2 import ParallelMPO
             else:
                 from block2.sz import ParallelMPO
-
-        if addition:
-            mpo = -1.0 * self.mpo_orig
-#need?            mpo.const_e += self.gs_energy
-        else:
-            mpo = 1.0 * self.mpo_orig
-#need?            mpo.const_e -= self.gs_energy
-
+        mpo = 1.0 * self.mpo_orig
         if self.mpi is not None:
             mpo = ParallelMPO(mpo, self.prule)
 
+            
         if self.print_statistics:
             _print('GF MPO BOND DIMS = ', ''.join(
                 ["%6d" % (x.m * x.n) for x in mpo.left_operator_names]))
@@ -612,19 +548,11 @@ class MYTDDMRG:
 #        idx = idxs  (IT WAS THIS LINE WHICH WAS THE PROBLEM)
         idx = self.ridx[idxs]
         if SpinLabel == SZ:
-            if addition:
-                ops = OpElement(OpNames.C, SiteIndex(
-                    (idx, ), (0 if alpha else 1, )), SZ(1, 1 if alpha else -1, self.orb_sym[idx]))
-            else:
-                ops = OpElement(OpNames.D, SiteIndex(
-                    (idx, ), (0 if alpha else 1, )), SZ(-1, -1 if alpha else 1, self.orb_sym[idx]))
+            ops = OpElement(OpNames.D, SiteIndex(
+                (idx, ), (0 if alpha else 1, )), SZ(-1, -1 if alpha else 1, self.orb_sym[idx]))
         else:
-            if addition:
-                ops = OpElement(OpNames.C, SiteIndex(
-                    (idx, ), ()), SU2(1, 1, self.orb_sym[idx]))
-            else:
-                ops = OpElement(OpNames.D, SiteIndex(
-                    (idx, ), ()), SU2(-1, 1, self.orb_sym[idx]))
+            ops = OpElement(OpNames.D, SiteIndex(
+                (idx, ), ()), SU2(-1, 1, self.orb_sym[idx]))
 
 #        for ii, idx in enumerate(idxs):
         if self.mpi is not None:
@@ -709,30 +637,28 @@ class MYTDDMRG:
 
 
     ##################################################################
-    def time_propagate(self, inmps_name, bond_dim: int, tmax: float, dt: float, n_sub_sweeps=2,
-                       n_sub_sweeps_init=4, exp_tol=1e-6, t_sample=None, print_mps=False,
-                       print_1pdm=False, print_2pdm=False):
+    def time_propagate(self, inmps_name, bond_dim: int, method, tmax: float, dt: float, 
+                       n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, cutoff=0, verbosity=6, 
+                       normalize=False, t_sample=None, save_mps=False, save_1pdm=False, save_2pdm=False):
+
+        '''
+        Coming soon
+        '''
 
         #==== Prepare Hamiltonian MPO ====#
         if self.mpi is not None:
             self.mpi.barrier()
-
         if self.mpo_orig is None:
             mpo = MPOQC(self.hamil, QCTypes.Conventional)
-            mpo = SimplifiedMPO(AncillaMPO(mpo), RuleQC(), True, True,
-                                OpNamesSet((OpNames.R, OpNames.RD)))
+            mpo = SimplifiedMPO(mpo, RuleQC(), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
             self.mpo_orig = mpo
-            
         if self.mpi is not None:
             if SpinLabel == SU2:
                 from block2.su2 import ParallelMPO
             else:
                 from block2.sz import ParallelMPO
         mpo = 1.0 * self.mpo_orig
-
-        #mpo.const_e = 0 # hrl: sometimes const_e causes trouble for AncillaMPO
 #need?        mpo = IdentityAddedMPO(mpo) # hrl: alternative
-
         if self.mpi is not None:
             mpo = ParallelMPO(mpo, self.prule)
 
@@ -761,9 +687,19 @@ class MYTDDMRG:
         if self.mpi is not None:
             idMPO = ParallelMPO(idMPO, self.identrule)
         idME = MovingEnvironment(idMPO, cmps_t0, cmps, "acorr")
-##        idME.init_environments()
-##        acorr = ComplexExpect(idME, bond_dim, bond_dim)
 
+
+
+
+        #==== 1PDM
+        pmpo = PDM1MPOQC(self.hamil)
+        pmpo = SimplifiedMPO(pmpo, RuleQC())
+        if self.mpi is not None:
+            pmpo = ParallelMPO(pmpo, self.pdmrule)
+        pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
+
+
+            
         
         #==== Initial setups for time evolution ====#
         me = MovingEnvironment(mpo, cmps, cmps, "TE")
@@ -775,12 +711,10 @@ class MYTDDMRG:
 
 
         #==== Time evolution ====#
-        method = TETypes.RK4
-##        method = TETypes.TangentSpace
         te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
-        te.cutoff = 0  # for tiny systems, this is important
-        te.iprint = 6  # ft.verbose
-        te.normalize_mps = False
+        te.cutoff = cutoff  # for tiny systems, this is important
+        te.iprint = verbosity  # ft.verbose
+        te.normalize_mps = normalize
 
         n_steps = int(tmax/dt + 1)
         ts = np.linspace(0, tmax, n_steps) # times
@@ -807,6 +741,40 @@ class MYTDDMRG:
                 acorr_t = acorr.solve(False) * -1j
                 _print('acorr_t, abs = ', acorr_t, abs(acorr_t))
 
+
+
+
+                
+                #==== 1PDM
+                pme.init_environments()
+                _print('here1')
+                expect = ComplexExpect(pme, bond_dim+100, bond_dim+100)   #NOTE
+                _print('here2')
+                expect.solve(False, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
+                _print('here3')
+                if SpinLabel == SU2:
+                    dmr = expect.get_1pdm_spatial(self.n_sites)
+                    dm = np.array(dmr).copy()
+                else:
+                    dmr = expect.get_1pdm(self.n_sites)
+                    dm = np.array(dmr).copy()
+                    dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
+                    dm = np.transpose(dm, (0, 2, 1, 3))
+                _print('here4')
+                if self.ridx is not None:
+                    dm[:, :] = dm[self.ridx, :][:, self.ridx]
+                _print('here5')
+                dmr.deallocate()
+                _print('here6')
+                if SpinLabel == SU2:
+                    dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
+                else:
+                    dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
+                _print('here7')
+
+
+                
+
                 #==== Stores MPS and/or PDM's at sampling times ====#
                 if t_sample is not None and np.prod(issampled)==0:
                     if it < n_steps-1:
@@ -821,7 +789,7 @@ class MYTDDMRG:
                         mkDir(sample_dir)
      
                         ##### Using saveMPStoDir #####
-                        if print_mps:
+                        if save_mps:
                             saveMPStoDir(cmps, sample_dir, self.mpi)
                         #####
 
@@ -839,13 +807,14 @@ class MYTDDMRG:
 #                    mps_sp.info.deallocate()
                     #####
 
-                        if print_1pdm:
-                            dm = self.get_one_pdm(True, cmps)
+                        if save_1pdm:
+#                            dm = self.get_one_pdm(True, cmps)
                             np.save(sample_dir+'/1pdm', dm)
                             _print('DM a = ', dm[0,:,:])
                         
                         issampled[i_sp] = True
                         i_sp += 1
+                
 
 
 

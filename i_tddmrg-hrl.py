@@ -87,11 +87,11 @@ def _print(*args, **kwargs):
         print(*args, **kwargs)
 
 
-class MYTDDMRGError(Exception): # HRL: Where do you need this?
+class MYTDDMRGError(Exception): # HRL: Where do you need this?  >> ANS: Nowhere, it's relic from the orig. code.
     pass
 
 
-# HRL: Mightbe good to just import this from the gfdmrg code rather than copying it here
+# HRL: Mightbe good to just import this from the gfdmrg code rather than copying it here   >> DONE
 def orbital_reorder(h1e, g2e, method='gaopt'):
     """
     Find an optimal ordering of orbitals for DMRG.
@@ -163,7 +163,7 @@ class MYTDDMRG:
         """
 
         Random.rand_seed(0)
-        # HRL: good to have isize as additional parameter. typically, 200MB is enough. 
+        # HRL: good to have isize as additional parameter. typically, 200MB is enough.  >> DONE
         #   isize is size of integer stack
         isize = min(int(memory * 0.1), 200000000)
         init_memory(isize=isize, dsize=int(memory - isize), save_dir=scratch)
@@ -198,7 +198,7 @@ class MYTDDMRG:
         self.mpo_orig = None
         self.print_statistics = print_statistics
         self.mpi = mpi
-        self.delayed_contraction = dctr # HRL: change dctr to delayed_contraction
+        self.delayed_contraction = dctr # HRL: change dctr to delayed_contraction  >> DONE
         self.idx = None # reorder
         self.ridx = None # inv reorder
 
@@ -408,7 +408,7 @@ class MYTDDMRG:
         dmrg.noise_type = NoiseTypes.ReducedPerturbative
         dmrg.decomp_type = DecompositionTypes.SVD
         # HRL: I am not sure why this ^^ is used.This here vv should be better. 
-        #   dmrg.decomp_type = DecompositionTypes.DensityMatrix
+        #   dmrg.decomp_type = DecompositionTypes.DensityMatrix     ; IMAM: SVD and DM, aren't they equivalent?
         #   dmrg.noise_type = NoiseTypes.ReducedPerturbativeCollected
 
         dmrg.iprint = max(self.verbose - 1, 0)
@@ -575,7 +575,7 @@ class MYTDDMRG:
             else:
                 from block2.sz import ParallelMPO
 
-        if addition: # HRL: remove
+        if addition: # HRL: remove  >> DONE
             mpo = -1.0 * self.mpo_orig
 #need?            mpo.const_e += self.gs_energy
         else:
@@ -755,7 +755,7 @@ class MYTDDMRG:
 
         if self.mpo_orig is None:
             mpo = MPOQC(self.hamil, QCTypes.Conventional)
-            # HRL: no AncillaMPO...
+            # HRL: no AncillaMPO...    >> DONE
             mpo = SimplifiedMPO(AncillaMPO(mpo), RuleQC(), True, True,
                                 OpNamesSet((OpNames.R, OpNames.RD)))
             self.mpo_orig = mpo
@@ -812,13 +812,13 @@ class MYTDDMRG:
 
 
         #==== Time evolution ====#
-        # HRL: generalize this and make it input vvv
+        # HRL: generalize this and make it input vvv   >> DONE
         method = TETypes.RK4
 ##        method = TETypes.TangentSpace
         te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
-        # HRL: vvv input with default 0
+        # HRL: vvv input with default 0   >> DONE
         te.cutoff = 0  # for tiny systems, this is important
-        # HRL: vvv input
+        # HRL: vvv input  >> DONE
         te.iprint = 6  # ft.verbose
         te.normalize_mps = False
 
@@ -877,7 +877,7 @@ class MYTDDMRG:
                         mkDir(sample_dir)
      
                         ##### Using saveMPStoDir #####
-                        if print_mps:# HRL: you don't print here 
+                        if print_mps:# HRL: you don't print here   >> DONE
                             saveMPStoDir(cmps, sample_dir, self.mpi)
                         #####
 
