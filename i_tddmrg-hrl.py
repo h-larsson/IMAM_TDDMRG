@@ -1,3 +1,4 @@
+# HRL: can you adjust the docstrings/comments to our case?
 
 #  block2: Efficient MPO implementation of quantum chemistry DMRG
 #  Copyright (C) 2020-2021 Huanchen Zhai <hczhai@caltech.edu>
@@ -31,21 +32,19 @@ from block2 import SU2, SZ, Global, OpNamesSet, Threading, ThreadingTypes
 from block2 import init_memory, release_memory, SiteIndex
 from block2 import VectorUInt8, PointGroup, FCIDUMP, QCTypes, SeqTypes, OpNames, Random
 from block2 import VectorUBond, VectorDouble, NoiseTypes, DecompositionTypes, EquationTypes
-from block2 import OrbitalOrdering, VectorUInt16
+from block2 import OrbitalOrdering, VectorUInt16, TETypes
 import time
-import numpy as np
-from pyscf import symm, tools
-
+import numpy as np # HRL: see h2o.py  better import that after all imports are done
 
 # Set spin-adapted or non-spin-adapted here
-SpinLabel = SU2
-#SpinLabel = SZ
+#SpinLabel = SU2
+SpinLabel = SZ
 
 if SpinLabel == SU2:
     from block2.su2 import HamiltonianQC, SimplifiedMPO, Rule, RuleQC, MPOQC
     from block2.su2 import MPSInfo, MPS, MovingEnvironment, DMRG, Linear, IdentityMPO
-    from block2.su2 import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect
-    from block2.su2 import VectorOpElement, LocalMPO
+    from block2.su2 import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect, ComplexExpect
+    from block2.su2 import VectorOpElement, LocalMPO, MultiMPS, TimeEvolution
     try:
         from block2.su2 import MPICommunicator
         hasMPI = True
@@ -54,14 +53,21 @@ if SpinLabel == SU2:
 else:
     from block2.sz import HamiltonianQC, SimplifiedMPO, Rule, RuleQC, MPOQC
     from block2.sz import MPSInfo, MPS, MovingEnvironment, DMRG, Linear, IdentityMPO
-    from block2.sz import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect
-    from block2.sz import VectorOpElement, LocalMPO
+    from block2.sz import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect, ComplexExpect
+    from block2.sz import VectorOpElement, LocalMPO, MultiMPS, TimeEvolution
     try:
         from block2.sz import MPICommunicator
         hasMPI = True
     except ImportError:
         hasMPI = False
 
+
+import tools; tools.init(SpinLabel)
+from tools import saveMPStoDir, mkDir
+
+
+
+        
 if hasMPI:
     MPI = MPICommunicator()
 else:
@@ -70,15 +76,22 @@ else:
     MPI = _MPI()
 
 
+
+
+
+
+    
+
 def _print(*args, **kwargs):
     if MPI.rank == 0:
         print(*args, **kwargs)
 
 
-class GFDMRGError(Exception):
+class MYTDDMRGError(Exception): # HRL: Where do you need this?
     pass
 
 
+# HRL: Mightbe good to just import this from the gfdmrg code rather than copying it here
 def orbital_reorder(h1e, g2e, method='gaopt'):
     """
     Find an optimal ordering of orbitals for DMRG.
@@ -137,7 +150,7 @@ def orbital_reorder(h1e, g2e, method='gaopt'):
     return midx
 
 
-class GFDMRG:
+class MYTDDMRG:
     """
     DDMRG++ for Green's Function for molecules.
     """
@@ -150,8 +163,11 @@ class GFDMRG:
         """
 
         Random.rand_seed(0)
+        # HRL: good to have isize as additional parameter. typically, 200MB is enough. 
+        #   isize is size of integer stack
         isize = min(int(memory * 0.1), 200000000)
         init_memory(isize=isize, dsize=int(memory - isize), save_dir=scratch)
+
         Global.threading = Threading(
             ThreadingTypes.OperatorBatchedGEMM | ThreadingTypes.Global, omp_threads, omp_threads, 1)
         Global.threading.seq_type = SeqTypes.Tasked
@@ -159,6 +175,22 @@ class GFDMRG:
         Global.frame.save_buffering = False
         Global.frame.use_main_stack = False
         Global.frame.minimal_disk_usage = True
+
+        # HRL: vv MPS_RESTART_DIR is useful for long DMRG runs as it saves the MPS after each sweep. Can you check whethere this is implemnented in tddmrg?
+        #   BLOCK2_MPS_DIR saves the MPS in a folder different from scratch. This is useful because in the end the MPS is all you need for restarting/checking your calculation
+        # HRL; util.mkDir  == tools.mkDir
+        """
+    if "BLOCK2_MPS_RESTART_DIR" in os.environ:
+        restart_dir = os.environ["BLOCK2_MPS_RESTART_DIR"]
+        _print("# SET MPS RESTART DIR TO ",restart_dir)
+        util.mkDir(restart_dir)
+        Global.frame.restart_dir = restart_dir
+    if "BLOCK2_MPS_DIR" in os.environ:
+        mps_dir = os.environ["BLOCK2_MPS_DIR"]
+        _print("# SET MPS DIR TO ",mps_dir)
+        util.mkDir(mps_dir)
+        Global.frame.mps_dir = mps_dir
+        """
         self.fcidump = None
         self.hamil = None
         self.verbose = verbose
@@ -166,7 +198,7 @@ class GFDMRG:
         self.mpo_orig = None
         self.print_statistics = print_statistics
         self.mpi = mpi
-        self.dctr = dctr
+        self.delayed_contraction = dctr # HRL: change dctr to delayed_contraction
         self.idx = None # reorder
         self.ridx = None # inv reorder
 
@@ -191,6 +223,10 @@ class GFDMRG:
             self.siterule = None
             self.identrule = None
 
+    # HRL:  add this here after fcidump set up:
+    #           _print("# fcidump symmetrize error:",fcidump.symmetrize(orb_sym))
+    #    reason: for  high symmetry, the integrals may be nonzero where they should be zero, due to numerical errors. this routine call sets them to zero. otherwise you get an error. But it is good to monoitor the error so print it
+
     def init_hamiltonian_fcidump(self, pg, filename, idx=None):
         """Read integrals from FCIDUMP file."""
         assert self.fcidump is None
@@ -210,7 +246,8 @@ class GFDMRG:
 
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
-        assert pg in ["d2h", "c1"]
+        assert pg in ["d2h", "c1"] # HRL generalize!  see usage of swap_pg in block2main and in CAS_example.py
+                                    #           PointGroup.swap_d2h needs to be generalized
 
     def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym,
                          e_core, h1e, g2e, tol=1E-13, idx=None,
@@ -272,7 +309,7 @@ class GFDMRG:
                 self.fcidump.write(save_fcidump)
             if self.mpi is not None:
                 self.mpi.barrier()
-        assert pg in ["d2h", "c1"]
+        assert pg in ["d2h", "c1"] # HRL generalize! See above
 
     @staticmethod
     def fmt_size(i, suffix='B'):
@@ -350,14 +387,14 @@ class GFDMRG:
             _, mem2, disk = mpo.estimate_storage(mps_info2, 2)
             _print("GS EST MAX MPS BOND DIMS = ", ''.join(
                 ["%6d" % x.n_states_total for x in mps_info2.left_dims]))
-            _print("GS EST PEAK MEM = ", GFDMRG.fmt_size(
-                mem2), " SCRATCH = ", GFDMRG.fmt_size(disk))
+            _print("GS EST PEAK MEM = ", MYTDDMRG.fmt_size(
+                mem2), " SCRATCH = ", MYTDDMRG.fmt_size(disk))
             mps_info2.deallocate_mutable()
             mps_info2.deallocate()
 
         # DMRG
         me = MovingEnvironment(mpo, mps, mps, "DMRG")
-        if self.dctr:
+        if self.delayed_contraction:
             me.delayed_contraction = OpNamesSet.normal_ops()
             me.cached_contraction = True
         tx = time.perf_counter()
@@ -366,8 +403,14 @@ class GFDMRG:
             _print('DMRG INIT time = ', time.perf_counter() - tx)
         dmrg = DMRG(me, VectorUBond(bond_dims), VectorDouble(noises))
         dmrg.davidson_soft_max_iter = 4000
+        # HRL: optional low_memory noise: I'd suggest to add this as input 
+        #        dmrg.noise_type = NoiseTypes.ReducedPerturbativeCollectedLowMem
         dmrg.noise_type = NoiseTypes.ReducedPerturbative
         dmrg.decomp_type = DecompositionTypes.SVD
+        # HRL: I am not sure why this ^^ is used.This here vv should be better. 
+        #   dmrg.decomp_type = DecompositionTypes.DensityMatrix
+        #   dmrg.noise_type = NoiseTypes.ReducedPerturbativeCollected
+
         dmrg.iprint = max(self.verbose - 1, 0)
         dmrg.cutoff = cutoff
         dmrg.solve(n_steps, mps.center == 0, conv_tol)
@@ -382,9 +425,9 @@ class GFDMRG:
         if self.print_statistics:
             dmain, dseco, imain, iseco = Global.frame.peak_used_memory
             _print("GS PEAK MEM USAGE:",
-                   "DMEM = ", GFDMRG.fmt_size(dmain + dseco),
+                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
                    "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
-                   "IMEM = ", GFDMRG.fmt_size(imain + iseco),
+                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
                    "(%.0f%%)" % (imain * 100 / (imain + iseco)))
 
         if self.verbose >= 1:
@@ -398,7 +441,11 @@ class GFDMRG:
     # return value:
     #     pdm[0, :, :] -> <AD_{i,alpha} A_{j,alpha}>
     #     pdm[1, :, :] -> < AD_{i,beta}  A_{j,beta}>
-    def get_one_pdm(self):
+    def get_one_pdm(self, iscomp, mps=None, inmps_name=None):
+        if mps is None and inmps_name is None:
+            raise ValueError("The 'mps' and 'inmps_name' parameters of "
+                             + "get_one_pdm cannot be both None.")
+        
         if self.verbose >= 2:
             _print('>>> START one-pdm <<<')
         t = time.perf_counter()
@@ -406,12 +453,13 @@ class GFDMRG:
         if self.mpi is not None:
             self.mpi.barrier()
 
-        mps_info = MPSInfo(0)
-        mps_info.load_data(self.scratch + "/GS_MPS_INFO") # HRL: set this to the tag used in line 605
-        mps = MPS(mps_info)
-        mps.load_data()
-
-        mps.info.load_mutable()
+        if mps is None:   # mps takes priority over inmps_name, the latter will only be used if the former is None.
+            mps_info = MPSInfo(0)
+            mps_info.load_data(self.scratch + "/" + inmps_name)
+            mps = MPS(mps_info)
+            mps.load_data()
+            mps.info.load_mutable()
+            
         max_bdim = max([x.n_states_total for x in mps.info.left_dims])
         if mps.info.bond_dim < max_bdim:
             mps.info.bond_dim = max_bdim
@@ -428,16 +476,22 @@ class GFDMRG:
         # 1PDM MPO
         pmpo = PDM1MPOQC(self.hamil)
         pmpo = SimplifiedMPO(pmpo, RuleQC())
-
         if self.mpi is not None:
             pmpo = ParallelMPO(pmpo, self.pdmrule)
 
         # 1PDM
         pme = MovingEnvironment(pmpo, mps, mps, "1PDM")
-        pme.init_environments(False)
-        expect = Expect(pme, mps.info.bond_dim, mps.info.bond_dim)
+        if iscomp:
+            pme.init_environments()
+            expect = ComplexExpect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
+        else:
+            pme.init_environments(False)
+            expect = Expect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
         expect.iprint = max(self.verbose - 1, 0)
-        expect.solve(True, mps.center == 0)
+        if iscomp:
+            expect.solve(False, mps.center == 0)
+        else:
+            expect.solve(True, mps.center == 0)
         if SpinLabel == SU2:
             dmr = expect.get_1pdm_spatial(self.n_sites)
             dm = np.array(dmr).copy()
@@ -452,7 +506,8 @@ class GFDMRG:
             dm[:, :] = dm[self.ridx, :][:, self.ridx]
 
         mps.save_data()
-        mps_info.deallocate()
+        if mps is None:
+            mps_info.deallocate()
         dmr.deallocate()
         pmpo.deallocate()
 
@@ -465,6 +520,7 @@ class GFDMRG:
         else:
             return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
 
+#   HRL do you need this here vvvv ? Maybe recycle it to allow for optional read-in ; see H2O.py
     def save_gs_mps(self, save_dir='./gs_mps'):
         import shutil
         import pickle
@@ -489,8 +545,11 @@ class GFDMRG:
             self.mpi.barrier()
         self.gs_energy = pickle.load(open(self.scratch + '/GS_ENERGY', 'rb'))
 
+
+    ##################################################################
     def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, idxs,
-                   addition, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None):
+                   addition, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
+                   outmps_name='ANN_KET'):
         """Green's function."""
 ##        ops = [None] * len(idxs)
 ##        rkets = [None] * len(idxs)
@@ -516,12 +575,12 @@ class GFDMRG:
             else:
                 from block2.sz import ParallelMPO
 
-        if addition:
+        if addition: # HRL: remove
             mpo = -1.0 * self.mpo_orig
-            mpo.const_e += self.gs_energy
+#need?            mpo.const_e += self.gs_energy
         else:
             mpo = 1.0 * self.mpo_orig
-            mpo.const_e -= self.gs_energy
+#need?            mpo.const_e -= self.gs_energy
 
         if self.mpi is not None:
             mpo = ParallelMPO(mpo, self.prule)
@@ -536,33 +595,40 @@ class GFDMRG:
             _, mem2, disk = mpo.estimate_storage(mps_info2, 2)
             _print("GF EST MAX MPS BOND DIMS = ", ''.join(
                 ["%6d" % x.n_states_total for x in mps_info2.left_dims]))
-            _print("GF EST PEAK MEM = ", GFDMRG.fmt_size(
-                mem2), " SCRATCH = ", GFDMRG.fmt_size(disk))
+            _print("GF EST PEAK MEM = ", MYTDDMRG.fmt_size(
+                mem2), " SCRATCH = ", MYTDDMRG.fmt_size(disk))
             mps_info2.deallocate_mutable()
             mps_info2.deallocate()
 
-        impo = SimplifiedMPO(IdentityMPO(self.hamil),
-                             NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
+#need?        impo = SimplifiedMPO(IdentityMPO(self.hamil),
+#need?                             NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
+#need?
+#need?        if self.mpi is not None:
+#need?            impo = ParallelMPO(impo, self.identrule)
 
-        if self.mpi is not None:
-            impo = ParallelMPO(impo, self.identrule)
+#need?        def align_mps_center(ket, ref):
+#need?            if self.mpi is not None:
+#need?                self.mpi.barrier()
+#need?            cf = ket.canonical_form
+#need?            if ref.center == 0:
+#need?                ket.center += 1
+#need?                ket.canonical_form = ket.canonical_form[:-1] + 'S'
+#need?                while ket.center != 0:
+#need?                    ket.move_left(mpo.tf.opf.cg, self.prule)
+#need?            else:
+#need?                ket.canonical_form = 'K' + ket.canonical_form[1:]
+#need?                while ket.center != ket.n_sites - 1:
+#need?                    ket.move_right(mpo.tf.opf.cg, self.prule)
+#need?                ket.center -= 1
+#need?            if self.verbose >= 2:
+#need?                _print('CF = %s --> %s' % (cf, ket.canonical_form))
 
-        def align_mps_center(ket, ref):
-            if self.mpi is not None:
-                self.mpi.barrier()
-            cf = ket.canonical_form
-            if ref.center == 0:
-                ket.center += 1
-                ket.canonical_form = ket.canonical_form[:-1] + 'S'
-                while ket.center != 0:
-                    ket.move_left(mpo.tf.opf.cg, self.prule)
-            else:
-                ket.canonical_form = 'K' + ket.canonical_form[1:]
-                while ket.center != ket.n_sites - 1:
-                    ket.move_right(mpo.tf.opf.cg, self.prule)
-                ket.center -= 1
-            if self.verbose >= 2:
-                _print('CF = %s --> %s' % (cf, ket.canonical_form))
+
+#NOTE: check if ridx is not none
+#NOTE: change dctr to delayed____ (DONE)
+
+
+# HRL: This is not yet generalized / adapted for our case; remember our discussion
 
         if mo_coeff is None:
             if self.ridx is not None:
@@ -577,7 +643,8 @@ class GFDMRG:
             _print('idxs = ', idxs, 'gidxs = ', gidxs)
 
 #        for ii, idx in enumerate(gidxs):
-        idx = idxs
+#        idx = idxs  (IT WAS THIS LINE WHICH WAS THE PROBLEM)
+        idx = self.ridx[idxs]
         if SpinLabel == SZ:
             if addition:
                 ops = OpElement(OpNames.C, SiteIndex(
@@ -602,7 +669,7 @@ class GFDMRG:
 
         rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
                             self.target + ops.q_label, self.hamil.basis)
-        rket_info.tag = 'DKET%d' % idx # HRL: It may be better to use another tag here, without idx. maybe sth like ANN_MPS or so
+        rket_info.tag = 'DKET%d' % idx
         rket_info.set_bond_dimension(mps.info.bond_dim)
         if occs is None:
             if self.verbose >= 2:
@@ -613,10 +680,18 @@ class GFDMRG:
                 _print("Using occupation number INIT MPS")
             rket_info.set_bond_dimension_using_occ(
                 mps.info.bond_dim, VectorDouble(occs), bias=bias)
+
+
+
+        #==== IMAM ====#
+        rket_info.save_data(self.scratch + "/" + outmps_name)
+
+
+        
         rkets = MPS(self.n_sites, mps.center, 2)
         rkets.initialize(rket_info)
         rkets.random_canonicalize()
-
+        
         rkets.save_mutable()
         rkets.deallocate()
         rket_info.save_mutable()
@@ -646,13 +721,14 @@ class GFDMRG:
             pme.init_environments(False)
         rme = MovingEnvironment(rmpos, rkets, mps, "RHS")
         rme.init_environments(False)
-        if self.dctr:
+        if self.delayed_contraction:
             if pme is not None:
                 pme.delayed_contraction = OpNamesSet.normal_ops()
             rme.delayed_contraction = OpNamesSet.normal_ops()
 
         cps = Linear(pme, rme, VectorUBond(cps_bond_dims),
-                     VectorUBond([mps.info.bond_dim]), VectorDouble(cps_noises))
+                     VectorUBond([mps.info.bond_dim+100]), VectorDouble(cps_noises))
+        # HRL: see DMRG regarding noise/decomp type
         cps.noise_type = NoiseTypes.ReducedPerturbative
         cps.decomp_type = DecompositionTypes.SVD
         if pme is not None:
@@ -664,119 +740,186 @@ class GFDMRG:
         if self.verbose >= 2:
             _print('>>> COMPLETE Compression Site = %4d | Time = %.2f <<<' %
                    (idx, time.perf_counter() - t))
+    ##################################################################
 
-##        gf_mat = np.zeros((len(idxs), len(idxs), len(freqs)), dtype=complex)
 
-##        for ii, idx in enumerate(idxs):
-##
-##            if rkets[ii].center != mps.center:
-##                align_mps_center(rkets[ii], mps)
-##            lme = MovingEnvironment(mpo, rkets[ii], rkets[ii], "LHS")
-##            lme.init_environments(False)
-##            rme = MovingEnvironment(rmpos[ii], rkets[ii], mps, "RHS")
-##            rme.init_environments(False)
-##            if self.dctr:
-##                lme.delayed_contraction = OpNamesSet.normal_ops()
-##                rme.delayed_contraction = OpNamesSet.normal_ops()
-##
-##            linear = Linear(lme, rme, VectorUBond(bond_dims),
-##                            VectorUBond(cps_bond_dims[-1:]), VectorDouble(noises))
-##            linear.gf_eta = eta
-##            linear.linear_conv_thrds = VectorDouble([gmres_tol] * n_steps)
-##            linear.noise_type = NoiseTypes.ReducedPerturbative
-##            linear.decomp_type = DecompositionTypes.SVD
-##            # TZ: Not raising error even if CG is not converged
-##            max_cg_iter = 20000
-##            linear.linear_soft_max_iter = max_cg_iter
-##            linear.linear_max_iter = max_cg_iter + 1000
-##            linear.eq_type = EquationTypes.GreensFunction
-##            linear.iprint = max(self.verbose - 1, 0)
-##            linear.cutoff = cutoff
-##
-##            for iw, w in enumerate(freqs):
-##
-##                if self.verbose >= 2:
-##                    _print('>>>   START  GF OMEGA = %10.5f Site = %4d %4d <<<' %
-##                           (w, idx, idx))
-##                t = time.perf_counter()
-##
-##                linear.tme = None
-##                linear.noises[0] = noises[0]
-##                linear.linear_soft_max_iter = max_cg_iter
-##                linear.noises = VectorDouble(noises)
-##                linear.bra_bond_dims = VectorUBond(bond_dims)
-##                linear.gf_omega = w
-##                linear.solve(n_steps, mps.center == 0, conv_tol)
-##                min_site = np.argmin(np.array(linear.sweep_targets)[:, 1])
-##                if mps.center == 0:
-##                    min_site = mps.n_sites - 2 - min_site
-##                _print("GF.IMAG MIN SITE = %4d" % min_site)
-##                rgf, igf = linear.targets[-1]
-##                gf_mat[ii, ii, iw] = rgf + 1j * igf
-##
-##                dmain, dseco, imain, iseco = Global.frame.peak_used_memory
-##
-##                if self.verbose >= 1:
-##                    _print("=== %3s GF (%4d%4d | OMEGA = %10.5f ) = RE %20.15f + IM %20.15f === T = %7.2f" %
-##                           ("ADD" if addition else "REM", idx, idx, w, rgf, igf, time.perf_counter() - t))
-##
-##                if self.verbose >= 2:
-##                    _print('>>> COMPLETE GF OMEGA = %10.5f Site = %4d %4d | Time = %.2f <<<' %
-##                           (w, idx, idx, time.perf_counter() - t))
-##
-##                if diag_only:
-##                    continue
-##
-##                for jj, idx2 in enumerate(idxs):
-##
-##                    if jj > ii and rkets[jj].info.target == rkets[ii].info.target:
-##
-##                        if rkets[jj].center != rkets[ii].center:
-##                            align_mps_center(rkets[jj], rkets[ii])
-##
-##                        if self.verbose >= 2:
-##                            _print('>>>   START  GF OMEGA = %10.5f Site = %4d %4d <<<' % (
-##                                w, idx2, idx))
-##                        t = time.perf_counter()
-##
-##                        tme = MovingEnvironment(
-##                            impo, rkets[jj], rkets[ii], "GF")
-##                        tme.init_environments(False)
-##                        if self.dctr:
-##                            tme.delayed_contraction = OpNamesSet.normal_ops()
-##                        linear.noises = VectorDouble(noises[-1:])
-##                        linear.bra_bond_dims = VectorUBond(bond_dims[-1:])
-##                        linear.target_bra_bond_dim = cps_bond_dims[-1]
-##                        linear.target_ket_bond_dim = cps_bond_dims[-1]
-##                        linear.tme = tme
-##                        if n_off_diag_cg == 0:
-##                            linear.solve(1, mps.center != 0, 0)
-##                            rgf, igf = linear.targets[-1]
-##                        else:
-##                            linear.linear_soft_max_iter = n_off_diag_cg if n_off_diag_cg != -1 else max_cg_iter
-##                            linear.solve(1, mps.center == 0, 0)
-##                            if mps.center == 0:
-##                                rgf, igf = np.array(linear.sweep_targets)[::-1][min_site]
-##                            else:
-##                                rgf, igf = np.array(linear.sweep_targets)[min_site]
-##                        gf_mat[jj, ii, iw] = rgf + 1j * igf
-##                        gf_mat[ii, jj, iw] = rgf + 1j * igf
-##
-##                        if self.verbose >= 1:
-##                            _print("=== %3s GF (%4d%4d | OMEGA = %10.5f ) = RE %20.15f + IM %20.15f === T = %7.2f" %
-##                                   ("ADD" if addition else "REM", idx2, idx, w, rgf, igf, time.perf_counter() - t))
-##
-##                        if self.verbose >= 2:
-##                            _print('>>> COMPLETE GF OMEGA = %10.5f Site = %4d %4d | Time = %.2f <<<' %
-##                                   (w, idx2, idx, time.perf_counter() - t))
-        mps.save_data()
-        mps_info.deallocate()
+    ##################################################################
+    def time_propagate(self, inmps_name, bond_dim: int, tmax: float, dt: float, n_sub_sweeps=2,
+                       n_sub_sweeps_init=4, exp_tol=1e-6, t_sample=None, print_mps=False,
+                       print_1pdm=False, print_2pdm=False):
+        # HRL: document input
+
+        #==== Prepare Hamiltonian MPO ====#
+        if self.mpi is not None:
+            self.mpi.barrier()
+
+        if self.mpo_orig is None:
+            mpo = MPOQC(self.hamil, QCTypes.Conventional)
+            # HRL: no AncillaMPO...
+            mpo = SimplifiedMPO(AncillaMPO(mpo), RuleQC(), True, True,
+                                OpNamesSet((OpNames.R, OpNames.RD)))
+            self.mpo_orig = mpo
+            
+        if self.mpi is not None:
+            if SpinLabel == SU2:
+                from block2.su2 import ParallelMPO
+            else:
+                from block2.sz import ParallelMPO
+        mpo = 1.0 * self.mpo_orig
+
+        #mpo.const_e = 0 # hrl: sometimes const_e causes trouble for AncillaMPO
+#need?        mpo = IdentityAddedMPO(mpo) # hrl: alternative
+
+        if self.mpi is not None:
+            mpo = ParallelMPO(mpo, self.prule)
+
+
+        #==== Load the initial MPS ====#
+        mps_info = MPSInfo(0)
+        mps_info.load_data(self.scratch + "/" + inmps_name)
+        mps = MPS(mps_info)
+        mps.load_data()
+        mps.info.load_mutable()
+        cmps = MultiMPS.make_complex(mps, "mps_t")
+        cmps_t0 = MultiMPS.make_complex(mps, "mps_t0")
+        if mps.dot != 1: # change to 2dot      #NOTE: Is it for converting to two-site DMRG?
+            cmps.load_data()
+            cmps_t0.load_data()
+            cmps.canonical_form = 'M' + cmps.canonical_form[1:]
+            cmps_t0.canonical_form = 'M' + cmps_t0.canonical_form[1:]
+            cmps.dot = 2
+            cmps_t0.dot = 2
+            cmps.save_data()
+            cmps_t0.save_data()
+
+
+        #==== Initial setups for autocorrelation ====#
+        idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
+        if self.mpi is not None:
+            idMPO = ParallelMPO(idMPO, self.identrule)
+        idME = MovingEnvironment(idMPO, cmps_t0, cmps, "acorr")
+##        idME.init_environments()
+##        acorr = ComplexExpect(idME, bond_dim, bond_dim)
+
+        
+        #==== Initial setups for time evolution ====#
+        me = MovingEnvironment(mpo, cmps, cmps, "TE")
+        self.delayed_contraction = True
+        if self.delayed_contraction:
+            me.delayed_contraction = OpNamesSet.normal_ops()
+        me.cached_contraction = True
+        me.init_environments()
+
+
+        #==== Time evolution ====#
+        # HRL: generalize this and make it input vvv
+        method = TETypes.RK4
+##        method = TETypes.TangentSpace
+        te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
+        # HRL: vvv input with default 0
+        te.cutoff = 0  # for tiny systems, this is important
+        # HRL: vvv input
+        te.iprint = 6  # ft.verbose
+        te.normalize_mps = False
+
+        n_steps = int(tmax/dt + 1)
+        ts = np.linspace(0, tmax, n_steps) # times
+        issampled = [False] * len(t_sample)
+        i_sp = 0
+        for it, tt in enumerate(ts):
+
+            if self.verbose >= 2:
+                _print('\n')
+                _print(' Step : ', it)
+                _print('>>> TD-PROPAGATION TIME = %10.5f <<<' %tt)
+            t = time.perf_counter()
+
+            if it != 0: # time zero: no propagation
+                if method == TETypes.RK4:
+                    te.solve(1, +1j * dt, cmps.center == 0, tol=exp_tol)
+                elif method == TETypes.TangentSpace:
+                    te.solve(2, +1j * dt / 2, cmps.center == 0, tol=exp_tol)
+                te.n_sub_sweeps = n_sub_sweeps
+
+                #==== Autocorrelation ====#
+                # HRL: If normalize_mps==False, you need to take the decaying norm into account for all observables
+                #       simplest way is to use ComplexExpect 
+
+                idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
+                # HRL ^^^ is needed whenever MPS is changed. This does the first contraction with the MPS
+                acorr = ComplexExpect(idME, bond_dim, bond_dim)
+                acorr_t = acorr.solve(False) * -1j
+                _print('acorr_t, abs = ', acorr_t, abs(acorr_t))
+                # HRL: as discussed, add double time trick
+
+                # HRL: I think one-PDM should not be too expensive. I would do it at every time step
+                #       also, you need to get this for t=0
+
+                #==== Stores MPS and/or PDM's at sampling times ====#
+                if t_sample is not None and np.prod(issampled)==0:
+                    # HRL: vv what do you do here?
+                    #           Looks very complicated.
+                    #           If you just want to decide when to sample,
+                    #               samplePoints = set(range(0,len(ts), t_sample))
+                    #               and then "if it in samplePoints"...
+                    #       btw, "t_sample" means number of samples? Why not call it then "n_sample"?
+                    #            t_sample sounds to me like an array of sampling times
+                    if it < n_steps-1:
+                        dt1 = abs( ts[it]   - t_sample[i_sp] )
+                        dt2 = abs( ts[it+1] - t_sample[i_sp] )
+                        dd = dt1 < dt2
+                    else:
+                        dd = True
+                    _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
+                    if dd and not issampled[i_sp]:
+                        # HRL: self.scratch is typically deletedafter the run. better save it somewhere else. see also above re. BLOCK2_MPS_DIR
+                        sample_dir = self.scratch + '/mps_sp-' + str(i_sp)
+                        mkDir(sample_dir)
+     
+                        ##### Using saveMPStoDir #####
+                        if print_mps:# HRL: you don't print here 
+                            saveMPStoDir(cmps, sample_dir, self.mpi)
+                        #####
+
+                    
+                    ##### Using deep_copy and save_data's #####
+#                    if MPI is not None: MPI.barrier()
+#                    mps_sp = cmps.deep_copy('mps_sp.'+str(i_sp))
+#                    if MPI is not None: MPI.barrier()                    
+#they cause segfault and other error                    mps_sp.save_data()
+#they cause segfault and other error                    mps_sp.save_mutable()
+#they cause segfault and other error                    mps_sp.deallocate()
+#they cause segfault and other error                    mps_sp.info.save_mutable()
+#they cause segfault and other error                    mps_sp.info.deallocate_mutable()
+#                    mps_sp.info.save_data(self.scratch + '/mps_sp_info.' + str(i_sp))
+#                    mps_sp.info.deallocate()
+                    #####
+
+                        if print_1pdm:
+                            dm = self.get_one_pdm(True, cmps)
+                            np.save(sample_dir+'/1pdm', dm)
+                            _print('DM a = ', dm[0,:,:]) # HRL I would not do that.  or only for tiny systems
+                        
+                        issampled[i_sp] = True
+                        i_sp += 1
+
+
+
+
+
+
+
+
+                        
+#need?        mps.save_data()
+#need?        mps_info.deallocate()
+
 
 ##        if self.print_statistics:
 ##            _print("GF PEAK MEM USAGE:",
-##                   "DMEM = ", GFDMRG.fmt_size(dmain + dseco),
+##                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
 ##                   "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
-##                   "IMEM = ", GFDMRG.fmt_size(imain + iseco),
+##                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
 ##                   "(%.0f%%)" % (imain * 100 / (imain + iseco)))
 
 ##        return gf_mat
@@ -790,263 +933,17 @@ class GFDMRG:
             self.mpo_orig.deallocate()
         release_memory()
 
+##############################################################
 
-##def dmrg_mo_gf(mf, freqs, delta, ao_orbs=None, mo_orbs=None, gmres_tol=1E-7, add_rem='+-',
-##               n_threads=8, memory=1E9, verbose=1, ignore_ecore=True,
-##               gs_bond_dims=[500], gs_noises=[1E-5, 1E-5, 1E-6, 1E-7, 0], gs_tol=1E-10, gs_n_steps=30,
-##               cps_bond_dims=[500], cps_noises=[0], cps_tol=1E-10, cps_n_steps=30,
-##               gf_bond_dims=[750], gf_noises=[1E-5, 0], gf_tol=1E-8, gf_n_steps=20, scratch='./tmp',
-##               mo_basis=True, load_dir=None, save_dir=None, pdm_return=True, reorder_method=None,
-##               lowdin=False, diag_only=False, alpha=True, occs=None, bias=1.0, cutoff=1E-14,
-##               n_off_diag_cg=-1, mpi=None):
-##    '''
-##    Calculate the DMRG GF matrix in the MO basis.
-##
-##    Args:
-##        mf : scf object
-##        freqs : np.ndarray of frequencies (real)
-##        delta : broadening (real)
-##        ao_orbs : list of indices of atomic orbtials (if not None, gf will be in ao basis)
-##        mo_orbs : list of indices of molecular orbtials (if not None, gf will be in mo basis)
-##            one of ao_orbs or mo_orbs must be None
-##            if both ao_orbs and mo_orbs are None, gf will be in mo basis
-##        gmres_tol : conjugate gradient (min res) conv tol (if too low will be extemely time-consuming)
-##        add_rem : '+' (addition) or '-' (removal) or '+-' (both)
-##        n_threads : number of threads (need parallel MKL library)
-##        memory : stack memory in bytes (default is 1 GB)
-##        verbose : 0 (quiet) 1 (per omega) 2 (per sweep) 3 (per orbital) 4 (per cg iteration)
-##        ignore_ecore : if True, set ecore to zero (should not affect GF)
-##        gs_bond_dims : np.ndarray of integers. Ground-State DMRG MPS bond dims for each sweep
-##        gs_noises : np.ndarray of float64. Ground-State DMRG noises for each sweep
-##        gs_tol : float64. Ground-State DMRG energy convergence.
-##        gs_n_steps : int. Ground-State DMRG max number of sweeps.
-##        cps_bond_dims : np.ndarray of integers. Compression MPS bond dims for each sweep
-##        cps_noises : np.ndarray of float64. Compression noises for each sweep
-##        cps_tol : float64. Compression energy convergence.
-##        cps_n_steps : int. Compression max number of sweeps.
-##        gf_bond_dims : np.ndarray of integers. Green's function MPS bond dims for each sweep
-##        gf_noises : np.ndarray of float64. Green's function noises for each sweep
-##        gf_tol : float64. Green's function Im GF (i, i) convergence.
-##        gf_n_steps : int. Green's function max number of sweeps.
-##        scratch : scratch folder for temporary files.
-##        lowdin : if True, will use lowdin orbitals instead of molecular orbitals
-##        diag_only : if True, only calculate diagonal GF elements.
-##        alpha : bool. alpha spin or beta spin (not used if SU2)
-##        occs : list(double) or None
-##            if occs = None, use FCI init MPS (default)
-##            if occs = list(double), use occ init MPS
-##            either
-##                (A) len(occs) == n_sites (RHF or UHF, 0 <= occ <= 2)
-##             or (B) len(occs) == n_sites * 2 (UHF, 0 <= occ <= 1)
-##                    order: 0a, 0b, 1a, 1b, ...
-##        bias : float64, effective when occs is not None
-##            bias = 0.0: HF occ (e.g. occs => 2 2 2 ... 0 0 0)
-##            bias = 1.0: no bias (e.g. occs => 1.7 1.8 ... 0.1 0.05)
-##            bias = +inf: fully random (e.g. occs => 1 1 1 ... 1 1 1)
-##
-##            increase bias if you want an init MPS with larger bond dim
-##
-##            0 <= occ <= 2
-##            biased occ = 1 + (occ - 1) ** bias    (if occ > 1)
-##                        = 1 - (1 - occ) ** bias    (if occ < 1)
-##        cutoff : float64, lowest kept density matrix eigen value (default 1E-14)
-##            use smaller cutoff (e.g. 1E-20) when you need super accurate ground state energy
-##            noise smaller than cutoff will have no effect.
-##        load_dir : if not None, skip ground-state calculation and load previous results
-##        save_dir : if not None, save results to a separate dir after ground-state calculation
-##            Note: one of load_dir and save_dir must be None
-##        mpi : if not None, MPI is used
-##        mo_basis: if False, will use Hamiltonian in AO basis
-##        pdm_return: if False, not return 1-pdm 
-##        reorder_method: None or 'fielder' or 'gaopt'
-##        n_off_diag_cg: limit number of cg for off-diagonal GF matrix elements
-##            if zero, no sweep is performed for off-diagonal GF matrix elements
-##
-##    Returns:
-##        gfmat : np.ndarray of dims (len(mo_orbs), len(mo_orbs), len(freqs)) (complex)
-##            GF matrix in the MO basis (for selected mo_orbs).
-##    '''
-##    from pyscf import lib, lo, symm, ao2mo
-##    assert load_dir is None or save_dir is None
-##    assert ao_orbs is None or mo_orbs is None
-##
-##    if mpi is not None:
-##        mpi = MPI
-##
-##    mol = mf.mol
-##
-##    pg = mol.symmetry.lower()
-##    if pg == 'd2h':
-##        fcidump_sym = ["Ag", "B3u", "B2u", "B1g", "B1u", "B2g", "B3g", "Au"]
-##    elif pg == 'c1':
-##        fcidump_sym = ["A"]
-##    else:
-##        raise GFDMRGError("Point group %d not supported yet!" % pg)
-##
-##    if lowdin:
-##        mo_coeff = lo.orth.lowdin(mol.intor('cint1e_ovlp_sph'))
-##    else:
-##        mo_coeff = mf.mo_coeff
-##
-##    is_uhf = isinstance(mo_coeff, tuple) or mo_coeff.ndim == 3
-##
-##    if not is_uhf:
-##
-##        if mo_basis:
-##            n_mo = mo_coeff.shape[1]
-##
-##            # orb_sym_str = symm.label_orb_symm(
-##            #    mol, mol.irrep_name, mol.symm_orb, mo_coeff)
-##            #orb_sym = np.array([fcidump_sym.index(i) + 1 for i in orb_sym_str])
-##            orb_sym = [1] * n_mo
-##
-##            h1e = mo_coeff.T @ mf.get_hcore() @ mo_coeff
-##            g2e = ao2mo.restore(8, ao2mo.kernel(mf._eri, mo_coeff), n_mo)
-##            ecore = mol.energy_nuc()
-##            if ignore_ecore:
-##                ecore = 0
-##            na = nb = mol.nelectron // 2
-##        else:
-##            n_mo = mo_coeff.shape[1]
-##
-##            # orb_sym_str = symm.label_orb_symm(
-##            #    mol, mol.irrep_name, mol.symm_orb, np.eye(n_mo))
-##            #orb_sym = np.array([fcidump_sym.index(i) + 1 for i in orb_sym_str])
-##            orb_sym = [1] * n_mo
-##
-##            h1e = mf.get_hcore()
-##            g2e = mf._eri
-##            ecore = mol.energy_nuc()
-##            if ignore_ecore:
-##                ecore = 0
-##            na = nb = mol.nelectron // 2
-##
-##    else:
-##
-##        if mo_basis:
-##            mo_coeff_a, mo_coeff_b = mo_coeff[0], mo_coeff[1]
-##            n_mo = mo_coeff_b.shape[1]
-##
-##            # orb_sym_str_a = symm.label_orb_symm(
-##            #    mol, mol.irrep_name, mol.symm_orb, mo_coeff_a)
-##            #orb_sym_a = np.array([fcidump_sym.index(i) + 1 for i in orb_sym_str_a])
-##
-##            #orb_sym = orb_sym_a
-##            orb_sym = [1] * n_mo
-##
-##            h1ea = mo_coeff_a.T @ mf.get_hcore() @ mo_coeff_a
-##            h1eb = mo_coeff_b.T @ mf.get_hcore() @ mo_coeff_b
-##            g2eaa = ao2mo.restore(8, ao2mo.kernel(mf._eri, mo_coeff_a), n_mo)
-##            g2ebb = ao2mo.restore(8, ao2mo.kernel(mf._eri, mo_coeff_b), n_mo)
-##            g2eab = ao2mo.kernel(
-##                mf._eri, [mo_coeff_a, mo_coeff_a, mo_coeff_b, mo_coeff_b])
-##            h1e = (h1ea, h1eb)
-##            g2e = (g2eaa, g2ebb, g2eab)
-##            ecore = mol.energy_nuc()
-##            if ignore_ecore:
-##                ecore = 0
-##            na, nb = mol.nelectron
-##
-##        else:
-##            mo_coeff_a, mo_coeff_b = mo_coeff[0], mo_coeff[1]
-##            n_mo = mo_coeff_b.shape[1]
-##
-##            # orb_sym_str_a = symm.label_orb_symm(
-##            #    mol, mol.irrep_name, mol.symm_orb, mo_coeff_a)
-##            #orb_sym_a = np.array([fcidump_sym.index(i) + 1 for i in orb_sym_str_a])
-##
-##            #orb_sym = orb_sym_a
-##            orb_sym = [1] * n_mo
-##
-##            h1ea = mf.get_hcore()
-##            h1eb = h1ea.copy()
-##            g2eaa = mf._eri
-##            g2ebb = g2eaa.copy()
-##            g2eab = lib.unpack_tril(g2eaa)
-##
-##            h1e = (h1ea, h1eb)
-##            g2e = (g2eaa, g2ebb, g2eab)
-##            ecore = mol.energy_nuc()
-##            if ignore_ecore:
-##                ecore = 0
-##            na, nb = mol.nelectron
-##
-##
-##    dmrg = GFDMRG(scratch=scratch, memory=memory,
-##                  verbose=verbose, omp_threads=n_threads, mpi=mpi)
-##
-##    if load_dir is None:
-##
-##        re_idx = orbital_reorder(h1e, g2e, method=reorder_method)
-##        if mpi is not None:
-##            from mpi4py import MPI as MPIPY
-##            comm = MPIPY.COMM_WORLD
-##            re_idx = comm.bcast(re_idx, root=0)
-##
-##        save_fd = save_dir + "/GS_FCIDUMP" if save_dir is not None else None
-##        dmrg.init_hamiltonian(pg, n_sites=n_mo, n_elec=na + nb, twos=na - nb, isym=1,
-##                              orb_sym=orb_sym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
-##                              save_fcidump=save_fd)
-##        dmrg.dmrg(bond_dims=gs_bond_dims, noises=gs_noises,
-##                  n_steps=gs_n_steps, conv_tol=gs_tol, occs=occs, bias=bias, cutoff=cutoff)
-##        if save_dir is not None:
-##            _print('saving ground state ...')
-##            dmrg.save_gs_mps(save_dir)
-##            if mpi.rank == 0:
-##                np.save(save_dir + "/reorder.npy", re_idx)
-##    else:
-##        dmrg.init_hamiltonian_fcidump(pg, load_dir + "/GS_FCIDUMP")
-##        re_idx = np.load(load_dir + "/reorder.npy")
-##        dmrg.idx = re_idx
-##        dmrg.ridx = np.argsort(re_idx)
-##        _print('loading ground state ...')
-##        dmrg.load_gs_mps(load_dir)
-##
-##    _print('reorder method = %r reorder = %r' % (reorder_method, re_idx))
-##
-##    if mo_orbs is None and ao_orbs is None:
-##        mo_orbs = range(n_mo)
-##        mo_orbs = np.argsort(re_idx)[np.array(mo_orbs)]
-##
-##    pdm = dmrg.get_one_pdm()
-##    idxs = mo_orbs if ao_orbs is None else ao_orbs
-##    if not is_uhf:
-##        gf = np.zeros((len(idxs), len(idxs), len(freqs)), dtype=complex)
-##    else:
-##        gf_beta = np.zeros((len(idxs), len(idxs), len(freqs)), dtype=complex)
-##    for iw in range(len(delta)):
-##        gf_tmp = 0
-##        for addit in [x == '+' for x in add_rem]:
-##            # only calculate alpha spin
-##            gf_tmp += dmrg.greens_function(gf_bond_dims, gf_noises, gmres_tol, gf_tol, gf_n_steps,
-##                                           cps_bond_dims, cps_noises, cps_tol, cps_n_steps,
-##                                           idxs=mo_orbs if ao_orbs is None else ao_orbs,
-##                                           mo_coeff=None if ao_orbs is None or not mo_basis else (mo_coeff[0] if is_uhf else mo_coeff),
-##                                           eta=delta[iw], freqs=np.array([freqs[iw]]), addition=addit, diag_only=diag_only,
-##                                           alpha=alpha, n_off_diag_cg=n_off_diag_cg)
-##        gf[:, :, iw] = gf_tmp[:, :, 0]
-##
-##        if is_uhf:
-##            gf_beta_tmp = 0
-##            for addit in [x == '+' for x in add_rem]:
-##                # calculate beta spin
-##                gf_beta_tmp += dmrg.greens_function(gf_bond_dims, gf_noises, gmres_tol, gf_tol, gf_n_steps,
-##                                                    cps_bond_dims, cps_noises, cps_tol, cps_n_steps,
-##                                                    idxs=mo_orbs if ao_orbs is None else ao_orbs,
-##                                                    mo_coeff=None if ao_orbs is None or not mo_basis else (mo_coeff[1] if is_uhf else mo_coeff),
-##                                                    eta=delta[iw], freqs=np.array([freqs[iw]]), addition=addit, diag_only=diag_only,
-##                                                    alpha=False, n_off_diag_cg=n_off_diag_cg)
-##            gf_beta[:, :, iw] = gf_beta_tmp[:, :, 0]
-##
-##    if is_uhf:
-##        gf = np.asarray((gf, gf_beta))
-##
-##    del dmrg
-##
-##    if pdm_return:
-##        return pdm, gf
-##    else:
-##        return gf
+
+
+
+
+# A section from gfdmrg.py about the definition of the dmrg_mo_gf function has been
+# removed.
+
+
+# A section from gfdmrg.py has been removed.
 
 
 
@@ -1054,224 +951,7 @@ class GFDMRG:
 
 
 
-##if __name__ == "__main__":
-##
-##    # parameters
-##    n_threads = 14
-##    hf_type = "RHF"  # RHF or UHF
-##    mpg = 'c1'  # point group: d2h or c1
-##    scratch = './tmp'
-##    save_dir = './gs_mps'
-##    load_dir = None
-##    lowdin = False
-##    do_ccsd = True
-##
-##    import os
-##    if MPI.rank == 0:
-##        if not os.path.isdir(scratch):
-##            os.mkdir(scratch)
-##        if save_dir is not None:
-##            if not os.path.isdir(save_dir):
-##                os.mkdir(save_dir)
-##    MPI.barrier()
-##    os.environ['TMPDIR'] = scratch
-##
-##    from pyscf import gto, scf
-##
-##    # H chain
-##    N = 4
-##    BOHR = 0.52917721092  # Angstroms
-##    R = 1.8 * BOHR
-##    mol = gto.M(atom=[['H', (0, 0, i * R)] for i in range(N)],
-##                basis='sto6g', verbose=0, symmetry=mpg)
-##    pg = mol.symmetry.lower()
-##
-##    if hf_type == "RHF":
-##        mf = scf.RHF(mol)
-##        ener = mf.kernel()
-##    elif hf_type == "UHF":
-##        assert SpinLabel == SZ
-##        mf = scf.UHF(mol)
-##        ener = mf.kernel()
-##
-##    _print("SCF Energy = %20.15f" % ener)
-##    _print(("NON-" if SpinLabel == SZ else "") + "SPIN-ADAPTED")
-##
-##    if do_ccsd:
-##        from pyscf import cc
-##        mcc = cc.CCSD(mf)
-##        mcc.kernel()
-##        dmmo = mcc.make_rdm1()
-##        if hf_type == "RHF":
-##            # RHF: 0 <= occ <= 2, len = n_mo
-##            occs = np.diag(dmmo)
-##        else:
-##            # UHF: 0 <= occ <= 1, order: 0a, 0b, 1a, 1b, ..., len = n_mo * 2
-##            occs = np.array(
-##                [i for j in zip(np.diag(dmmo[0]), np.diag(dmmo[1])) for i in j])
-##        _print('OCCS = ', occs)
-##    else:
-##        occs = None
-##
-##    if MPI is not None:
-##        from mpi4py import MPI as MPIPY
-##        comm = MPIPY.COMM_WORLD
-##        occs = comm.bcast(occs, root=0)
-##        ener = comm.bcast(ener, root=0)
-##        mf.mo_coeff = comm.bcast(mf.mo_coeff, root=0)
-##
-##    if lowdin:
-##
-##        eta = 0.005
-##        freqs = np.arange(-0.8, -0.2, 0.01)
-##        mo_orbs = [4]
-##        t = time.perf_counter()
-##        pdm, gfmat = dmrg_mo_gf(mf, freqs=freqs, delta=eta, mo_orbs=mo_orbs, scratch=scratch, add_rem='-',
-##                                gf_bond_dims=[150], gf_noises=[1E-3, 5E-4], gf_tol=1E-4,
-##                                gmres_tol=1E-8, lowdin=True, ignore_ecore=False, n_threads=n_threads, mpi=True)
-##
-##        _print(gfmat)  # alpha only
-##
-##        # alpha + beta
-##        pdos = (-2 / np.pi) * gfmat.imag.trace(axis1=0, axis2=1)
-##        _print("PDOS = ", pdos)
-##        _print("TIME = ", time.perf_counter() - t)
-##
-##        import matplotlib.pyplot as plt
-##
-##        plt.plot(freqs, pdos, 'o-', markersize=2)
-##        plt.xlabel('Frequency $\\omega$ (a.u.)')
-##        plt.ylabel('LDOS (a.u.)')
-##        plt.savefig('gf-figure.png', dpi=600)
-##
-##    else:
-##
-##        eta = [0.005]
-##        freqs = [-0.2]
-##        t = time.perf_counter()
-##        pdm, gfmat = dmrg_mo_gf(mf, freqs=freqs, delta=eta, mo_orbs=None, scratch=scratch, add_rem='+-',
-##                                gs_bond_dims=[500], gs_noises=[1E-7, 1E-8, 1E-10, 0], gs_tol=1E-14, gs_n_steps=30,
-##                                cps_bond_dims=[500], cps_noises=[0], cps_tol=1E-14, cps_n_steps=30,
-##                                gf_bond_dims=[500], gf_noises=[1E-7, 1E-8, 1E-10, 0], gf_tol=1E-8,
-##                                gmres_tol=1E-20, lowdin=False, ignore_ecore=False, alpha=False, verbose=3,
-##                                n_threads=n_threads, occs=None, bias=1.0, save_dir=save_dir, load_dir=load_dir,
-##                                n_off_diag_cg=-1,mpi=True)
-##        xgfmat = np.einsum('ip,pqr,jq->ijr', mf.mo_coeff, gfmat, mf.mo_coeff)
-##        _print("MO to AO method = ", xgfmat)
-##
-##        pdm, gfmat = dmrg_mo_gf(mf, freqs=freqs, delta=eta, mo_orbs=None, scratch=scratch, add_rem='+-',
-##                                gs_bond_dims=[500], gs_noises=[1E-7, 1E-8, 1E-10, 0], gs_tol=1E-14, gs_n_steps=30,
-##                                cps_bond_dims=[500], cps_noises=[0], cps_tol=1E-14, cps_n_steps=30,
-##                                gf_bond_dims=[500], gf_noises=[1E-7, 1E-8, 1E-10, 0], gf_tol=1E-8,
-##                                gmres_tol=1E-20, lowdin=False, ignore_ecore=False, alpha=False, verbose=3,
-##                                ao_orbs=range(N),
-##                                n_threads=n_threads, occs=None, bias=1.0, save_dir=save_dir, load_dir=load_dir,mpi=True)
-##        _print("AO IN MO method = ", gfmat)
-##
-##        _print('diff = ', gfmat - xgfmat)
-##        _print(np.linalg.norm(gfmat - xgfmat))
-
-
-
-
-scratch = './tmp'
-import os
-if not os.path.isdir(scratch):
-    os.mkdir(scratch)
-
-
-from pyscf import gto, scf, ao2mo
-#==== Run HF on the neutral H2O to obtain the orbitals ====#
-mol = gto.M(atom= 
-            '''
-            O   0.000   0.000   0.120;
-            H   0.000   0.750  -0.482;
-            H   0.000  -0.750  -0.482;
-            ''',
-            basis='sto3g', symmetry='c1')
-print('Hartree-Fock calculation of the neutral:')
-mf = scf.RHF(mol)
-mf.kernel()
-
-print('eri shape, size = ', mf._eri.shape, mf._eri.size)
-    
-
-
-pg = mol.symmetry.lower()
-print('pg = ', pg)
-print('nelec = ', mol.nelectron)
-na = nb = mf.mol.nelectron // 2
-print('nbasis = ', mol.nao_nr())
-print('mo coeff shape = ', mf.mo_coeff.shape)
-n_mo = mf.mo_coeff.shape[1]
-orb_sym = [1] * n_mo
-
-# HRL
-mo_coeff = mf.mo_coeff
-orbSym = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_coeff)
-print("# orbSym=",orbSym)
-print("# orbSym=",[symm.irrep_id2name(mol.groupname,s) for s in orbSym])
-wfnSym = 0 # HRL I think this is your isym
-print("# wfnSym=",wfnSym, symm.irrep_id2name(mol.groupname,wfnSym),flush=True)
-molpro_orbsym = [tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in orbSym]
-
-
-
-#h1e = mol.ao2mo(mf.mo_coeff, intor='int1e_kin') + mol.ao2mo(mf.mo_coeff, intor='int1e_nuc')
-#print('h1e shape = ', h1e.shape)
-
-
-
-h1e = mf.mo_coeff.T @ mf.get_hcore() @ mf.mo_coeff
-print(h1e)
-
-
-if isinstance(h1e, tuple):
-    print('h1e is tuple')
-else:
-    print('h1e is NOT tuple')
-
-#g2e = mol.ao2mo(mf.mo_coeff, intor='int2e')     # BAD because one cannot specify the symmetry of the resulting integral,
-                                                 # on the other hand, the orbital_reorder function requires no symmetry if
-                                                 # the integrals are not tuple, which is true here (they are tuple for UHF).
-
-g2e_method = 2
-if (g2e_method == 1):
-    g2e_ = mol.intor('int2e')
-    g2e = ao2mo.kernel(g2e_, mf.mo_coeff, aosym='s1')
-elif (g2e_method == 2):
-    g2e = ao2mo.kernel(mol, mf.mo_coeff, aosym='s1')
-
-ecore = mol.energy_nuc()
-
-re_idx = orbital_reorder(h1e, g2e)
-print('re_idx = ', re_idx)
-kk = range(n_mo)
-print('nparray = ', np.array(kk))
-kk = np.argsort(re_idx)[np.array(kk)]
-print('kk = ', kk)
-
-obj = GFDMRG(scratch=scratch, mpi=None)
-obj.init_hamiltonian(pg, n_sites=n_mo, n_elec=na + nb, twos=na - nb, isym=1, orb_sym=orb_sym, e_core=ecore, 
-                     h1e=h1e, g2e=g2e, idx=re_idx, save_fcidump=None)
-
-#==== Run the DMRG iterations ====#
-D_gs = [500]
-obj.dmrg(bond_dims=D_gs, noises=[1E-3, 5E-4], n_steps=30, occs=None, bias=1.0)
-
-D_a = D_gs
-D_cp = D_gs
-ann_sp = True
-ann_id = 2
-obj.annihilate(D_a, cps_bond_dims=D_cp, cps_noises=[0], cps_conv_tol=1E-14, cps_n_steps=30, idxs=ann_id,
-               addition=False, alpha=ann_sp)
-obj.save_gs_mps()
-
-
-#==== Check 1RDM's ====#
-obj.load_gs_mps()
-print('scratch : ', obj.scratch)
-dm = obj.get_one_pdm()
-print('pdm shape = ', dm.shape)
-print('trace alpha = ', np.trace(dm[0,:,:]))
-print('trace beta = ', np.trace(dm[1,:,:]))
+#In ft_tddmrg.py, what does MYTDDMRG.fmt_size mean? This quantity exist inside the MYTDDMRG class
+#definition. Shouldn't it be self.fmt_size.
+#It looks like the RT_MYTDDMRG inherits from FTDMRG class, but is there no super().__init__ method in
+#its definition?
