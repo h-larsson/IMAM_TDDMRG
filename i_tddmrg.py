@@ -34,10 +34,11 @@ from block2 import VectorUBond, VectorDouble, NoiseTypes, DecompositionTypes, Eq
 from block2 import OrbitalOrdering, VectorUInt16, TETypes
 import time
 import numpy as np
+import scipy.linalg
 
 # Set spin-adapted or non-spin-adapted here
-#SpinLabel = SU2
-SpinLabel = SZ
+SpinLabel = SU2
+#SpinLabel = SZ
 
 if SpinLabel == SU2:
     from block2.su2 import HamiltonianQC, SimplifiedMPO, Rule, RuleQC, MPOQC
@@ -81,8 +82,8 @@ def _print(*args, **kwargs):
         print(*args, **kwargs)
 
 
-class MYTDDMRGError(Exception):
-    pass
+#class MYTDDMRGError(Exception):
+#    pass
 
 
 
@@ -390,17 +391,13 @@ class MYTDDMRG:
 
         # 1PDM
         pme = MovingEnvironment(pmpo, mps, mps, "1PDM")
+        pme.init_environments(False)
         if iscomp:
-            pme.init_environments()
             expect = ComplexExpect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
         else:
-            pme.init_environments(False)
             expect = Expect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
         expect.iprint = max(self.verbose - 1, 0)
-        if iscomp:
-            expect.solve(False, mps.center == 0)
-        else:
-            expect.solve(True, mps.center == 0)
+        expect.solve(True, mps.center == 0)
         if SpinLabel == SU2:
             dmr = expect.get_1pdm_spatial(self.n_sites)
             dm = np.array(dmr).copy()
@@ -640,7 +637,6 @@ class MYTDDMRG:
     def time_propagate(self, inmps_name, bond_dim: int, method, tmax: float, dt: float, 
                        n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, cutoff=0, verbosity=6, 
                        normalize=False, t_sample=None, save_mps=False, save_1pdm=False, save_2pdm=False):
-
         '''
         Coming soon
         '''
@@ -691,12 +687,12 @@ class MYTDDMRG:
 
 
 
-        #==== 1PDM
-        pmpo = PDM1MPOQC(self.hamil)
-        pmpo = SimplifiedMPO(pmpo, RuleQC())
-        if self.mpi is not None:
-            pmpo = ParallelMPO(pmpo, self.pdmrule)
-        pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
+        #==== 1PDM IMAM
+##        pmpo = PDM1MPOQC(self.hamil)
+##        pmpo = SimplifiedMPO(pmpo, RuleQC())
+##        if self.mpi is not None:
+##            pmpo = ParallelMPO(pmpo, self.pdmrule)
+##        pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
 
 
             
@@ -711,13 +707,16 @@ class MYTDDMRG:
 
 
         #==== Time evolution ====#
-        te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
-        te.cutoff = cutoff  # for tiny systems, this is important
-        te.iprint = verbosity  # ft.verbose
+        if method == TETypes.TangentSpace:
+            te = TimeEvolution(me, VectorUBond([bond_dim]), method)
+        else:
+            te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
+        te.cutoff = cutoff                    # for tiny systems, this is important
+        te.iprint = verbosity
         te.normalize_mps = normalize
 
         n_steps = int(tmax/dt + 1)
-        ts = np.linspace(0, tmax, n_steps) # times
+        ts = np.linspace(0, tmax, n_steps)    # times
         issampled = [False] * len(t_sample)
         i_sp = 0
         for it, tt in enumerate(ts):
@@ -733,7 +732,10 @@ class MYTDDMRG:
                     te.solve(1, +1j * dt, cmps.center == 0, tol=exp_tol)
                 elif method == TETypes.TangentSpace:
                     te.solve(2, +1j * dt / 2, cmps.center == 0, tol=exp_tol)
-                te.n_sub_sweeps = n_sub_sweeps
+                if method == TETypes.TangentSpace:
+                    te.n_sub_sweeps = 1
+                else:
+                    te.n_sub_sweeps = n_sub_sweeps
 
                 #==== Autocorrelation ====#
                 idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
@@ -745,32 +747,35 @@ class MYTDDMRG:
 
 
                 
-                #==== 1PDM
-                pme.init_environments()
-                _print('here1')
-                expect = ComplexExpect(pme, bond_dim+100, bond_dim+100)   #NOTE
-                _print('here2')
-                expect.solve(False, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
-                _print('here3')
-                if SpinLabel == SU2:
-                    dmr = expect.get_1pdm_spatial(self.n_sites)
-                    dm = np.array(dmr).copy()
-                else:
-                    dmr = expect.get_1pdm(self.n_sites)
-                    dm = np.array(dmr).copy()
-                    dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
-                    dm = np.transpose(dm, (0, 2, 1, 3))
-                _print('here4')
-                if self.ridx is not None:
-                    dm[:, :] = dm[self.ridx, :][:, self.ridx]
-                _print('here5')
-                dmr.deallocate()
-                _print('here6')
-                if SpinLabel == SU2:
-                    dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
-                else:
-                    dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
-                _print('here7')
+                #==== 1PDM IMAM
+##                pme.init_environments()
+##                _print('here1')
+##                expect = ComplexExpect(pme, bond_dim+100, bond_dim+100)   #NOTE
+##                _print('here2')
+##                expect.solve(True, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
+##                _print('here3')
+##                if SpinLabel == SU2:
+##                    dmr = expect.get_1pdm_spatial(self.n_sites)
+##                    dm = np.array(dmr).copy()
+##                else:
+##                    dmr = expect.get_1pdm(self.n_sites)
+##                    dm = np.array(dmr).copy()
+##                    dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
+##                    dm = np.transpose(dm, (0, 2, 1, 3))
+##                _print('here4')
+##                cmps.save_data()
+##                if self.ridx is not None:
+##                    dm[:, :] = dm[self.ridx, :][:, self.ridx]
+##                _print('here5')
+##                dmr.deallocate()
+##                _print('here6')
+##                if SpinLabel == SU2:
+##                    dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
+##                else:
+##                    dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
+##                _print('here7')
+##                _print('splabel ', SpinLabel)
+##                _print('DM eigvals = ', dm.shape, scipy.linalg.norm(dm), dm.dtype)
 
 
                 
@@ -788,29 +793,24 @@ class MYTDDMRG:
                         sample_dir = self.scratch + '/mps_sp-' + str(i_sp)
                         mkDir(sample_dir)
      
-                        ##### Using saveMPStoDir #####
+                        #==== Saving MPS ====##
                         if save_mps:
                             saveMPStoDir(cmps, sample_dir, self.mpi)
-                        #####
 
-                    
-                    ##### Using deep_copy and save_data's #####
-#                    if MPI is not None: MPI.barrier()
-#                    mps_sp = cmps.deep_copy('mps_sp.'+str(i_sp))
-#                    if MPI is not None: MPI.barrier()                    
-#they cause segfault and other error                    mps_sp.save_data()
-#they cause segfault and other error                    mps_sp.save_mutable()
-#they cause segfault and other error                    mps_sp.deallocate()
-#they cause segfault and other error                    mps_sp.info.save_mutable()
-#they cause segfault and other error                    mps_sp.info.deallocate_mutable()
-#                    mps_sp.info.save_data(self.scratch + '/mps_sp_info.' + str(i_sp))
-#                    mps_sp.info.deallocate()
-                    #####
-
+                        #==== Saving 1PDM ====#
                         if save_1pdm:
-#                            dm = self.get_one_pdm(True, cmps)
+                            #== Copy the current MPS because self.get_one_pdm ==#
+                            #==      convert the input MPS to a real MPS      ==#
+                            if MPI is not None: MPI.barrier()
+                            cmps_cp = cmps.deep_copy('cmps_cp')
+                            if MPI is not None: MPI.barrier()
+                            
+                            dm = self.get_one_pdm(True, cmps_cp)
                             np.save(sample_dir+'/1pdm', dm)
                             _print('DM a = ', dm[0,:,:])
+                            _print('DM a, b trace = ', np.trace(dm[0,:,:]), np.trace(dm[1,:,:]))
+                            cmps_cp.info.deallocate()
+#                            cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
                         
                         issampled[i_sp] = True
                         i_sp += 1
@@ -819,23 +819,12 @@ class MYTDDMRG:
 
 
 
-
-
-
-
-                        
-#need?        mps.save_data()
-#need?        mps_info.deallocate()
-
-
 ##        if self.print_statistics:
 ##            _print("GF PEAK MEM USAGE:",
 ##                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
 ##                   "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
 ##                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
 ##                   "(%.0f%%)" % (imain * 100 / (imain + iseco)))
-
-##        return gf_mat
 
     def __del__(self):
         if self.hamil is not None:
@@ -868,3 +857,6 @@ class MYTDDMRG:
 #definition. Shouldn't it be self.fmt_size.
 #It looks like the RT_MYTDDMRG inherits from FTDMRG class, but is there no super().__init__ method in
 #its definition?
+#What does these various deallocate actually do? Somewhere an mps is deallocated (by calling mps.deallocate())
+#but then the same mps is still used to do something.
+#ANS: ME writes/reads mps to/from disk that's why mps can be deallocated although it is used again later.
