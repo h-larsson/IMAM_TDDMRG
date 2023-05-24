@@ -1,4 +1,4 @@
-# HRL: can you adjust the docstrings/comments to our case?
+# HRL: can you adjust the docstrings/comments to our case?  >> DONE
 
 #  block2: Efficient MPO implementation of quantum chemistry DMRG
 #  Copyright (C) 2020-2021 Huanchen Zhai <hczhai@caltech.edu>
@@ -87,7 +87,7 @@ def _print(*args, **kwargs):
         print(*args, **kwargs)
 
 
-class MYTDDMRGError(Exception): # HRL: Where do you need this?  >> ANS: Nowhere, it's relic from the orig. code.
+class MYTDDMRGError(Exception): # HRL: Where do you need this?  >> ANS: Nowhere, it's relic from the orig. code.  >> DONE
     pass
 
 
@@ -224,7 +224,7 @@ class MYTDDMRG:
             self.identrule = None
 
     # HRL:  add this here after fcidump set up:
-    #           _print("# fcidump symmetrize error:",fcidump.symmetrize(orb_sym))
+    #           _print("# fcidump symmetrize error:",fcidump.symmetrize(orb_sym))  >> DONE
     #    reason: for  high symmetry, the integrals may be nonzero where they should be zero, due to numerical errors. this routine call sets them to zero. otherwise you get an error. But it is good to monoitor the error so print it
 
     def init_hamiltonian_fcidump(self, pg, filename, idx=None):

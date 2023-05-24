@@ -18,13 +18,15 @@
 #
 
 """
-DDMRG++ for Green's Function.
-using pyscf and block2.
+A class for the analysis of charge migration starting from
+an initial state produced by the application of the annihilation 
+operator on a given site/orbital.
 
 Original version:
-     Huanchen Zhai, Nov 5, 2020
-Revised: support for mpi
-     Huanchen Zhai, Tianyu Zhu Mar 29, 2021
+     Imam Wahyutama, May 2023
+Derived from:
+     gfdmrg.py
+     ft_tddmrg.py
 """
 
 from block2 import SU2, SZ, Global, OpNamesSet, Threading, ThreadingTypes
@@ -66,7 +68,6 @@ import tools; tools.init(SpinLabel)
 from tools import saveMPStoDir, mkDir
 from gfdmrg import orbital_reorder
 
-
         
 if hasMPI:
     MPI = MPICommunicator()
@@ -76,17 +77,15 @@ else:
     MPI = _MPI()
 
 
-
+#################################################
 def _print(*args, **kwargs):
     if MPI.rank == 0:
         print(*args, **kwargs)
-
-
-#class MYTDDMRGError(Exception):
-#    pass
+#################################################
 
 
 
+#################################################
 class MYTDDMRG:
     """
     DDMRG++ for Green's Function for molecules.
@@ -153,17 +152,20 @@ class MYTDDMRG:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-        self.orb_sym = VectorUInt8(
-            map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+#OLD        self.orb_sym = VectorUInt8(
+#OLD            map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+        swap_pg = getattr(PointGroup, "swap_" + pg)
+        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))
+        _print("# fcidump symmetrize error:", self.fcidump.symmetrize(orb_sym))
 
         vacuum = SpinLabel(0)
         self.target = SpinLabel(self.fcidump.n_elec, self.fcidump.twos,
-                                PointGroup.swap_d2h(self.fcidump.isym))
+                                PointGroup.swap_pg(self.fcidump.isym))
         self.n_sites = self.fcidump.n_sites
 
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
-        assert pg in ["d2h", "c1"]
+        assert pg in ["d2h", "c1"]      Resolve this
 
     def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym,
                          e_core, h1e, g2e, tol=1E-13, idx=None,
@@ -209,11 +211,13 @@ class MYTDDMRG:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-        self.orb_sym = VectorUInt8(
-            map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+#OLD        self.orb_sym = VectorUInt8(
+#OLD            map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+        swap_pg = getattr(PointGroup, "swap_" + pg)
+        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))
 
         vacuum = SpinLabel(0)
-        self.target = SpinLabel(n_elec, twos, PointGroup.swap_d2h(isym))
+        self.target = SpinLabel(n_elec, twos, PointGroup.swap_pg(isym))
         self.n_sites = n_sites
 
         self.hamil = HamiltonianQC(
@@ -636,7 +640,8 @@ class MYTDDMRG:
     ##################################################################
     def time_propagate(self, inmps_name, bond_dim: int, method, tmax: float, dt: float, 
                        n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, cutoff=0, verbosity=6, 
-                       normalize=False, t_sample=None, save_mps=False, save_1pdm=False, save_2pdm=False):
+                       normalize=False, t_sample=None, save_mps=False, save_1pdm=False, save_2pdm=False,
+                       sample_dir='samples'):
         '''
         Coming soon
         '''
@@ -790,12 +795,12 @@ class MYTDDMRG:
                         dd = True
                     _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
                     if dd and not issampled[i_sp]:
-                        sample_dir = self.scratch + '/mps_sp-' + str(i_sp)
-                        mkDir(sample_dir)
+                        save_dir = sample_dir + '/mps_sp-' + str(i_sp)
+                        mkDir(save_dir)
      
                         #==== Saving MPS ====##
                         if save_mps:
-                            saveMPStoDir(cmps, sample_dir, self.mpi)
+                            saveMPStoDir(cmps, save_dir, self.mpi)
 
                         #==== Saving 1PDM ====#
                         if save_1pdm:
@@ -806,7 +811,7 @@ class MYTDDMRG:
                             if MPI is not None: MPI.barrier()
                             
                             dm = self.get_one_pdm(True, cmps_cp)
-                            np.save(sample_dir+'/1pdm', dm)
+                            np.save(save_dir+'/1pdm', dm)
                             _print('DM a = ', dm[0,:,:])
                             _print('DM a, b trace = ', np.trace(dm[0,:,:]), np.trace(dm[1,:,:]))
                             cmps_cp.info.deallocate()
