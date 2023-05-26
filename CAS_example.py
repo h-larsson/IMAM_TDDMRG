@@ -42,7 +42,13 @@ if hasMPI:
 else:
     MAIN_PROCESS = True
 
+
+    
 def getFCIDUMP(file, mol, wfnSym, h1e, eri, nElec: Tuple[int], eCore, orbsym, tol):
+    '''
+    wfnSym : The symmetry ID of the wave function in PYSCF convention.
+    orbsym : The symmetry ID of the orbitals in MOLPRO convention.
+    '''
     from block2 import FCIDUMP
     assert hasattr(nElec, "__len__"), "nElec needs to be nela,nelb tuple"
     assert len(nElec) == 2, "nElec needs to be nela,nelb tuple"
@@ -63,7 +69,8 @@ def getFCIDUMP(file, mol, wfnSym, h1e, eri, nElec: Tuple[int], eCore, orbsym, to
         wfnSym_molpro = tools.fcidump.ORBSYM_MAP[mol.groupname][wfnSym]
         fcidump = FCIDUMP()
         nela, nelb = nElec
-        fcidump.initialize_su2(nTot, nela + nelb, abs(nela - nelb), wfnSym_molpro, eCore, h1e, eri)
+        fcidump.initialize_su2(nTot, nela + nelb, abs(nela - nelb), wfnSym_molpro,
+                               eCore, h1e, eri)
                 # IMAM: FCIDUMP.initialize_su2 and FCIDUMP.initialize_sz have strangely different
                 #       set of parameters. For instance, the former takes np.ndarray's (that are
                 #       used for h1e and eri) but the later doesn't take any np.ndarray's. So it
@@ -102,6 +109,7 @@ if MAIN_PROCESS:
               # IMAM: casci_symm.label_symmetry_ creates an object which is closely related to and contains the MO coefficients,
               #       but also has an attribute called 'orbsym'.
     wfnSym = _mcCI.fcisolver.wfnsym
+              # IMAM: wfnSym is in pyscf convention.
     wfnSym = wfnSym if wfnSym is not None else 0
     h1e, eCore = _mcCI.get_h1cas()
     orbSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:]

@@ -77,10 +77,90 @@ else:
     MPI = _MPI()
 
 
+
+
+if SpinLabel == SZ:
+    _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    _print('WARNING: SZ Spin label is chosen! The i_tddmrg.py module was designed ' +
+           'with the SU2 spin label in mind. The use of SZ spin label in this ' +
+           'module has not been checked.')
+    _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    
+    
+
 #################################################
 def _print(*args, **kwargs):
     if MPI.rank == 0:
         print(*args, **kwargs)
+#################################################
+
+
+
+#################################################
+def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
+    '''
+    Input parameters:
+       mol     : PYSCF Mole object that defines the system of interest.
+       nCore   : The number of core orbitals.
+       nCAS    : The number of CAS orbitals.
+       nelCAS  : The number of electrons in the CAS.
+       ocoeff  : Coefficients of all orbitals (core+CAS+virtual) in the AO basis 
+                 used in mol (Mole) object.
+       verbose : Verbose output when True.
+
+    Return values:
+       h1e         : The one-electron integral matrix in the CAS orbital basis, the size 
+                     is nCAS x nCAS.
+       g2e         : The two-electron integral array in the CAS orbital basis.
+       eCore       : The core energy, it contains the core electron energy and nuclear 
+                     repulsion energy.
+       molpro_oSym : The symmetry ID of the CAS orbitals in MOLPRO convention.
+       molpro_wSym : The symmetry ID of the wavefunction in MOLPRO convention.
+    '''
+
+    from pyscf import scf, mcscf, symm
+    from pyscf import tools as pyscf_tools
+    from pyscf.mcscf import casci_symm
+
+    
+    #==== Setting up the CAS ====#
+    mf = scf.RHF(mol)
+    _mcCI = mcscf.CASCI(mf, ncas=nCAS, nelecas=nelCAS , ncore=nCore)  # IMAM: All orbitals are used?
+    _mcCI.mo_coeff = ocoeff          # IMAM : I am not sure if it is necessary.
+    _mcCI.mo_coeff = casci_symm.label_symmetry_(_mcCI, ocoeff)
+
+
+    #==== Get the CAS orbitals and wavefunction symmetries ====#
+    wSym = _mcCI.fcisolver.wfnsym
+    wSym = wSym if wSym is not None else 0
+    molpro_wSym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wSym]
+    oSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:nCore+nCAS]
+    molpro_oSym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in oSym]   
+
+
+    #==== Get the 1e and 2e integrals ====#
+    h1e, eCore = _mcCI.get_h1cas()
+    g2e = _mcCI.get_h2cas()
+    g2e = np.require(g2e, dtype=np.float64)
+    h1e = np.require(h1e, dtype=np.float64)
+#move_out    g2eShape = g2e.shape
+#move_out    h1eShape = h1e.shape
+
+
+    #==== Some checks ====#
+    if verbose:
+        _print(f"# nCore = {nCore},  nCas = {nCAS}")
+        _print("# groupName = ", mol.groupname)
+        _print("# oSym = ", oSym)
+        _print("# oSym = ", [symm.irrep_id2name(mol.groupname,s) for s in oSym])
+        _print("# wSym = ", wSym, symm.irrep_id2name(mol.groupname,wSym),flush=True)
+    assert oSym.size == nCAS, f'nCAS={nCAS} vs. oSym.size={oSym.size}'
+    assert wSym == 0, "Want A1g state"      # IMAM: Why does it have to be A1g?
+    
+    #OLD nelecas = _mcCI.nelecas
+    del _mcCI, mf
+
+    return h1e, g2e, eCore, molpro_oSym, molpro_wSym
 #################################################
 
 
@@ -91,6 +171,8 @@ class MYTDDMRG:
     DDMRG++ for Green's Function for molecules.
     """
 
+
+    #################################################
     def __init__(self, scratch='./nodex', memory=1*1E9, isize=2E8, omp_threads=8, verbose=2,
                  print_statistics=True, mpi=None, delayed_contraction=True):
         """
@@ -142,7 +224,10 @@ class MYTDDMRG:
             self.pdmrule = None
             self.siterule = None
             self.identrule = None
+    #################################################
 
+            
+    #################################################
     def init_hamiltonian_fcidump(self, pg, filename, idx=None):
         """Read integrals from FCIDUMP file."""
         assert self.fcidump is None
@@ -160,17 +245,25 @@ class MYTDDMRG:
 
         vacuum = SpinLabel(0)
         self.target = SpinLabel(self.fcidump.n_elec, self.fcidump.twos,
-                                PointGroup.swap_pg(self.fcidump.isym))
+                                swap_pg(self.fcidump.isym))
         self.n_sites = self.fcidump.n_sites
 
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
-        assert pg in ["d2h", "c1"]      Resolve this
+    #################################################
 
+
+    #################################################
     def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym,
                          e_core, h1e, g2e, tol=1E-13, idx=None,
                          save_fcidump=None):
-        """Initialize integrals using h1e, g2e, etc."""
+        """Initialize integrals using h1e, g2e, etc.
+isym: wfn symmetry in molpro convention? See the getFCIDUMP function in CAS_example.py.
+g2e: Does it need to be in 8-fold symmetry? See the getFCIDUMP function in CAS_example.py.
+orb_sym: orbitals symmetry in molpro convention.
+        """
+
+        #==== Initialize self.fcidump ====#
         assert self.fcidump is None
         self.fcidump = FCIDUMP()
         if not isinstance(h1e, tuple):
@@ -181,11 +274,23 @@ class MYTDDMRG:
                     assert abs(h1e[i, j] - h1e[j, i]) < tol
                     mh1e[k] = h1e[i, j]
                     k += 1
-            mg2e = g2e.flatten()
+#OLD            mg2e = g2e.flatten()
+            mg2e = g2e.ravel()
             mh1e[np.abs(mh1e) < tol] = 0.0
             mg2e[np.abs(mg2e) < tol] = 0.0
+            _print('herem1')
+
+            _print('n_sites = ', type(n_sites), n_sites)
+            _print('n_elec = ', type(n_elec), n_elec)
+            _print('twos = ', type(twos), twos)
+            _print('isym = ', type(isym), isym)
+            _print('e_core = ', type(e_core), e_core)
+            _print('mh1e = ', type(mh1e[0]), mh1e[0], mh1e.size)
+            _print('mg2e = ', type(mg2e[0]), mg2e[0], mg2e.size)
+            
             self.fcidump.initialize_su2(
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
+            _print('herem2')
         else:
             assert SpinLabel == SZ
             assert isinstance(h1e, tuple) and len(h1e) == 2
@@ -201,12 +306,19 @@ class MYTDDMRG:
                         xmh1e[k] = xh1e[i, j]
                         k += 1
                 xmh1e[np.abs(xmh1e) < tol] = 0.0
-            mg2e = tuple(xg2e.flatten() for xg2e in g2e)
+#OLD            mg2e = tuple(xg2e.flatten() for xg2e in g2e)
+            mg2e = tuple(xg2e.ravel() for xg2e in g2e)
             for xmg2e in mg2e:
-                xmg2e[np.abs(xmg2e) < tol] = 0.0
+                xmg2e[np.abs(xmg2e) < tol] = 0.0      # xmg2e works like a pointer to the elements of mg2e tuple.
             self.fcidump.initialize_sz(
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
-        self.fcidump.orb_sym = VectorUInt8(orb_sym)
+
+
+        #==== Take care of the symmetry conventions. Note that ====#
+        #====   self.fcidump.orb_sym is in Molpro convention,  ====#
+        #====     while self.orb_sym is in block2 convetion    ====#
+        self.fcidump.orb_sym = VectorUInt8(orb_sym)       # Hence, self.fcidump.orb_sym is in Molpro convention.
+
         if idx is not None:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
@@ -216,21 +328,26 @@ class MYTDDMRG:
         swap_pg = getattr(PointGroup, "swap_" + pg)
         self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))
 
-        vacuum = SpinLabel(0)
-        self.target = SpinLabel(n_elec, twos, PointGroup.swap_pg(isym))
-        self.n_sites = n_sites
 
+        #==== Construct the Hamiltonian MPO ====#
+        vacuum = SpinLabel(0)
+        self.target = SpinLabel(n_elec, twos, swap_pg(isym))
+        self.n_sites = n_sites
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
 
+        
+        #==== Save self.fcidump ====#
         if save_fcidump is not None:
             if self.mpi is None or self.mpi.rank == 0:
                 self.fcidump.orb_sym = VectorUInt8(orb_sym)
                 self.fcidump.write(save_fcidump)
             if self.mpi is not None:
                 self.mpi.barrier()
-        assert pg in ["d2h", "c1"]
+    #################################################
 
+
+    #################################################
     @staticmethod
     def fmt_size(i, suffix='B'):
         if i < 1000:
@@ -245,7 +362,10 @@ class MYTDDMRG:
                     p -= 1
                 a *= 1024
         return "??? " + suffix
+    #################################################
 
+
+    #################################################
     def dmrg(self, bond_dims, noises, n_steps=30, conv_tol=1E-7, cutoff=1E-14, occs=None, bias=1.0):
         """Ground-State DMRG."""
 
@@ -279,6 +399,15 @@ class MYTDDMRG:
         mps.deallocate()
         mps_info.save_mutable()
         mps_info.deallocate_mutable()
+
+
+
+#        _print('abcde:')
+#        _print(dir(mps))
+#        _print(type(mps.tensors))
+#        _print(dir(mps.tensors[0]))
+
+        
 
         # MPO
         tx = time.perf_counter()
@@ -336,6 +465,7 @@ class MYTDDMRG:
         mps_info.save_data(self.scratch + "/GS_MPS_INFO")
         mps_info.deallocate()
 
+
         if self.print_statistics:
             dmain, dseco, imain, iseco = Global.frame.peak_used_memory
             _print("GS PEAK MEM USAGE:",
@@ -350,7 +480,10 @@ class MYTDDMRG:
         if self.verbose >= 2:
             _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
                    (time.perf_counter() - t))
+    #################################################
 
+
+    #################################################
     # one-particle density matrix
     # return value:
     #     pdm[0, :, :] -> <AD_{i,alpha} A_{j,alpha}>
@@ -429,7 +562,10 @@ class MYTDDMRG:
             return np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
         else:
             return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
+    #################################################
 
+    
+    #################################################
     def save_gs_mps(self, save_dir='./gs_mps'):
         import shutil
         import pickle
@@ -442,7 +578,10 @@ class MYTDDMRG:
                     shutil.copy(self.scratch + "/" + k, save_dir + "/" + k)
         if self.mpi is not None:
             self.mpi.barrier()
+    #################################################
 
+    
+    #################################################
     def load_gs_mps(self, load_dir='./gs_mps'):
         import shutil
         import pickle
@@ -453,12 +592,13 @@ class MYTDDMRG:
         if self.mpi is not None:
             self.mpi.barrier()
         self.gs_energy = pickle.load(open(self.scratch + '/GS_ENERGY', 'rb'))
+    #################################################
 
 
-    ##################################################################
+    #################################################
     def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, idxs,
                    cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
-                   outmps_name='ANN_KET'):
+                   outmps_name='ANN_KET', outmps_normal=True):
         """Green's function."""
 ##        ops = [None] * len(idxs)
 ##        rkets = [None] * len(idxs)
@@ -630,11 +770,29 @@ class MYTDDMRG:
         cps.iprint = max(self.verbose - 1, 0)
         cps.cutoff = cutoff
         cps.solve(cps_n_steps, mps.center == 0, cps_conv_tol)
-        
+
+
+        if outmps_normal:
+            icent = rkets.center
+            #OLD if rkets.dot == 2 and rkets.center == rkets.n_sites-1:
+            if rkets.dot == 2:
+                icent += 1
+            assert rkets.tensors[icent] is not None
+            
+            rkets.load_tensor(icent)
+            rkets.tensors[icent].normalize()
+            rkets.save_tensor(icent)
+            # rket_info.save_data(self.scratch + "/" + outmps_name)
+            saveMPStoDir(rkets, self.scratch, self.mpi)
+            rkets.unload_tensor(icent)
+
+            _print('Canonical form of the annihilation output : ', rkets.canonical_form)
+
+            
         if self.verbose >= 2:
             _print('>>> COMPLETE Compression Site = %4d | Time = %.2f <<<' %
                    (idx, time.perf_counter() - t))
-    ##################################################################
+    #################################################
 
 
     ##################################################################
@@ -819,18 +977,10 @@ class MYTDDMRG:
                         
                         issampled[i_sp] = True
                         i_sp += 1
-                
+    ##############################################################
+    
 
-
-
-
-##        if self.print_statistics:
-##            _print("GF PEAK MEM USAGE:",
-##                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
-##                   "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
-##                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
-##                   "(%.0f%%)" % (imain * 100 / (imain + iseco)))
-
+    ##############################################################
     def __del__(self):
         if self.hamil is not None:
             self.hamil.deallocate()
