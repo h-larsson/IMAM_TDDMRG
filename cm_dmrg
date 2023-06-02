@@ -1,0 +1,225 @@
+#! /usr/bin/env python
+
+from block2 import TETypes
+from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
+import numpy as np
+from scipy.linalg import eigvalsh
+import os, time
+from pyscf import gto, scf, ao2mo
+
+
+#############################################
+try:
+    from block2.su2 import MPICommunicator
+    hasMPI = True
+    MPI = MPICommunicator()
+    _print = getVerbosePrinter(MPI.rank==0,flush=True)
+except ImportError:
+    MPICommunicator = None
+    hasMPI = False
+    MPI = None
+    _print = getVerbosePrinter(True,flush=True)
+
+if hasMPI:
+    from mpi4py import MPI as MPIpy
+    commPy = MPIpy.COMM_WORLD
+    #print(MPI.rank,"rank",flush=True)
+    assert commPy.Get_rank() == MPI.rank, f"{commPy.Get_rank()} vs {MPI.rank}"
+    assert commPy.Get_size() == MPI.size, f"{commPy.Get_size()} vs {MPI.size}"
+    MAIN_PROCESS = MPI.rank == 0
+else:
+    MAIN_PROCESS = True
+#############################################
+
+
+if MAIN_PROCESS:
+    t_start = time.time()
+
+
+######################
+#==== Input area ====#
+######################
+import sys
+inp_file = str(sys.argv[1])
+exec(open(inp_file).read())
+
+
+scratch = './' + prefix + '.tmp'
+
+    
+#==== Setting up the system ====#
+mol = gto.M(atom=inp_coordinates, basis=inp_basis, symmetry=inp_symmetry)
+na, nb = mol.nelec
+n_mo = mol.nao
+pg = mol.symmetry.lower()
+_print('Point group = ', pg)
+_print('Number of electrons (alpha, beta) = ', mol.nelec)
+_print('Number of AO bases = ', mol.nao)
+_print('Number of MO bases = ', n_mo)
+
+
+#==== Specification of the CAS ====#
+nelCore = (nCore, nCore)
+nvir = n_mo - (nCore + nCAS)
+nsites = nCAS
+if MAIN_PROCESS:
+    assert nelCore[0] + nelCAS[0] == mol.nelec[0]
+    assert nelCore[1] + nelCAS[1] == mol.nelec[1]
+    assert nCore + nCAS <= n_mo
+_print('Number of core orbitals = ', nCore)
+_print('Number of CAS orbitals = ', nCAS)
+_print('Number of virtual orbitals = ', nvir)
+
+
+if MAIN_PROCESS:
+    #==== Run HF on the neutral molecule to obtain the orbitals ====#
+    if hf_orb_path is None:
+        _print('>>>> Hartree-Fock calculation of the neutral <<<<')
+        mf = scf.RHF(mol)
+        mf.kernel()
+        hf_orb = mf.mo_coeff
+        _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
+    else:
+        hf_orb = np.load(hf_orb_path)
+        assert (hf_orb.shape[0] ==    1 and
+                hf_orb.shape[1] == n_mo and
+                hf_orb.shape[2] == n_mo), \
+               'ERROR: The shape of the Hartree-Fock orbitals array loaded from ' + \
+               str(hf_orb_path) + ' is inconsistent with the number of MO bases (' + \
+               str(n_mo) + '). The shape of the loaded orbitals array is ' + \
+               str(hf_orb.shape) + ', instead of ' + str((1, n_mo, n_mo)) + '.'
+    hf_orb_shape = hf_orb.shape
+    _print('MO coefficient shape = ', hf_orb.shape)
+
+
+    #==== Get the integrals ====#
+    h1e, g2e, ecore, molpro_osym, molpro_wsym = \
+         get_symCASCI_ints(mol, nCore, nCAS, nelCAS, hf_orb, True)
+    g2e = ao2mo.restore('s8', g2e, nCAS)   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
+    h1eshape = h1e.shape
+    g2eshape = g2e.shape
+
+    
+if hasMPI:
+    hf_orb_shape = commPy.bcast(hf_orb_shape, root = 0)
+    h1eshape = commPy.bcast(h1eshape, root = 0)
+    g2eshape = commPy.bcast(g2eshape, root = 0)
+    if not MAIN_PROCESS:
+        hf_orb = np.empty(hf_orb_shape, dtype=np.float64)
+        h1e = np.empty(h1eshape, dtype=np.float64)
+        g2e = np.empty(g2eshape, dtype=np.float64)
+    commPy.Bcast([hf_orb, MPIpy.DOUBLE], root=0)
+    commPy.Bcast([h1e, MPIpy.DOUBLE], root=0)
+    commPy.Bcast([g2e, MPIpy.DOUBLE], root=0)
+    ecore = commPy.bcast(ecore, root = 0)
+    molpro_osym = commPy.bcast(molpro_osym, root = 0)
+    molpro_wsym = commPy.bcast(molpro_wsym, root = 0)
+_print('type of molpro_osym : ', type(molpro_osym[0]))
+_print('type of molpro_wsym : ', type(molpro_wsym))
+
+
+#==== Reorder orbitals ====#
+if MAIN_PROCESS:
+    re_idx = orbital_reorder(h1e, g2e)
+    re_idx_shape = re_idx.shape
+    re_idx_type = type(re_idx)
+if hasMPI:
+    re_idx_shape = commPy.bcast(re_idx_shape, root = 0)
+    re_idx_type = commPy.bcast(re_idx_type, root = 0)
+    if not MAIN_PROCESS:
+        re_idx = np.empty(re_idx_shape, dtype=re_idx_type)
+    commPy.Bcast([re_idx, MPIpy.INTEGER], root=0)
+
+
+#==== Get threads from env. variable ====#
+def_n_threads = 1
+n_threads = int(os.environ.get("OMP_NUM_THREADS", def_n_threads))
+_print("# used threads = ", n_threads)
+
+
+#==== Initiate the Hamiltonian MPO ====#
+obj = MYTDDMRG(scratch=scratch, omp_threads=n_threads, mpi=MPI)
+obj.verbose = verbose_lvl
+obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpro_wsym, 
+                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
+                     save_fcidump=None)
+
+
+#==== Run the DMRG ground state iterations ====#
+_print('\n\n==== Run DMRG ground state ====')
+obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, occs=None, bias=gs_bias)
+
+
+#==== Apply the annihilation operator ====#
+_print('\n\n==== Applying annihilation operator ====')
+D_a = D_gs
+D_cp = [d + D_fit_margin for d in D_gs]
+obj.annihilate(D_a, cps_bond_dims=D_cp, cps_noises=fit_noise, cps_conv_tol=fit_tol, 
+               cps_n_steps=fit_steps, aid=ann_id, cutoff=fit_cutoff, alpha=ann_sp,
+               mo_coeff=ocoeff, outmps_name=ann_fname, outmps_normal=normalize_annout)
+
+
+#==== Check 1RDM's ====#
+_print('\n\n==== Check 1RDM ====')
+dm = obj.get_one_pdm(False, inmps_name=ann_fname)
+_print('pdm shape = ', dm.shape)
+_print('pdm a: ', dm[0,:,:])
+_print('trace alpha = ', np.trace(dm[0,:,:]))
+_print('pdm b: ', dm[1,:,:])
+_print('trace beta = ', np.trace(dm[1,:,:]))
+_print('idx = ', obj.idx)
+_print('ridx = ', obj.ridx)
+_print('Spin a natural orb. occ. = ', eigvalsh(dm[0,:,:]))
+_print('Spin b natural orb. occ. = ', eigvalsh(dm[1,:,:]))
+_print('Spin a CAS orb. occ. = ', np.diag(dm[0,:,:]))
+_print('Spin b CAS orb. occ. = ', np.diag(dm[1,:,:]))
+
+
+#==== Run the DMRG TD-propagation ====#
+_print('\n\n==== Running time-dependent propagation ====')
+D_t = D_gs[0]
+sample_dir = './' + prefix + '.sample'
+obj.time_propagate(ann_fname, D_t, method, tmax, dt, t_sample=t_sample,
+                   save_mps=te_save_mps, save_1pdm=te_save_1pdm, sample_dir=sample_dir)
+
+
+if MAIN_PROCESS:
+    t_fin = time.time()
+_print('Total computational time = ', t_fin-t_start, ' seconds')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################################
+##################### GRAVEYARD #####################
+#####################################################
+        #OLD h1e = mol.ao2mo(mf.mo_coeff, intor='int1e_kin') + mol.ao2mo(mf.mo_coeff, intor='int1e_nuc')    # BAD, the shape of h1e is not nbas x nbas.
+        #OLD _print('h1e shape = ', h1e.shape)
+        
+        #OLD h1e = mf.mo_coeff.T @ mf.get_hcore() @ mf.mo_coeff
+        #OLD g2e_method = 2
+        #OLD if (g2e_method == 1):
+        #OLD     g2e_ = mol.intor('int2e')
+        #OLD     g2e = ao2mo.kernel(g2e_, mf.mo_coeff, aosym='s1')
+        #OLD elif (g2e_method == 2):
+        #OLD     g2e = ao2mo.kernel(mol, mf.mo_coeff, aosym='s1')
+        #OLD #g2e = mol.ao2mo(mf.mo_coeff, intor='int2e')     # BAD because one cannot specify the symmetry of the resulting integral,
+        #OLD                                                  # on the other hand, the orbital_reorder function requires no symmetry if
+        #OLD                                                  # the integrals are not tuple, which is true here (they are tuple for UHF).
+        #OLD ecore = mol.energy_nuc()
+        #OLD nsites = n_mo
+        #OLD molpro_wsym = 1
+        #OLD molpro_osym = [1] * n_mo
+#####################################################
+#####################################################

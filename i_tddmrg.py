@@ -29,6 +29,7 @@ Derived from:
      ft_tddmrg.py
 """
 
+#from ipsh import *
 from block2 import SU2, SZ, Global, OpNamesSet, Threading, ThreadingTypes
 from block2 import init_memory, release_memory, SiteIndex
 from block2 import VectorUInt8, PointGroup, FCIDUMP, QCTypes, SeqTypes, OpNames, Random
@@ -75,16 +76,6 @@ else:
     class _MPI:
         rank = 0
     MPI = _MPI()
-
-
-
-
-if SpinLabel == SZ:
-    _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    _print('WARNING: SZ Spin label is chosen! The i_tddmrg.py module was designed ' +
-           'with the SU2 spin label in mind. The use of SZ spin label in this ' +
-           'module has not been checked.')
-    _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     
     
 
@@ -92,6 +83,29 @@ if SpinLabel == SZ:
 def _print(*args, **kwargs):
     if MPI.rank == 0:
         print(*args, **kwargs)
+#################################################
+
+
+#################################################
+def printDummyFunction(*args, **kwargs):
+    """ Does nothing"""
+    pass
+#################################################
+
+
+#################################################
+def getVerbosePrinter(verbose,indent="",flush=False):
+    if verbose:
+        if flush:
+            def _print(*args, **kwargs):
+                kwargs["flush"] = True
+                print(indent,*args,**kwargs)
+        else:
+            def _print(*args, **kwargs):
+                print(indent, *args, **kwargs)
+    else:
+        _print = printDummyFunction
+    return _print        
 #################################################
 
 
@@ -122,6 +136,14 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     from pyscf import tools as pyscf_tools
     from pyscf.mcscf import casci_symm
 
+
+    if SpinLabel == SZ:
+        _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        _print('WARNING: SZ Spin label is chosen! The get_symCASCI_ints function was ' +
+               'designed with the SU2 spin label in mind. The use of SZ spin label in ' +
+               'this function has not been checked.')
+        _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
     
     #==== Setting up the CAS ====#
     mf = scf.RHF(mol)
@@ -143,8 +165,8 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     g2e = _mcCI.get_h2cas()
     g2e = np.require(g2e, dtype=np.float64)
     h1e = np.require(h1e, dtype=np.float64)
-#move_out    g2eShape = g2e.shape
-#move_out    h1eShape = h1e.shape
+    #move_out    g2eShape = g2e.shape
+    #move_out    h1eShape = h1e.shape
 
 
     #==== Some checks ====#
@@ -180,6 +202,15 @@ class MYTDDMRG:
         verbose = 0 (quiet), 2 (per sweep), 3 (per iteration)
         """
 
+
+        if SpinLabel == SZ:
+            _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            _print('WARNING: SZ Spin label is chosen! The MYTDDMRG class was designed ' +
+                   'with the SU2 spin label in mind. The use of SZ spin label in this ' +
+                   'class has not been checked.')
+            _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        
+        
         Random.rand_seed(0)
         isize = int(isize)
         assert isize < memory
@@ -203,6 +234,16 @@ class MYTDDMRG:
         self.delayed_contraction = delayed_contraction
         self.idx = None # reorder
         self.ridx = None # inv reorder
+
+        
+        #==== Create scratch directory ====#
+        if self.mpi is not None:
+            if self.mpi.rank == 0:
+                mkDir(scratch)
+            self.mpi.barrier()
+        else:
+            mkDir(scratch)
+
 
         if self.verbose >= 2:
             _print(Global.frame)
@@ -402,10 +443,11 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
 
-#        _print('abcde:')
-#        _print(dir(mps))
+        _print('abcde:')
+        _print(dir(mps))
 #        _print(type(mps.tensors))
 #        _print(dir(mps.tensors[0]))
+#        quit()
 
         
 
@@ -596,16 +638,20 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
     #################################################
-    def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, idxs,
-                   cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
+    def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, 
+                   aid=None, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
                    outmps_name='ANN_KET', outmps_normal=True):
         """Green's function."""
-##        ops = [None] * len(idxs)
-##        rkets = [None] * len(idxs)
-##        rmpos = [None] * len(idxs)
+##        ops = [None] * len(aid)
+##        rkets = [None] * len(aid)
+##        rmpos = [None] * len(aid)
 
         if self.mpi is not None:
             self.mpi.barrier()
+
+        assert ((aid is None) ^ (mo_coeff is None)), 'Either aid or mo_coeff ' + \
+            'should be None, but not both. '
+            
 
         if self.mpo_orig is None:
             mpo = MPOQC(self.hamil, QCTypes.Conventional)
@@ -673,38 +719,62 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
 
+        _print('heret1')
         if mo_coeff is None:
-            if self.ridx is not None:
-                gidxs = self.ridx[np.array(idxs)]
-            else:
-                gidxs = idxs
+            idx = self.ridx[aid]
         else:
             if self.idx is not None:
-                mo_coeff = mo_coeff[:, self.idx]
-            gidxs = list(range(self.n_sites))
-##            ops = [None] * self.n_sites
-            _print('idxs = ', idxs, 'gidxs = ', gidxs)
+                mo_coeff = mo_coeff[self.idx]            
+            ops = [None] * self.n_sites
 
-#        for ii, idx in enumerate(gidxs):
-#        idx = idxs  (IT WAS THIS LINE WHICH WAS THE PROBLEM)
-        idx = self.ridx[idxs]
-        if SpinLabel == SZ:
-            ops = OpElement(OpNames.D, SiteIndex(
-                (idx, ), (0 if alpha else 1, )), SZ(-1, -1 if alpha else 1, self.orb_sym[idx]))
-        else:
-            ops = OpElement(OpNames.D, SiteIndex(
-                (idx, ), ()), SU2(-1, 1, self.orb_sym[idx]))
 
-#        for ii, idx in enumerate(idxs):
+        _print('heret2')
+        gidxs = list(range(self.n_sites))
+        _print('aid = ', aid, 'gidxs = ', gidxs)
+        for ii, ix in enumerate(gidxs):
+            if mo_coeff is not None or (mo_coeff is None and ix==idx):
+                if SpinLabel == SZ:
+                    opsx = OpElement(OpNames.D, SiteIndex(
+                        (ix, ), (0 if alpha else 1, )), SZ(-1, -1 if alpha else 1, self.orb_sym[ix]))
+                else:
+                    opsx = OpElement(OpNames.D, SiteIndex(
+                        (ix, ), ()), SU2(-1, 1, self.orb_sym[ix]))
+                if mo_coeff is not None:
+                    ops[ii] = opsx
+                else:
+                    ops = opsx
+                    
+
+        _print('heret3')
+        #OLD for ii, idx in enumerate(aid):
         if self.mpi is not None:
             self.mpi.barrier()
         if self.verbose >= 2:
-            _print('>>> START Compression Site = %4d <<<' % idx)
+            _print('>>> START : Applying the annihilation operator <<<')
         t = time.perf_counter()
 
-        rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-                            self.target + ops.q_label, self.hamil.basis)
-        rket_info.tag = 'DKET%d' % idx
+        
+        if mo_coeff is None:
+#            qlabel = ops.q_label
+            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
+                                self.target + ops.q_label, self.hamil.basis)
+        else:
+#            qlabel = ops[0].q_label
+#            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
+#                                self.target + ops[0].q_label, self.hamil.basis)
+            _print('qlabel : ', self.target, ops[0].q_label, self.target + ops[0].q_label)
+            _print('qlabel : ', self.target, ops[1].q_label, self.target + ops[0].q_label)
+            _print('qlabel : ', self.target, ops[2].q_label, self.target + ops[0].q_label)
+            _print('qlabel : ', self.target, ops[3].q_label, self.target + ops[0].q_label)
+            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
+                                self.target, self.hamil.basis)
+            
+        _print('heret4')
+        
+        if mo_coeff is None:
+            rket_info.tag = 'DKET_%d' % idx
+        else:
+            rket_info.tag = 'DKET_C'
         rket_info.set_bond_dimension(mps.info.bond_dim)
         if occs is None:
             if self.verbose >= 2:
@@ -717,21 +787,22 @@ orb_sym: orbitals symmetry in molpro convention.
                 mps.info.bond_dim, VectorDouble(occs), bias=bias)
 
 
-
+        _print('heret5')
         #==== IMAM ====#
         rket_info.save_data(self.scratch + "/" + outmps_name)
 
-
-        
+        _print('heret6')
         rkets = MPS(self.n_sites, mps.center, 2)
         rkets.initialize(rket_info)
         rkets.random_canonicalize()
-        
+
+        _print('heret7')
         rkets.save_mutable()
         rkets.deallocate()
         rket_info.save_mutable()
         rket_info.deallocate_mutable()
 
+        _print('heret8')
         if mo_coeff is None:
             # the mpo and gf are in the same basis
             # the mpo is SiteMPO
@@ -741,11 +812,14 @@ orb_sym: orbitals symmetry in molpro convention.
             # the mpo is in mo basis and gf is in ao basis
             # the mpo is sum of SiteMPO (LocalMPO)
             ao_ops = VectorOpElement([None] * self.n_sites)
+            _print('mo_coeff = ', mo_coeff)
             for ix in range(self.n_sites):
-                ao_ops[ix] = ops[ix] * mo_coeff[idx, ix]
+                ao_ops[ix] = ops[ix] * mo_coeff[ix]
+                _print('opsx = ', ops[ix], type(ops[ix]), ao_ops[ix], type(ao_ops[ix]))
             rmpos = SimplifiedMPO(
                 LocalMPO(self.hamil, ao_ops), NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
 
+        _print('heret9')
         if self.mpi is not None:
             rmpos = ParallelMPO(rmpos, self.siterule)
 
@@ -754,8 +828,13 @@ orb_sym: orbitals symmetry in molpro convention.
         else:
             pme = MovingEnvironment(mpo, rkets, rkets, "PERT")
             pme.init_environments(False)
+        _print('heret10')
         rme = MovingEnvironment(rmpos, rkets, mps, "RHS")
+#fordebug        rme = MovingEnvironment(mpo, mps, mps, "RHS")
+        _print('heret11')
         rme.init_environments(False)
+        _print('heret12')
+
         if self.delayed_contraction:
             if pme is not None:
                 pme.delayed_contraction = OpNamesSet.normal_ops()
@@ -776,7 +855,10 @@ orb_sym: orbitals symmetry in molpro convention.
             icent = rkets.center
             #OLD if rkets.dot == 2 and rkets.center == rkets.n_sites-1:
             if rkets.dot == 2:
-                icent += 1
+                if rkets.center == rkets.n_sites-2:
+                    icent += 1
+                elif rkets.center == 0:
+                    pass
             assert rkets.tensors[icent] is not None
             
             rkets.load_tensor(icent)
@@ -790,8 +872,8 @@ orb_sym: orbitals symmetry in molpro convention.
 
             
         if self.verbose >= 2:
-            _print('>>> COMPLETE Compression Site = %4d | Time = %.2f <<<' %
-                   (idx, time.perf_counter() - t))
+            _print('>>> COMPLETE : Application of annihilation operator | Time = %.2f <<<' %
+                   (time.perf_counter() - t))
     #################################################
 
 
@@ -880,7 +962,9 @@ orb_sym: orbitals symmetry in molpro convention.
 
         n_steps = int(tmax/dt + 1)
         ts = np.linspace(0, tmax, n_steps)    # times
-        issampled = [False] * len(t_sample)
+        if t_sample is not None:
+            issampled = [False] * len(t_sample)
+            
         i_sp = 0
         for it, tt in enumerate(ts):
 
@@ -951,11 +1035,17 @@ orb_sym: orbitals symmetry in molpro convention.
                         dd = dt1 < dt2
                     else:
                         dd = True
+                        
                     _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
                     if dd and not issampled[i_sp]:
                         save_dir = sample_dir + '/mps_sp-' + str(i_sp)
-                        mkDir(save_dir)
-     
+                        if self.mpi is not None:
+                            if self.mpi.rank == 0:
+                                mkDir(save_dir)
+                                self.mpi.barrier()
+                            else:
+                                mkDir(save_dir)
+                
                         #==== Saving MPS ====##
                         if save_mps:
                             saveMPStoDir(cmps, save_dir, self.mpi)
