@@ -66,7 +66,7 @@ else:
 
 
 import tools; tools.init(SpinLabel)
-from tools import saveMPStoDir, mkDir
+from tools import saveMPStoDir, loadMPSfromDir, mkDir
 from gfdmrg import orbital_reorder
 
         
@@ -106,6 +106,59 @@ def getVerbosePrinter(verbose,indent="",flush=False):
     else:
         _print = printDummyFunction
     return _print        
+#################################################
+
+
+#################################################
+def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises, 
+                fit_conv_tol, decomp_type, cutoff, lmpo=None, fit_margin=None, 
+                noise_type='reduced_perturb', delay_contract=True, verbose_lvl=1):
+
+    #==== Construction of the Moving Environment ====#
+    if lmpo is None:
+        lme = None
+    else:
+        lme = MovingEnvironment(lmpo, fitket, fitket, "PERT")
+        lme.init_environments(False)
+        if delay_contract:
+            lme.delayed_contraction = OpNamesSet.normal_ops()
+    #fordebug rme = MovingEnvironment(lmpo, mps, mps, "RHS")
+    rme = MovingEnvironment(rmpo, fitket, mps, "RHS")
+    rme.init_environments(False)
+    if delay_contract:
+        rme.delayed_contraction = OpNamesSet.normal_ops()
+
+        
+    #==== Begin MPS fitting ====#
+    if fit_margin == None:
+        fit_margin = max(int(mps.info.bond_dim / 10.0), 100)
+    fit = Linear(lme, rme, VectorUBond(fit_bond_dims),
+                 VectorUBond([mps.info.bond_dim + fit_margin]), VectorDouble(fit_noises))
+    
+    if noise_type == 'reduced_perturb':
+        fit.noise_type = NoiseTypes.ReducedPerturbative
+    elif noise_type == 'reduced_perturb_lowmem':
+        fit.noise_type = NoiseTypes.ReducedPerturbativeCollectedLowMem
+    elif noise_type == 'density_mat':
+        fit.noise_type = NoiseTypes.DensityMatrix
+    else:
+        raise ValueError("The 'noise_type' parameter of 'MPS_fitting' does not" +
+                         "correspond to any available options, which are 'reduced_perturb', " +
+                         "'reduced_perturb_lowmem', or 'density_mat'.")
+    
+    if decomp_type == 'svd':
+        fit.decomp_type = DecompositionTypes.SVD
+    elif decomp_type == 'density_mat':
+        fit.decomp_type = DecompositionTypes.DensityMatrix
+    else:
+        raise ValueError("The 'decomp_type' parameter of 'MPS_fitting' does not" +
+                         "correspond to any available options, which are 'svd' or 'density_mat'.")
+
+    if lme is not None:
+        fit.eq_type = EquationTypes.PerturbativeCompression
+    fit.iprint = max(verbose_lvl, 0)
+    fit.cutoff = cutoff
+    fit.solve(fit_nsteps, mps.center == 0, fit_conv_tol)
 #################################################
 
 
@@ -210,7 +263,7 @@ class MYTDDMRG:
                    'class has not been checked.')
             _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         
-        
+
         Random.rand_seed(0)
         isize = int(isize)
         assert isize < memory
@@ -223,17 +276,22 @@ class MYTDDMRG:
         Global.frame.save_buffering = False
         Global.frame.use_main_stack = False
         Global.frame.minimal_disk_usage = True
-        
+
         self.fcidump = None
         self.hamil = None
         self.verbose = verbose
         self.scratch = scratch
         self.mpo_orig = None
         self.print_statistics = print_statistics
-        self.mpi = mpi
+        ## self.mpi = mpi
+        self.mpi = MPI
+        
         self.delayed_contraction = delayed_contraction
         self.idx = None # reorder
         self.ridx = None # inv reorder
+        if self.mpi is not None:
+            print('herey2 I am MPI', self.mpi.rank)
+            self.mpi.barrier()
 
         
         #==== Create scratch directory ====#
@@ -243,7 +301,6 @@ class MYTDDMRG:
             self.mpi.barrier()
         else:
             mkDir(scratch)
-
 
         if self.verbose >= 2:
             _print(Global.frame)
@@ -319,7 +376,6 @@ orb_sym: orbitals symmetry in molpro convention.
             mg2e = g2e.ravel()
             mh1e[np.abs(mh1e) < tol] = 0.0
             mg2e[np.abs(mg2e) < tol] = 0.0
-            _print('herem1')
 
             _print('n_sites = ', type(n_sites), n_sites)
             _print('n_elec = ', type(n_elec), n_elec)
@@ -331,7 +387,6 @@ orb_sym: orbitals symmetry in molpro convention.
             
             self.fcidump.initialize_su2(
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
-            _print('herem2')
         else:
             assert SpinLabel == SZ
             assert isinstance(h1e, tuple) and len(h1e) == 2
@@ -385,6 +440,9 @@ orb_sym: orbitals symmetry in molpro convention.
                 self.fcidump.write(save_fcidump)
             if self.mpi is not None:
                 self.mpi.barrier()
+
+        if self.mpi is not None:
+            self.mpi.barrier()
     #################################################
 
 
@@ -407,7 +465,8 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
     #################################################
-    def dmrg(self, bond_dims, noises, n_steps=30, conv_tol=1E-7, cutoff=1E-14, occs=None, bias=1.0):
+    def dmrg(self, bond_dims, noises, n_steps=30, conv_tol=1E-7, cutoff=1E-14, occs=None,
+             bias=1.0):
         """Ground-State DMRG."""
 
         if self.verbose >= 2:
@@ -506,6 +565,7 @@ orb_sym: orbitals symmetry in molpro convention.
         mps.save_data()
         mps_info.save_data(self.scratch + "/GS_MPS_INFO")
         mps_info.deallocate()
+        _print('output GS D = ', mps.info.bond_dim)
 
 
         if self.print_statistics:
@@ -638,13 +698,13 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
     #################################################
-    def annihilate(self, bond_dims, cps_bond_dims, cps_noises, cps_conv_tol, cps_n_steps, 
+    def annihilate(self, bond_dims, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
                    aid=None, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
-                   outmps_name='ANN_KET', outmps_normal=True):
+                   outmps_name='ANN_KET', outmps_normal=True, outmps_dir=None):
         """Green's function."""
-##        ops = [None] * len(aid)
-##        rkets = [None] * len(aid)
-##        rmpos = [None] * len(aid)
+        ##OLD ops = [None] * len(aid)
+        ##OLD rkets = [None] * len(aid)
+        ##OLD rmpos = [None] * len(aid)
 
         if self.mpi is not None:
             self.mpi.barrier()
@@ -663,6 +723,7 @@ orb_sym: orbitals symmetry in molpro convention.
         mps_info.load_data(self.scratch + "/GS_MPS_INFO")
         mps = MPS(mps_info)
         mps.load_data()
+        _print('input MPS D = ', mps.info.bond_dim)
 
         
         if self.mpi is not None:
@@ -690,36 +751,34 @@ orb_sym: orbitals symmetry in molpro convention.
             mps_info2.deallocate_mutable()
             mps_info2.deallocate()
 
-#need?        impo = SimplifiedMPO(IdentityMPO(self.hamil),
-#need?                             NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
-#need?
-#need?        if self.mpi is not None:
-#need?            impo = ParallelMPO(impo, self.identrule)
+        #need? impo = SimplifiedMPO(IdentityMPO(self.hamil),
+        #need?                      NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
+        #need? 
+        #need? if self.mpi is not None:
+        #need?     impo = ParallelMPO(impo, self.identrule)
+               
+        #need? def align_mps_center(ket, ref):
+        #need?     if self.mpi is not None:
+        #need?         self.mpi.barrier()
+        #need?     cf = ket.canonical_form
+        #need?     if ref.center == 0:
+        #need?         ket.center += 1
+        #need?         ket.canonical_form = ket.canonical_form[:-1] + 'S'
+        #need?         while ket.center != 0:
+        #need?             ket.move_left(mpo.tf.opf.cg, self.prule)
+        #need?     else:
+        #need?         ket.canonical_form = 'K' + ket.canonical_form[1:]
+        #need?         while ket.center != ket.n_sites - 1:
+        #need?             ket.move_right(mpo.tf.opf.cg, self.prule)
+        #need?         ket.center -= 1
+        #need?     if self.verbose >= 2:
+        #need?         _print('CF = %s --> %s' % (cf, ket.canonical_form))
 
-#need?        def align_mps_center(ket, ref):
-#need?            if self.mpi is not None:
-#need?                self.mpi.barrier()
-#need?            cf = ket.canonical_form
-#need?            if ref.center == 0:
-#need?                ket.center += 1
-#need?                ket.canonical_form = ket.canonical_form[:-1] + 'S'
-#need?                while ket.center != 0:
-#need?                    ket.move_left(mpo.tf.opf.cg, self.prule)
-#need?            else:
-#need?                ket.canonical_form = 'K' + ket.canonical_form[1:]
-#need?                while ket.center != ket.n_sites - 1:
-#need?                    ket.move_right(mpo.tf.opf.cg, self.prule)
-#need?                ket.center -= 1
-#need?            if self.verbose >= 2:
-#need?                _print('CF = %s --> %s' % (cf, ket.canonical_form))
-
-
-#NOTE: check if ridx is not none
-#NOTE: change dctr to delayed____ (DONE)
-
+        #NOTE: check if ridx is not none
+        #NOTE: change dctr to delayed____ (DONE)
 
 
-        _print('heret1')
+
         if mo_coeff is None:
             idx = self.ridx[aid]
         else:
@@ -728,7 +787,6 @@ orb_sym: orbitals symmetry in molpro convention.
             ops = [None] * self.n_sites
 
 
-        _print('heret2')
         gidxs = list(range(self.n_sites))
         _print('aid = ', aid, 'gidxs = ', gidxs)
         for ii, ix in enumerate(gidxs):
@@ -745,7 +803,6 @@ orb_sym: orbitals symmetry in molpro convention.
                     ops = opsx
                     
 
-        _print('heret3')
         #OLD for ii, idx in enumerate(aid):
         if self.mpi is not None:
             self.mpi.barrier()
@@ -755,21 +812,19 @@ orb_sym: orbitals symmetry in molpro convention.
 
         
         if mo_coeff is None:
-#            qlabel = ops.q_label
             rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
                                 self.target + ops.q_label, self.hamil.basis)
         else:
-#            qlabel = ops[0].q_label
-#            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-#                                self.target + ops[0].q_label, self.hamil.basis)
-            _print('qlabel : ', self.target, ops[0].q_label, self.target + ops[0].q_label)
-            _print('qlabel : ', self.target, ops[1].q_label, self.target + ops[0].q_label)
-            _print('qlabel : ', self.target, ops[2].q_label, self.target + ops[0].q_label)
-            _print('qlabel : ', self.target, ops[3].q_label, self.target + ops[0].q_label)
             rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-                                self.target, self.hamil.basis)
+                                self.target + ops[0].q_label, self.hamil.basis)
+            # define new target witht the correct ionic wave function symmetry (in pyscf convention). GS_IRREP XOR removed orbital irrep.
+
+
             
-        _print('heret4')
+            for i in range(self.n_sites):
+                _print('qlabel : ', i, self.target, ops[i].q_label,
+                       self.target + ops[i].q_label)            
+
         
         if mo_coeff is None:
             rket_info.tag = 'DKET_%d' % idx
@@ -787,22 +842,17 @@ orb_sym: orbitals symmetry in molpro convention.
                 mps.info.bond_dim, VectorDouble(occs), bias=bias)
 
 
-        _print('heret5')
         #==== IMAM ====#
         rket_info.save_data(self.scratch + "/" + outmps_name)
 
-        _print('heret6')
         rkets = MPS(self.n_sites, mps.center, 2)
         rkets.initialize(rket_info)
         rkets.random_canonicalize()
-
-        _print('heret7')
         rkets.save_mutable()
         rkets.deallocate()
         rket_info.save_mutable()
         rket_info.deallocate_mutable()
 
-        _print('heret8')
         if mo_coeff is None:
             # the mpo and gf are in the same basis
             # the mpo is SiteMPO
@@ -818,40 +868,43 @@ orb_sym: orbitals symmetry in molpro convention.
                 _print('opsx = ', ops[ix], type(ops[ix]), ao_ops[ix], type(ao_ops[ix]))
             rmpos = SimplifiedMPO(
                 LocalMPO(self.hamil, ao_ops), NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
-
-        _print('heret9')
+            
         if self.mpi is not None:
             rmpos = ParallelMPO(rmpos, self.siterule)
 
-        if len(cps_noises) == 1 and cps_noises[0] == 0:
-            pme = None
-        else:
-            pme = MovingEnvironment(mpo, rkets, rkets, "PERT")
-            pme.init_environments(False)
-        _print('heret10')
-        rme = MovingEnvironment(rmpos, rkets, mps, "RHS")
-#fordebug        rme = MovingEnvironment(mpo, mps, mps, "RHS")
-        _print('heret11')
-        rme.init_environments(False)
-        _print('heret12')
 
-        if self.delayed_contraction:
-            if pme is not None:
-                pme.delayed_contraction = OpNamesSet.normal_ops()
-            rme.delayed_contraction = OpNamesSet.normal_ops()
+            
+        # if len(cps_noises) == 1 and cps_noises[0] == 0:
+        #     pme = None
+        # else:
+        #     pme = MovingEnvironment(mpo, rkets, rkets, "PERT")
+        #     pme.init_environments(False)
+        #     if self.delayed_contraction:
+        #         pme.delayed_contraction = OpNamesSet.normal_ops()
+        # rme = MovingEnvironment(rmpos, rkets, mps, "RHS")
+        # rme.init_environments(False)
+        # if self.delayed_contraction:
+        #     rme.delayed_contraction = OpNamesSet.normal_ops()
+        #     
+        # cps = Linear(pme, rme, VectorUBond(cps_bond_dims),
+        #              VectorUBond([mps.info.bond_dim+100]), VectorDouble(cps_noises))
+        # cps.noise_type = NoiseTypes.ReducedPerturbative
+        # cps.decomp_type = DecompositionTypes.SVD
+        # if pme is not None:
+        #     cps.eq_type = EquationTypes.PerturbativeCompression
+        # cps.iprint = max(self.verbose - 1, 0)
+        # cps.cutoff = cutoff
+        # cps.solve(cps_n_steps, mps.center == 0, cps_conv_tol)
 
-        cps = Linear(pme, rme, VectorUBond(cps_bond_dims),
-                     VectorUBond([mps.info.bond_dim+100]), VectorDouble(cps_noises))
-        cps.noise_type = NoiseTypes.ReducedPerturbative
-        cps.decomp_type = DecompositionTypes.SVD
-        if pme is not None:
-            cps.eq_type = EquationTypes.PerturbativeCompression
-        cps.iprint = max(self.verbose - 1, 0)
-        cps.cutoff = cutoff
-        cps.solve(cps_n_steps, mps.center == 0, cps_conv_tol)
+        
+        MPS_fitting(rkets, mps, rmpos, fit_bond_dims, fit_n_steps, fit_noises,
+                    fit_conv_tol, 'svd', cutoff, lmpo=mpo, verbose_lvl=self.verbose-1)
 
 
-        if outmps_normal:
+        _print('rket D = ', rkets.info.bond_dim)
+
+        if outmps_normal or outmps_dir is not None:
+            _print('Normalizing the output MPS')
             icent = rkets.center
             #OLD if rkets.dot == 2 and rkets.center == rkets.n_sites-1:
             if rkets.dot == 2:
@@ -866,10 +919,15 @@ orb_sym: orbitals symmetry in molpro convention.
             rkets.save_tensor(icent)
             # rket_info.save_data(self.scratch + "/" + outmps_name)
             saveMPStoDir(rkets, self.scratch, self.mpi)
+            if outmps_dir is not None:
+                _print('Saving output MPS to ' + outmps_dir)
+                mkDir(outmps_dir)
+                rket_info.save_data(outmps_dir + "/" + outmps_name)
+                saveMPStoDir(rkets, outmps_dir, self.mpi)
             rkets.unload_tensor(icent)
 
             _print('Canonical form of the annihilation output : ', rkets.canonical_form)
-
+            
             
         if self.verbose >= 2:
             _print('>>> COMPLETE : Application of annihilation operator | Time = %.2f <<<' %
@@ -877,15 +935,50 @@ orb_sym: orbitals symmetry in molpro convention.
     #################################################
 
 
+    #################################################
+    def save_time_info(self, save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps,
+                       save_1pdm):
+        yn_bools = ('No','Yes')
+        au2fs = 2.4188843265e-2   # a.u. of time to fs conversion factor
+        
+        if self.mpi.rank == 0:
+            with open(save_dir + '/TIME_INFO', 'w') as timeinfo:
+                timeinfo.write(' Actual sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
+                               (it, t, t*au2fs))
+                timeinfo.write(' Requested sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
+                               (i_sp, t_sp, t_sp*au2fs))
+                timeinfo.write(' MPS norm square = %19.14f\n' % normsq)
+                timeinfo.write(' Autocorrelation = (%19.14f, %19.14f)\n' % (ac.real, ac.imag))
+                timeinfo.write(f' Is MPS saved?  {yn_bools[save_mps]}\n')
+                timeinfo.write(f' Is 1PDM saved?  {yn_bools[save_1pdm]}\n')
+        MPI.barrier()
+    #################################################
+
+
     ##################################################################
-    def time_propagate(self, inmps_name, bond_dim: int, method, tmax: float, dt: float, 
-                       n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, cutoff=0, verbosity=6, 
+    def time_propagate(self, inmps_name, max_bond_dim: int, method, tmax: float, dt: float, 
+                       inmps_dir=None, n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, cutoff=0, verbosity=6, 
                        normalize=False, t_sample=None, save_mps=False, save_1pdm=False, save_2pdm=False,
-                       sample_dir='samples'):
+                       sample_dir='samples', prefit=False, prefit_bond_dims=None, prefit_nsteps=None,
+                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None):
         '''
         Coming soon
+        inmps_dir = if it is not None, then inmps_name will be searched for under inmps_dir.
         '''
 
+        if self.mpi is not None:
+            if SpinLabel == SU2:
+                from block2.su2 import ParallelMPO
+            else:
+                from block2.sz import ParallelMPO
+
+                
+        #==== Identity operator ====#
+        idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
+        if self.mpi is not None:
+            idMPO = ParallelMPO(idMPO, self.identrule)
+
+            
         #==== Prepare Hamiltonian MPO ====#
         if self.mpi is not None:
             self.mpi.barrier()
@@ -893,11 +986,6 @@ orb_sym: orbitals symmetry in molpro convention.
             mpo = MPOQC(self.hamil, QCTypes.Conventional)
             mpo = SimplifiedMPO(mpo, RuleQC(), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
             self.mpo_orig = mpo
-        if self.mpi is not None:
-            if SpinLabel == SU2:
-                from block2.su2 import ParallelMPO
-            else:
-                from block2.sz import ParallelMPO
         mpo = 1.0 * self.mpo_orig
 #need?        mpo = IdentityAddedMPO(mpo) # hrl: alternative
         if self.mpi is not None:
@@ -906,10 +994,27 @@ orb_sym: orbitals symmetry in molpro convention.
 
         #==== Load the initial MPS ====#
         mps_info = MPSInfo(0)
-        mps_info.load_data(self.scratch + "/" + inmps_name)
-        mps = MPS(mps_info)
-        mps.load_data()
-        mps.info.load_mutable()
+        if inmps_dir is not None:
+            inmps_path = inmps_dir + "/" + inmps_name
+        else:
+            inmps_path = self.scratch + "/" + inmps_name
+        _print('Loading input MPS info from ' + inmps_path)
+        mps_info.load_data(inmps_path)
+        #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
+        #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
+        #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
+        mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
+
+        _print('Bond dim in TE : ', mps.info.bond_dim, max_bond_dim)
+
+        if prefit:
+            if MPI is not None: MPI.barrier()
+            ref_mps = mps.deep_copy('ref_mps_t0')
+            if MPI is not None: MPI.barrier()
+            MPS_fitting(mps, ref_mps, idMPO, prefit_bond_dims, prefit_nsteps, prefit_noises,
+                        prefit_conv_tol, 'svd', prefit_cutoff, lmpo=None, verbose_lvl=self.verbose-1)
+
+        
         cmps = MultiMPS.make_complex(mps, "mps_t")
         cmps_t0 = MultiMPS.make_complex(mps, "mps_t0")
         if mps.dot != 1: # change to 2dot      #NOTE: Is it for converting to two-site DMRG?
@@ -924,22 +1029,15 @@ orb_sym: orbitals symmetry in molpro convention.
 
 
         #==== Initial setups for autocorrelation ====#
-        idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
-        if self.mpi is not None:
-            idMPO = ParallelMPO(idMPO, self.identrule)
         idME = MovingEnvironment(idMPO, cmps_t0, cmps, "acorr")
 
 
-
-
         #==== 1PDM IMAM
-##        pmpo = PDM1MPOQC(self.hamil)
-##        pmpo = SimplifiedMPO(pmpo, RuleQC())
-##        if self.mpi is not None:
-##            pmpo = ParallelMPO(pmpo, self.pdmrule)
-##        pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
-
-
+        ## pmpo = PDM1MPOQC(self.hamil)
+        ## pmpo = SimplifiedMPO(pmpo, RuleQC())
+        ## if self.mpi is not None:
+        ##     pmpo = ParallelMPO(pmpo, self.pdmrule)
+        ## pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
             
         
         #==== Initial setups for time evolution ====#
@@ -953,9 +1051,9 @@ orb_sym: orbitals symmetry in molpro convention.
 
         #==== Time evolution ====#
         if method == TETypes.TangentSpace:
-            te = TimeEvolution(me, VectorUBond([bond_dim]), method)
+            te = TimeEvolution(me, VectorUBond([max_bond_dim]), method)
         else:
-            te = TimeEvolution(me, VectorUBond([bond_dim]), method, n_sub_sweeps_init)
+            te = TimeEvolution(me, VectorUBond([max_bond_dim]), method, n_sub_sweeps_init)
         te.cutoff = cutoff                    # for tiny systems, this is important
         te.iprint = verbosity
         te.normalize_mps = normalize
@@ -984,89 +1082,92 @@ orb_sym: orbitals symmetry in molpro convention.
                 else:
                     te.n_sub_sweeps = n_sub_sweeps
 
-                #==== Autocorrelation ====#
-                idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
-                acorr = ComplexExpect(idME, bond_dim, bond_dim)
-                acorr_t = acorr.solve(False) * -1j
-                _print('acorr_t, abs = ', acorr_t, abs(acorr_t))
+            #==== Autocorrelation ====#
+            idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
+            acorr = ComplexExpect(idME, max_bond_dim, max_bond_dim)
+            acorr_t = acorr.solve(False)  
+            _print('acorr_t, abs = ', acorr_t, abs(acorr_t))
+
+            
+            #==== 1PDM IMAM
+            ## pme.init_environments()
+            ## _print('here1')
+            ## expect = ComplexExpect(pme, max_bond_dim+100, max_bond_dim+100)   #NOTE
+            ## _print('here2')
+            ## expect.solve(True, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
+            ## _print('here3')
+            ## if SpinLabel == SU2:
+            ##     dmr = expect.get_1pdm_spatial(self.n_sites)
+            ##     dm = np.array(dmr).copy()
+            ## else:
+            ##     dmr = expect.get_1pdm(self.n_sites)
+            ##     dm = np.array(dmr).copy()
+            ##     dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
+            ##     dm = np.transpose(dm, (0, 2, 1, 3))
+            ## _print('here4')
+            ## cmps.save_data()
+            ## if self.ridx is not None:
+            ##     dm[:, :] = dm[self.ridx, :][:, self.ridx]
+            ## _print('here5')
+            ## dmr.deallocate()
+            ## _print('here6')
+            ## if SpinLabel == SU2:
+            ##     dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
+            ## else:
+            ##     dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
+            ## _print('here7')
+            ## _print('splabel ', SpinLabel)
+            ## _print('DM eigvals = ', dm.shape, scipy.linalg.norm(dm), dm.dtype)
 
 
+            #==== Stores MPS and/or PDM's at sampling times ====#
+            if t_sample is not None and np.prod(issampled)==0:
+                if it < n_steps-1:
+                    dt1 = abs( ts[it]   - t_sample[i_sp] )
+                    dt2 = abs( ts[it+1] - t_sample[i_sp] )
+                    dd = dt1 < dt2
+                else:
+                    dd = True
+                    
+                _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
+                if dd and not issampled[i_sp]:
+                    save_dir = sample_dir + '/mps_sp-' + str(i_sp)
+                    if self.mpi is not None:
+                        if self.mpi.rank == 0:
+                            mkDir(save_dir)
+                            self.mpi.barrier()
+                        else:
+                            mkDir(save_dir)
 
+                    #==== Save time info ====#
+                    if it == 0:
+                        normsqs = abs(acorr_t)
+                    elif it > 0:
+                        normsqs = te.normsqs[0]
+                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
+                                        normsqs, acorr_t, save_mps, save_1pdm)
+            
+                    #==== Saving MPS ====##
+                    if save_mps:
+                        saveMPStoDir(cmps, save_dir, self.mpi)
 
-                
-                #==== 1PDM IMAM
-##                pme.init_environments()
-##                _print('here1')
-##                expect = ComplexExpect(pme, bond_dim+100, bond_dim+100)   #NOTE
-##                _print('here2')
-##                expect.solve(True, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
-##                _print('here3')
-##                if SpinLabel == SU2:
-##                    dmr = expect.get_1pdm_spatial(self.n_sites)
-##                    dm = np.array(dmr).copy()
-##                else:
-##                    dmr = expect.get_1pdm(self.n_sites)
-##                    dm = np.array(dmr).copy()
-##                    dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
-##                    dm = np.transpose(dm, (0, 2, 1, 3))
-##                _print('here4')
-##                cmps.save_data()
-##                if self.ridx is not None:
-##                    dm[:, :] = dm[self.ridx, :][:, self.ridx]
-##                _print('here5')
-##                dmr.deallocate()
-##                _print('here6')
-##                if SpinLabel == SU2:
-##                    dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
-##                else:
-##                    dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
-##                _print('here7')
-##                _print('splabel ', SpinLabel)
-##                _print('DM eigvals = ', dm.shape, scipy.linalg.norm(dm), dm.dtype)
-
-
-                
-
-                #==== Stores MPS and/or PDM's at sampling times ====#
-                if t_sample is not None and np.prod(issampled)==0:
-                    if it < n_steps-1:
-                        dt1 = abs( ts[it]   - t_sample[i_sp] )
-                        dt2 = abs( ts[it+1] - t_sample[i_sp] )
-                        dd = dt1 < dt2
-                    else:
-                        dd = True
+                    #==== Saving 1PDM ====#
+                    if save_1pdm:
+                        #== Copy the current MPS because self.get_one_pdm ==#
+                        #==      convert the input MPS to a real MPS      ==#
+                        if MPI is not None: MPI.barrier()
+                        cmps_cp = cmps.deep_copy('cmps_cp')
+                        if MPI is not None: MPI.barrier()
                         
-                    _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
-                    if dd and not issampled[i_sp]:
-                        save_dir = sample_dir + '/mps_sp-' + str(i_sp)
-                        if self.mpi is not None:
-                            if self.mpi.rank == 0:
-                                mkDir(save_dir)
-                                self.mpi.barrier()
-                            else:
-                                mkDir(save_dir)
-                
-                        #==== Saving MPS ====##
-                        if save_mps:
-                            saveMPStoDir(cmps, save_dir, self.mpi)
-
-                        #==== Saving 1PDM ====#
-                        if save_1pdm:
-                            #== Copy the current MPS because self.get_one_pdm ==#
-                            #==      convert the input MPS to a real MPS      ==#
-                            if MPI is not None: MPI.barrier()
-                            cmps_cp = cmps.deep_copy('cmps_cp')
-                            if MPI is not None: MPI.barrier()
-                            
-                            dm = self.get_one_pdm(True, cmps_cp)
-                            np.save(save_dir+'/1pdm', dm)
-                            _print('DM a = ', dm[0,:,:])
-                            _print('DM a, b trace = ', np.trace(dm[0,:,:]), np.trace(dm[1,:,:]))
-                            cmps_cp.info.deallocate()
-#                            cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
-                        
-                        issampled[i_sp] = True
-                        i_sp += 1
+                        dm = self.get_one_pdm(True, cmps_cp)
+                        np.save(save_dir+'/1pdm', dm)
+                        _print('DM a = ', dm[0,:,:])
+                        _print('DM a, b trace = ', np.trace(dm[0,:,:]), np.trace(dm[1,:,:]))
+                        cmps_cp.info.deallocate()
+                        ## cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
+                    
+                    issampled[i_sp] = True
+                    i_sp += 1
     ##############################################################
     
 

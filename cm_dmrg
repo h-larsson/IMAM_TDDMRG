@@ -4,7 +4,7 @@ from block2 import TETypes
 from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
 import numpy as np
 from scipy.linalg import eigvalsh
-import os, time
+import os, time, socket
 from pyscf import gto, scf, ao2mo
 
 
@@ -35,16 +35,32 @@ else:
 if MAIN_PROCESS:
     t_start = time.time()
 
+MPI.barrier()
+print(f"# A warm welcome from MPI on {socket.gethostname()} with size {MPI.size} and rank {MPI.rank}",
+          flush=True)
+MPI.barrier()
+
 
 ######################
-#==== Input area ====#
+#vvvv Input File vvvv#
 ######################
 import sys
 inp_file = str(sys.argv[1])
 exec(open(inp_file).read())
+######################
+#^^^^ Input File ^^^^#
+######################
 
 
-scratch = './' + prefix + '.tmp'
+#==== Get threads from env. variable ====#
+def_n_threads = 1
+n_threads = int(os.environ.get("OMP_NUM_THREADS", def_n_threads))
+_print("# used threads = ", n_threads)
+
+_print('Has MPI?', hasMPI)
+def_scratch = './' + prefix + '.tmp'
+scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
+_print('Scratch directory : ', scratch)
 
     
 #==== Setting up the system ====#
@@ -81,13 +97,17 @@ if MAIN_PROCESS:
         _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
     else:
         hf_orb = np.load(hf_orb_path)
-        assert (hf_orb.shape[0] ==    1 and
-                hf_orb.shape[1] == n_mo and
-                hf_orb.shape[2] == n_mo), \
-               'ERROR: The shape of the Hartree-Fock orbitals array loaded from ' + \
+        assert len(hf_orb.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
+               'array must be a two-dimensional array (a matrix).'
+        assert (hf_orb.shape[0] == n_mo and
+                hf_orb.shape[1] == n_mo), \
+               'The shape of the Hartree-Fock orbitals array loaded from ' + \
                str(hf_orb_path) + ' is inconsistent with the number of MO bases (' + \
                str(n_mo) + '). The shape of the loaded orbitals array is ' + \
-               str(hf_orb.shape) + ', instead of ' + str((1, n_mo, n_mo)) + '.'
+               str(hf_orb.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
+               'reasons may be that the basis set or the molecular species used ' + \
+               'to obtain the above HF orbitals is different than what is used ' + \
+               'for this simulation.'
     hf_orb_shape = hf_orb.shape
     _print('MO coefficient shape = ', hf_orb.shape)
 
@@ -98,8 +118,12 @@ if MAIN_PROCESS:
     g2e = ao2mo.restore('s8', g2e, nCAS)   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
     h1eshape = h1e.shape
     g2eshape = g2e.shape
+else:
+    hf_orb = h1e = g2e = None
+    hf_orb_shape = h1eshape = g2eshape = None
+    ecore = None
+    molpro_osym = molpro_wsym = None
 
-    
 if hasMPI:
     hf_orb_shape = commPy.bcast(hf_orb_shape, root = 0)
     h1eshape = commPy.bcast(h1eshape, root = 0)
@@ -117,24 +141,21 @@ if hasMPI:
 _print('type of molpro_osym : ', type(molpro_osym[0]))
 _print('type of molpro_wsym : ', type(molpro_wsym))
 
-
+    
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
     re_idx = orbital_reorder(h1e, g2e)
     re_idx_shape = re_idx.shape
     re_idx_type = type(re_idx)
+else:
+    re_idx = re_idx_shape = re_idx_type = None
+
 if hasMPI:
     re_idx_shape = commPy.bcast(re_idx_shape, root = 0)
     re_idx_type = commPy.bcast(re_idx_type, root = 0)
     if not MAIN_PROCESS:
         re_idx = np.empty(re_idx_shape, dtype=re_idx_type)
     commPy.Bcast([re_idx, MPIpy.INTEGER], root=0)
-
-
-#==== Get threads from env. variable ====#
-def_n_threads = 1
-n_threads = int(os.environ.get("OMP_NUM_THREADS", def_n_threads))
-_print("# used threads = ", n_threads)
 
 
 #==== Initiate the Hamiltonian MPO ====#
@@ -144,45 +165,58 @@ obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpr
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
                      save_fcidump=None)
 
-
-#==== Run the DMRG ground state iterations ====#
-_print('\n\n==== Run DMRG ground state ====')
-obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, occs=None, bias=gs_bias)
-
-
-#==== Apply the annihilation operator ====#
-_print('\n\n==== Applying annihilation operator ====')
-D_a = D_gs
-D_cp = [d + D_fit_margin for d in D_gs]
-obj.annihilate(D_a, cps_bond_dims=D_cp, cps_noises=fit_noise, cps_conv_tol=fit_tol, 
-               cps_n_steps=fit_steps, aid=ann_id, cutoff=fit_cutoff, alpha=ann_sp,
-               mo_coeff=ocoeff, outmps_name=ann_fname, outmps_normal=normalize_annout)
-
-
-#==== Check 1RDM's ====#
-_print('\n\n==== Check 1RDM ====')
-dm = obj.get_one_pdm(False, inmps_name=ann_fname)
-_print('pdm shape = ', dm.shape)
-_print('pdm a: ', dm[0,:,:])
-_print('trace alpha = ', np.trace(dm[0,:,:]))
-_print('pdm b: ', dm[1,:,:])
-_print('trace beta = ', np.trace(dm[1,:,:]))
-_print('idx = ', obj.idx)
-_print('ridx = ', obj.ridx)
-_print('Spin a natural orb. occ. = ', eigvalsh(dm[0,:,:]))
-_print('Spin b natural orb. occ. = ', eigvalsh(dm[1,:,:]))
-_print('Spin a CAS orb. occ. = ', np.diag(dm[0,:,:]))
-_print('Spin b CAS orb. occ. = ', np.diag(dm[1,:,:]))
+    
+if do_annihilate:    
+    #==== Run the DMRG ground state iterations ====#
+    _print('\n\n==== Run DMRG ground state ====')
+    obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, occs=None, bias=gs_bias)
+    
+    
+    #==== Apply the annihilation operator ====#
+    _print('\n\n==== Applying annihilation operator ====')
+    D_a = D_gs
+    D_fit = [d + ann_fit_margin for d in D_gs]
+    obj.annihilate(D_a, fit_bond_dims=D_fit, fit_noises=ann_fit_noise, fit_conv_tol=ann_fit_tol, 
+                   fit_n_steps=ann_fit_steps, aid=ann_id, cutoff=ann_fit_cutoff, alpha=ann_sp,
+                   mo_coeff=ocoeff, outmps_name=ann_outmps_fname, outmps_normal=normalize_annout,
+                   outmps_dir=ann_outmps_dir)
+    
+    
+    #==== Check 1RDM's ====#
+    _print('\n\n==== Check 1RDM ====')
+    dm = obj.get_one_pdm(False, inmps_name=ann_outmps_fname)
+    _print('pdm shape = ', dm.shape)
+    _print('pdm a: ', dm[0,:,:])
+    _print('trace alpha = ', np.trace(dm[0,:,:]))
+    _print('pdm b: ', dm[1,:,:])
+    _print('trace beta = ', np.trace(dm[1,:,:]))
+    _print('idx = ', obj.idx)
+    _print('ridx = ', obj.ridx)
+    _print('Spin a natural orb. occ. = ', eigvalsh(dm[0,:,:]))
+    _print('Spin b natural orb. occ. = ', eigvalsh(dm[1,:,:]))
+    _print('Spin a CAS orb. occ. = ', np.diag(dm[0,:,:]))
+    _print('Spin b CAS orb. occ. = ', np.diag(dm[1,:,:]))
 
 
 #==== Run the DMRG TD-propagation ====#
-_print('\n\n==== Running time-dependent propagation ====')
-D_t = D_gs[0]
-sample_dir = './' + prefix + '.sample'
-obj.time_propagate(ann_fname, D_t, method, tmax, dt, t_sample=t_sample,
-                   save_mps=te_save_mps, save_1pdm=te_save_1pdm, sample_dir=sample_dir)
+if do_timeevo:
+    _print('\n\n==== Running time-dependent propagation ====')
+#    te_max_D = D_gs[0]
+    sample_dir = './' + prefix + '.sample'
+    if te_method == 'tdvp':
+        method = TETypes.TangentSpace
+    elif te_method == 'rk4':
+        method = TETypes.RK4
+    else:
+        raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
+                         '\'rk4\', while the current value is \'' + te_method + '\'.')
+    obj.time_propagate(te_inmps_fname, te_max_D, method, tmax, dt, inmps_dir=te_inmps_dir, 
+                       t_sample=te_sample, save_mps=te_save_mps, save_1pdm=te_save_1pdm,
+                       sample_dir=sample_dir)
 
 
+
+#==== Wrapping up ====#
 if MAIN_PROCESS:
     t_fin = time.time()
 _print('Total computational time = ', t_fin-t_start, ' seconds')
