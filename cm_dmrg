@@ -1,11 +1,14 @@
 #! /usr/bin/env python
 
-from block2 import TETypes
-from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
+
+import os, time, socket
 import numpy as np
 from scipy.linalg import eigvalsh
-import os, time, socket
+import block2
+from block2 import TETypes
 from pyscf import gto, scf, ao2mo
+from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
+from assign_defs import assign_defval
 
 
 #############################################
@@ -35,10 +38,13 @@ else:
 if MAIN_PROCESS:
     t_start = time.time()
 
-MPI.barrier()
-print(f"# A warm welcome from MPI on {socket.gethostname()} with size {MPI.size} and rank {MPI.rank}",
-          flush=True)
-MPI.barrier()
+
+    
+if hasMPI:
+    MPI.barrier()
+    print(f"# A warm welcome from MPI on {socket.gethostname()} with size {MPI.size} and rank {MPI.rank}",
+              flush=True)
+    MPI.barrier()
 
 
 ######################
@@ -53,9 +59,12 @@ exec(open(inp_file).read())
 
 
 #==== Get threads from env. variable ====#
+_print('block2 build : ', block2.__file__)
 def_n_threads = 1
 n_threads = int(os.environ.get("OMP_NUM_THREADS", def_n_threads))
 _print("# used threads = ", n_threads)
+_print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
+_print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
 _print('Has MPI?', hasMPI)
 def_scratch = './' + prefix + '.tmp'
@@ -159,7 +168,12 @@ if hasMPI:
 
 
 #==== Initiate the Hamiltonian MPO ====#
-obj = MYTDDMRG(scratch=scratch, omp_threads=n_threads, mpi=MPI)
+try:
+    memory = memory
+except NameError:
+    memory = assign_defval('memory')
+_print(f'Memory allocation = {memory} Bytes')
+obj = MYTDDMRG(scratch, memory, omp_threads=n_threads, mpi=MPI)
 obj.verbose = verbose_lvl
 obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
@@ -169,14 +183,15 @@ obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpr
 if do_annihilate:    
     #==== Run the DMRG ground state iterations ====#
     _print('\n\n==== Run DMRG ground state ====')
-    obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, occs=None, bias=gs_bias)
+    obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, dav_tols=gs_dav_tols, occs=None,
+             bias=gs_bias)
     
     
     #==== Apply the annihilation operator ====#
     _print('\n\n==== Applying annihilation operator ====')
-    D_a = D_gs
+    _print('Annihilated orbital index = ', ann_id)
     D_fit = [d + ann_fit_margin for d in D_gs]
-    obj.annihilate(D_a, fit_bond_dims=D_fit, fit_noises=ann_fit_noise, fit_conv_tol=ann_fit_tol, 
+    obj.annihilate(fit_bond_dims=D_fit, fit_noises=ann_fit_noise, fit_conv_tol=ann_fit_tol, 
                    fit_n_steps=ann_fit_steps, aid=ann_id, cutoff=ann_fit_cutoff, alpha=ann_sp,
                    mo_coeff=ocoeff, outmps_name=ann_outmps_fname, outmps_normal=normalize_annout,
                    outmps_dir=ann_outmps_dir)
@@ -201,7 +216,14 @@ if do_annihilate:
 #==== Run the DMRG TD-propagation ====#
 if do_timeevo:
     _print('\n\n==== Running time-dependent propagation ====')
-#    te_max_D = D_gs[0]
+    try:
+        exp_tol = exp_tol
+    except NameError:
+        exp_tol = assign_defval('exp_tol')
+    _print('exp_tol = ', exp_tol)
+
+    
+
     sample_dir = './' + prefix + '.sample'
     if te_method == 'tdvp':
         method = TETypes.TangentSpace
@@ -211,9 +233,8 @@ if do_timeevo:
         raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
                          '\'rk4\', while the current value is \'' + te_method + '\'.')
     obj.time_propagate(te_inmps_fname, te_max_D, method, tmax, dt, inmps_dir=te_inmps_dir, 
-                       t_sample=te_sample, save_mps=te_save_mps, save_1pdm=te_save_1pdm,
+                       exp_tol=exp_tol, t_sample=te_sample, save_mps=te_save_mps, save_1pdm=te_save_1pdm,
                        sample_dir=sample_dir)
-
 
 
 #==== Wrapping up ====#
