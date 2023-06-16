@@ -182,6 +182,14 @@ obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpr
     
 if do_annihilate:    
     #==== Run the DMRG ground state iterations ====#
+    try:
+        gs_dav_tols = gs_dav_tols
+    except:
+        gs_dav_tols = assign_defval('gs_dav_tols')
+    try:
+        gs_noise = gs_noise
+    except:
+        gs_noise = assign_defval('gs_noise')
     _print('\n\n==== Run DMRG ground state ====')
     obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, dav_tols=gs_dav_tols, occs=None,
              bias=gs_bias)
@@ -220,9 +228,10 @@ if do_timeevo:
         exp_tol = exp_tol
     except NameError:
         exp_tol = assign_defval('exp_tol')
-    _print('exp_tol = ', exp_tol)
-
-    
+    try:
+        krylov_size = krylov_size
+    except NameError:
+        krylov_size = assign_defval('krylov_size')
 
     sample_dir = './' + prefix + '.sample'
     if te_method == 'tdvp':
@@ -233,8 +242,8 @@ if do_timeevo:
         raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
                          '\'rk4\', while the current value is \'' + te_method + '\'.')
     obj.time_propagate(te_inmps_fname, te_max_D, method, tmax, dt, inmps_dir=te_inmps_dir, 
-                       exp_tol=exp_tol, t_sample=te_sample, save_mps=te_save_mps, save_1pdm=te_save_1pdm,
-                       sample_dir=sample_dir)
+                       exp_tol=exp_tol, krylov_size=krylov_size, t_sample=te_sample, save_mps=te_save_mps, 
+                       save_1pdm=te_save_1pdm, sample_dir=sample_dir)
 
 
 #==== Wrapping up ====#

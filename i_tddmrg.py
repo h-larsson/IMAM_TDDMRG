@@ -38,6 +38,7 @@ from block2 import OrbitalOrdering, VectorUInt16, TETypes
 import time
 import numpy as np
 import scipy.linalg
+from scipy.linalg import eigvalsh
 
 # Set spin-adapted or non-spin-adapted here
 SpinLabel = SU2
@@ -171,6 +172,19 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
     fit.iprint = max(verbose_lvl, 0)
     fit.cutoff = cutoff
     fit.solve(fit_nsteps, mps.center == 0, fit_conv_tol)
+#################################################
+
+
+#################################################
+def calc_energy_MPS(hmpo, mps, bond_dim_margin=0):
+
+    me = MovingEnvironment(hmpo, mps, mps, "me_erg")
+    me.init_environments(False)
+    D = mps.info.bond_dim + bond_dim_margin
+    expect = Expect(me, D, D)
+    erg = expect.solve(False, mps.center == 0)
+
+    return erg
 #################################################
 
 
@@ -837,7 +851,7 @@ class MYTDDMRG:
 
             for i in range(self.n_sites):
                 _print('qlabel : ', i, self.target, ops[i].q_label,
-                       self.target + ops[i].q_label)            
+                       self.target + ops[i].q_label)
 
         
         if mo_coeff is None:
@@ -889,12 +903,11 @@ class MYTDDMRG:
         MPS_fitting(rkets, mps, rmpos, fit_bond_dims, fit_n_steps, fit_noises,
                     fit_conv_tol, 'density_mat', cutoff, lmpo=mpo,
                     verbose_lvl=self.verbose-1)
-
         _print('rket D = ', rkets.info.bond_dim)
 
 
         #==== Normalize the output MPS if requested====#
-        if outmps_normal or outmps_dir is not None:
+        if outmps_normal:
             _print('Normalizing the output MPS')
             icent = rkets.center
             #OLD if rkets.dot == 2 and rkets.center == rkets.n_sites-1:
@@ -908,17 +921,23 @@ class MYTDDMRG:
             rkets.load_tensor(icent)
             rkets.tensors[icent].normalize()
             rkets.save_tensor(icent)
+            rkets.unload_tensor(icent)            
             # rket_info.save_data(self.scratch + "/" + outmps_name)
-            saveMPStoDir(rkets, self.scratch, self.mpi)
-            if outmps_dir is not None:
-                _print('Saving output MPS to ' + outmps_dir)
-                mkDir(outmps_dir)
-                rket_info.save_data(outmps_dir + "/" + outmps_name)
-                saveMPStoDir(rkets, outmps_dir, self.mpi)
-            rkets.unload_tensor(icent)
 
-            _print('Canonical form of the annihilation output : ', rkets.canonical_form)
             
+        #==== Print the energy of the output MPS ====#
+        energy = calc_energy_MPS(mpo, rkets, 0)
+        _print('Output MPS energy = %12.8f Hartree' % energy)
+        _print('Canonical form of the annihilation output = ', rkets.canonical_form)
+
+        
+        #==== Save the output MPS if requested ====#
+        if outmps_dir is not None:
+            _print('Saving output MPS to ' + outmps_dir)
+            mkDir(outmps_dir)
+            rket_info.save_data(outmps_dir + "/" + outmps_name)
+            saveMPStoDir(rkets, outmps_dir, self.mpi)            
+
             
         if self.verbose >= 2:
             _print('>>> COMPLETE : Application of annihilation operator | Time = %.2f <<<' %
@@ -928,10 +947,10 @@ class MYTDDMRG:
 
     #################################################
     def save_time_info(self, save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps,
-                       save_1pdm):
+                       save_1pdm, dm):
 
         def save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps,
-                            save_1pdm):
+                            save_1pdm, dm):
             yn_bools = ('No','Yes')
             au2fs = 2.4188843265e-2   # a.u. of time to fs conversion factor
             with open(save_dir + '/TIME_INFO', 'w') as t_info:
@@ -941,25 +960,51 @@ class MYTDDMRG:
                              (i_sp, t_sp, t_sp*au2fs))
                 t_info.write(' MPS norm square = %19.14f\n' % normsq)
                 t_info.write(' Autocorrelation = (%19.14f, %19.14f)\n' % (ac.real, ac.imag))
-                t_info.write(f' Is MPS saved?  {yn_bools[save_mps]}\n')
-                t_info.write(f' Is 1PDM saved?  {yn_bools[save_1pdm]}\n')
+                t_info.write(f' Is MPS saved at this time?  {yn_bools[save_mps]}\n')
+                t_info.write(f' Is 1PDM saved at this time?  {yn_bools[save_1pdm]}\n')
+                if save_1pdm:
+                    natocc_a = eigvalsh(dm[0,:,:])
+                    natocc_b = eigvalsh(dm[1,:,:])
+                    t_info.write(' 1PDM info:\n')
+                    t_info.write('    Trace (alpha,beta) = (%16.12f,%16.12f) \n' %
+                                 ( np.trace(dm[0,:,:]).real, np.trace(dm[1,:,:]).real ))
+                    t_info.write('    ')
+                    for i in range(0, 4+4*20): t_info.write('-')
+                    t_info.write('\n')
+                    t_info.write('    ' +
+                                 '%4s'  % 'No.' + 
+                                 '%20s' % 'Alpha MO occ.' +
+                                 '%20s' % 'Beta MO occ.' +
+                                 '%20s' % 'Alpha natorb occ.' +
+                                 '%20s' % 'Beta natorb occ.' + '\n')
+                    t_info.write('    ')
+                    for i in range(0, 4+4*20): t_info.write('-')
+                    t_info.write('\n')
+                    for i in range(0, dm.shape[1]):
+                        t_info.write('    ' +
+                                     '%4d'  % i + 
+                                     '%20.12f' % np.diag(dm[0,:,:])[i].real +
+                                     '%20.12f' % np.diag(dm[1,:,:])[i].real +
+                                     '%20.12f' % natocc_a[i].real +
+                                     '%20.12f' % natocc_b[i].real + '\n')
                 
         if self.mpi is not None:
             if self.mpi.rank == 0:
-                save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm)
+                save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm,
+                                dm)
             self.mpi.barrier()
         else:
-            save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm)
+            save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm, dm)
     #################################################
 
 
     ##################################################################
     def time_propagate(self, inmps_name, max_bond_dim: int, method, tmax: float, dt: float, 
-                       inmps_dir=None, n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6, 
-                       cutoff=0, verbosity=6, normalize=False, t_sample=None, save_mps=False, 
-                       save_1pdm=False, save_2pdm=False, sample_dir='samples', prefit=False, 
-                       prefit_bond_dims=None, prefit_nsteps=None, prefit_noises=None,
-                       prefit_conv_tol=None, prefit_cutoff=None):
+                       inmps_dir=None, n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6,
+                       cutoff=0, krylov_size=20, verbosity=6, normalize=False, t_sample=None, 
+                       save_mps=False, save_1pdm=False, save_2pdm=False, sample_dir='samples', 
+                       prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
+                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None):
         '''
         Coming soon
         inmps_dir = if it is not None, then inmps_name will be searched for under inmps_dir.
@@ -1056,6 +1101,7 @@ class MYTDDMRG:
         #==== Time evolution ====#
         if method == TETypes.TangentSpace:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method)
+            te.krylov_subspace_size = krylov_size
         else:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method, n_sub_sweeps_init)
         te.cutoff = cutoff                    # for tiny systems, this is important
@@ -1089,7 +1135,9 @@ class MYTDDMRG:
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
             acorr = ComplexExpect(idME, max_bond_dim, max_bond_dim)
             acorr_t = acorr.solve(False)  
-            _print('acorr_t, abs = ', acorr_t, abs(acorr_t))
+            _print('Autocorrelation function = ' +
+                   f'{acorr_t.real:11.8f} (Re), {acorr_t.imag:11.8f} (Im), ' +
+                   f'{abs(acorr_t):11.8f} (Abs)')
 
             
             #==== 1PDM IMAM
@@ -1132,7 +1180,6 @@ class MYTDDMRG:
                 else:
                     dd = True
                     
-                _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
                 if dd and not issampled[i_sp]:
                     save_dir = sample_dir + '/mps_sp-' + str(i_sp)
                     if self.mpi is not None:
@@ -1142,19 +1189,13 @@ class MYTDDMRG:
                     else:
                         mkDir(save_dir)
 
-                    #==== Save time info ====#
-                    if it == 0:
-                        normsqs = abs(acorr_t)
-                    elif it > 0:
-                        normsqs = te.normsqs[0]
-                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
-                                        normsqs, acorr_t, save_mps, save_1pdm)
             
                     #==== Saving MPS ====##
                     if save_mps:
                         saveMPStoDir(cmps, save_dir, self.mpi)
 
                     #==== Saving 1PDM ====#
+                    dm = None
                     if save_1pdm:
                         #== Copy the current MPS because self.get_one_pdm ==#
                         #==      convert the input MPS to a real MPS      ==#
@@ -1164,10 +1205,17 @@ class MYTDDMRG:
                         
                         dm = self.get_one_pdm(True, cmps_cp)
                         np.save(save_dir+'/1pdm', dm)
-                        _print('DM a = ', dm[0,:,:])
-                        _print('DM a, b trace = ', np.trace(dm[0,:,:]), np.trace(dm[1,:,:]))
                         cmps_cp.info.deallocate()
                         ## cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
+
+
+                    #==== Save time info ====#
+                    if it == 0:
+                        normsqs = abs(acorr_t)
+                    elif it > 0:
+                        normsqs = te.normsqs[0]
+                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
+                                        normsqs, acorr_t, save_mps, save_1pdm, dm)
                     
                     issampled[i_sp] = True
                     i_sp += 1
