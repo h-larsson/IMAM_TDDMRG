@@ -248,16 +248,14 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
 
 
     #==== Some checks ====#
-    if verbose:
-        _print(f"# nCore = {nCore},  nCas = {nCAS}")
-        _print("# groupName = ", mol.groupname)
-        _print("# oSym = ", oSym)
-        _print("# oSym = ", [symm.irrep_id2name(mol.groupname,s) for s in oSym])
-        _print("# wSym = ", wSym, symm.irrep_id2name(mol.groupname,wSym),flush=True)
     assert oSym.size == nCAS, f'nCAS={nCAS} vs. oSym.size={oSym.size}'
     assert wSym == 0, "Want A1g state"      # IMAM: Why does it have to be A1g?
+    #OLD if verbose:
+    #OLD     _print("# oSym = ", oSym)
+    #OLD     _print("# oSym = ", [symm.irrep_id2name(mol.groupname,s) for s in oSym])
+    #OLD     _print("# wSym = ", wSym, symm.irrep_id2name(mol.groupname,wSym), flush=True)
     
-    #OLD nelecas = _mcCI.nelecas
+    
     del _mcCI, mf
 
     return h1e, g2e, eCore, molpro_oSym, molpro_wSym
@@ -288,14 +286,14 @@ class MYTDDMRG:
                    'class has not been checked.')
             _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
-        _print('Memory = %13.1f Bytes = %4.1f Gigabytes' % (memory, memory/1.0e9))
-        _print('isize = %13.1f Bytes = %4.1f Gigabytes' % (isize, isize/1.0e9))
+        _print('Memory = %10.2f Megabytes' % (memory/1.0e6))
+        _print('Integer size = %10.2f Megabytes' % (isize/1.0e6))
 
         
         Random.rand_seed(0)
         isize = int(isize)
         assert isize < memory
-#OLD        isize = min(int(memory * 0.1), 200000000)
+        #OLD isize = min(int(memory * 0.1), 200000000)
         init_memory(isize=isize, dsize=int(memory - isize), save_dir=scratch)
         Global.threading = Threading(
             ThreadingTypes.OperatorBatchedGEMM | ThreadingTypes.Global, omp_threads, omp_threads, 1)
@@ -401,18 +399,12 @@ class MYTDDMRG:
                     assert abs(h1e[i, j] - h1e[j, i]) < tol
                     mh1e[k] = h1e[i, j]
                     k += 1
-#OLD            mg2e = g2e.flatten()
             mg2e = g2e.ravel()
             mh1e[np.abs(mh1e) < tol] = 0.0
             mg2e[np.abs(mg2e) < tol] = 0.0
-
-            _print('n_sites = ', type(n_sites), n_sites)
-            _print('n_elec = ', type(n_elec), n_elec)
-            _print('twos = ', type(twos), twos)
-            _print('isym = ', type(isym), isym)
-            _print('e_core = ', type(e_core), e_core)
-            _print('mh1e = ', type(mh1e[0]), mh1e[0], mh1e.size)
-            _print('mg2e = ', type(mg2e[0]), mg2e[0], mg2e.size)
+            if self.verbose >= 2:
+                _print('Number of 1e integrals (incl. hermiticity) = ', mh1e.size)
+                _print('Number of 2e integrals (incl. hermiticity) = ', mg2e.size)
             
             self.fcidump.initialize_su2(
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
@@ -494,7 +486,7 @@ class MYTDDMRG:
 
 
     #################################################
-    def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14, 
+    def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
              occs=None, bias=1.0):
         """Ground-State DMRG."""
 
@@ -528,15 +520,6 @@ class MYTDDMRG:
         mps.deallocate()
         mps_info.save_mutable()
         mps_info.deallocate_mutable()
-
-
-
-        _print('abcde:')
-        _print(dir(mps))
-#        _print(type(mps.tensors))
-#        _print(dir(mps.tensors[0]))
-#        quit()
-
         
 
         # MPO
@@ -595,7 +578,7 @@ class MYTDDMRG:
         mps.save_data()
         mps_info.save_data(self.scratch + "/GS_MPS_INFO")
         mps_info.deallocate()
-        _print('output GS D = ', mps.info.bond_dim)
+        _print('Output ground state max. bond dimension = ', mps.info.bond_dim)
 
 
         if self.print_statistics:
@@ -607,7 +590,7 @@ class MYTDDMRG:
                    "(%.0f%%)" % (imain * 100 / (imain + iseco)))
 
         if self.verbose >= 1:
-            _print("=== GS Energy = %20.15f" % self.gs_energy)
+            _print("Ground state energy = %20.15f" % self.gs_energy)
 
         if self.verbose >= 2:
             _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
@@ -728,9 +711,51 @@ class MYTDDMRG:
 
 
     #################################################
-    def annihilate(self, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
+    def print_occupation_table(self, dm, aid=None, mo_coeff=None):
+
+        assert ((aid is None) ^ (mo_coeff is None)), 'Either aid or mo_coeff ' + \
+               'should be None, but not both. '
+        
+        natocc_a = eigvalsh(dm[0,:,:])
+        natocc_b = eigvalsh(dm[1,:,:])
+
+        mk = ''
+        if mo_coeff is None:
+            mk = ' (ann.)'
+        ll = 4 + (4 if mo_coeff is None else 5)*18 + 2*len(mk)
+        hline = ''.join(['-' for i in range(0, ll)])
+        aspace = ''.join([' ' for i in range(0,len(mk))])
+
+        _print(hline)
+        _print('%4s'  % 'No.', end='') 
+        _print('%18s' % 'Alpha MO occ.' + aspace, end='')
+        _print('%18s' % 'Beta MO occ.' + aspace,  end='')
+        if mo_coeff is not None:
+            _print('%18s' % 'ann. coeff', end='')
+        _print('%18s' % 'Alpha natorb occ.', end='')
+        _print('%18s' % 'Beta natorb occ.',  end='\n')
+        _print(hline)
+
+        for i in range(0, dm.shape[1]):
+            if i == aid and mo_coeff is None:
+                mk0 = mk
+            else:
+                mk0 = aspace
+
+            _print('%4d'     % i, end='')
+            _print('%18.8f' % np.diag(dm[0,:,:])[i] + mk0, end='')
+            _print('%18.8f' % np.diag(dm[1,:,:])[i] + mk0, end='')
+            if mo_coeff is not None:
+                _print('%18.8f' % mo_coeff[i], end='')
+            _print('%18.8f' % natocc_a[i], end='')
+            _print('%18.8f' % natocc_b[i], end='\n')
+    #################################################
+
+    
+    #################################################
+    def annihilate(self, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, outmps_dir,
                    aid=None, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
-                   outmps_name='ANN_KET', outmps_normal=True, outmps_dir=None):
+                   outmps_name='ANN_KET', outmps_normal=True):
         """Green's function."""
         ##OLD ops = [None] * len(aid)
         ##OLD rkets = [None] * len(aid)
@@ -769,13 +794,14 @@ class MYTDDMRG:
         mps_info.load_data(self.scratch + "/GS_MPS_INFO")
         mps = MPS(mps_info)
         mps.load_data()
-        _print('input MPS D = ', mps.info.bond_dim)
+        _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
+        dm0 = self.get_one_pdm(False, mps)
+        _print('Occupations before annihilation:')
+        self.print_occupation_table(dm0, aid, mo_coeff)
 
-
+        
         #==== Some statistics ====#
         if self.print_statistics:
-            _print('Hamiltonian MPO BOND DIMS = ', ''.join(
-                ["%6d" % (x.m * x.n) for x in mpo.left_operator_names]))
             max_d = max(fit_bond_dims)
             mps_info2 = MPSInfo(self.n_sites, self.hamil.vacuum,
                                 self.target, self.hamil.basis)
@@ -800,7 +826,6 @@ class MYTDDMRG:
             ops = [None] * self.n_sites
 
         gidxs = list(range(self.n_sites))
-        _print('aid = ', aid, '   gidxs = ', gidxs)
         for ii, ix in enumerate(gidxs):
             if mo_coeff is not None or (mo_coeff is None and ix==idx):
                 if SpinLabel == SZ:
@@ -903,7 +928,7 @@ class MYTDDMRG:
         MPS_fitting(rkets, mps, rmpos, fit_bond_dims, fit_n_steps, fit_noises,
                     fit_conv_tol, 'density_mat', cutoff, lmpo=mpo,
                     verbose_lvl=self.verbose-1)
-        _print('rket D = ', rkets.info.bond_dim)
+        _print('Output MPS max. bond dimension = ', rkets.info.bond_dim)
 
 
         #==== Normalize the output MPS if requested====#
@@ -929,14 +954,16 @@ class MYTDDMRG:
         energy = calc_energy_MPS(mpo, rkets, 0)
         _print('Output MPS energy = %12.8f Hartree' % energy)
         _print('Canonical form of the annihilation output = ', rkets.canonical_form)
+        dm1 = self.get_one_pdm(False, rkets)
+        _print('Occupations after annihilation:')
+        self.print_occupation_table(dm1, aid, mo_coeff)
 
         
-        #==== Save the output MPS if requested ====#
-        if outmps_dir is not None:
-            _print('Saving output MPS to ' + outmps_dir)
-            mkDir(outmps_dir)
-            rket_info.save_data(outmps_dir + "/" + outmps_name)
-            saveMPStoDir(rkets, outmps_dir, self.mpi)            
+        #==== Save the output MPS ====#
+        _print('Saving output MPS to ' + outmps_dir)
+        mkDir(outmps_dir)
+        rket_info.save_data(outmps_dir + "/" + outmps_name)
+        saveMPStoDir(rkets, outmps_dir, self.mpi)            
 
             
         if self.verbose >= 2:
@@ -999,15 +1026,14 @@ class MYTDDMRG:
 
 
     ##################################################################
-    def time_propagate(self, inmps_name, max_bond_dim: int, method, tmax: float, dt: float, 
-                       inmps_dir=None, n_sub_sweeps=2, n_sub_sweeps_init=4, exp_tol=1e-6,
-                       cutoff=0, krylov_size=20, verbosity=6, normalize=False, t_sample=None, 
+    def time_propagate(self, inmps_dir, inmps_name, max_bond_dim: int, method, tmax: float,
+                       dt: float, exp_tol=1e-6, cutoff=0, normalize=False, n_sub_sweeps=2, 
+                       n_sub_sweeps_init=4, krylov_size=20, krylov_tol=5.0E-6, t_sample=None,
                        save_mps=False, save_1pdm=False, save_2pdm=False, sample_dir='samples', 
                        prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
-                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None):
+                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
         '''
         Coming soon
-        inmps_dir = if it is not None, then inmps_name will be searched for under inmps_dir.
         '''
 
         if self.mpi is not None:
@@ -1040,18 +1066,13 @@ class MYTDDMRG:
 
         #==== Load the initial MPS ====#
         mps_info = MPSInfo(0)
-        if inmps_dir is not None:
-            inmps_path = inmps_dir + "/" + inmps_name
-        else:
-            inmps_path = self.scratch + "/" + inmps_name
+        inmps_path = inmps_dir + "/" + inmps_name
         _print('Loading input MPS info from ' + inmps_path)
         mps_info.load_data(inmps_path)
         #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
         mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
-
-        _print('Bond dim in TE : ', mps.info.bond_dim, max_bond_dim)
 
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
@@ -1099,9 +1120,18 @@ class MYTDDMRG:
 
 
         #==== Time evolution ====#
+        _print('Bond dim in TE : ', mps.info.bond_dim, max_bond_dim)
+        if mps.info.bond_dim > max_bond_dim:
+            _print('!!! WARNING !!!')
+            _print(f'   The specified max. bond dimension for the time-evolved MPS ' +
+                   '({max_bond_dim:d}) is smaller than the max. bond dimension of the ' +
+                   'initial MPS ({mps.info.bond_dim:d}). This is in general not ' +
+                   'recommended since the time evolution will always excite ' +
+                   'correlation effects that are absent in the initial MPS.')
         if method == TETypes.TangentSpace:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method)
             te.krylov_subspace_size = krylov_size
+            te.krylov_conv_thrd = krylov_tol
         else:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method, n_sub_sweeps_init)
         te.cutoff = cutoff                    # for tiny systems, this is important
@@ -1124,12 +1154,10 @@ class MYTDDMRG:
             if it != 0: # time zero: no propagation
                 if method == TETypes.RK4:
                     te.solve(1, +1j * dt, cmps.center == 0, tol=exp_tol)
+                    te.n_sub_sweeps = n_sub_sweeps
                 elif method == TETypes.TangentSpace:
                     te.solve(2, +1j * dt / 2, cmps.center == 0, tol=exp_tol)
-                if method == TETypes.TangentSpace:
-                    te.n_sub_sweeps = 1
-                else:
-                    te.n_sub_sweeps = n_sub_sweeps
+                    te.n_sub_sweeps = 1                    
 
             #==== Autocorrelation ====#
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.

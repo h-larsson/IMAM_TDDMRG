@@ -4,11 +4,14 @@
 import os, time, socket
 import numpy as np
 from scipy.linalg import eigvalsh
+from humanfriendly import format_timespan
 import block2
-from block2 import TETypes
-from pyscf import gto, scf, ao2mo
+from block2 import TETypes, PointGroup
+from pyscf import gto, scf, ao2mo, symm
 from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
-from assign_defs import assign_defval
+#OLDfrom assign_defs import assign_defval
+import defvals, cm_inputs
+yn_bools = ('No','Yes')
 
 
 #############################################
@@ -35,10 +38,18 @@ else:
 #############################################
 
 
+_print('\n\n\n')
+_print('-----------------------------------------')
+_print('=========================================')
+_print('>>>> A PROGRAM FOR THE SIMULATION OF <<<<')
+_print('>>>>   CHARGE MIGRATION USING DMRG   <<<<')
+_print('=========================================')
+_print('-----------------------------------------')
+_print('')    
+
+
 if MAIN_PROCESS:
     t_start = time.time()
-
-
     
 if hasMPI:
     MPI.barrier()
@@ -52,79 +63,90 @@ if hasMPI:
 ######################
 import sys
 inp_file = str(sys.argv[1])
-exec(open(inp_file).read())
+inputs = cm_inputs.get_inputs(inp_file)
+if inputs['dump_inputs']:
+    print('\nInput parameters:')
+    for kw in inputs:
+        _print('  ', kw, ' = ', inputs[kw])
+    print(' ')
 ######################
 #^^^^ Input File ^^^^#
 ######################
 
 
-#==== Get threads from env. variable ====#
-_print('block2 build : ', block2.__file__)
+#==== Print process-related status ====#
+_print('block2 build = ', block2.__file__)
+_print('Using MPI? ', yn_bools[hasMPI])
 def_n_threads = 1
 n_threads = int(os.environ.get("OMP_NUM_THREADS", def_n_threads))
-_print("# used threads = ", n_threads)
+_print("Number of threads = ", n_threads)
 _print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
 _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
-_print('Has MPI?', hasMPI)
-def_scratch = './' + prefix + '.tmp'
+def_scratch = './' + inputs['prefix'] + '.tmp'
 scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
-_print('Scratch directory : ', scratch)
+_print('Scratch directory = ', scratch)
 
     
 #==== Setting up the system ====#
-mol = gto.M(atom=inp_coordinates, basis=inp_basis, symmetry=inp_symmetry)
+mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
+            symmetry=inputs['inp_symmetry'])
 na, nb = mol.nelec
 n_mo = mol.nao
 pg = mol.symmetry.lower()
+_print('Atomic coordinates (in angstrom) = ', inputs['inp_coordinates'])
 _print('Point group = ', pg)
 _print('Number of electrons (alpha, beta) = ', mol.nelec)
+_print('AO basis set = ', inputs['inp_basis'])
 _print('Number of AO bases = ', mol.nao)
 _print('Number of MO bases = ', n_mo)
 
 
 #==== Specification of the CAS ====#
-nelCore = (nCore, nCore)
-nvir = n_mo - (nCore + nCAS)
-nsites = nCAS
+nelCore = (inputs['nCore'], inputs['nCore'])
+nvir = n_mo - (inputs['nCore'] + inputs['nCAS'])
+nsites = inputs['nCAS']
 if MAIN_PROCESS:
-    assert nelCore[0] + nelCAS[0] == mol.nelec[0]
-    assert nelCore[1] + nelCAS[1] == mol.nelec[1]
-    assert nCore + nCAS <= n_mo
-_print('Number of core orbitals = ', nCore)
-_print('Number of CAS orbitals = ', nCAS)
+    assert nelCore[0] + inputs['nelCAS'][0] == mol.nelec[0]
+    assert nelCore[1] + inputs['nelCAS'][1] == mol.nelec[1]
+    assert inputs['nCore'] + inputs['nCAS'] <= n_mo
+_print('Number of core orbitals = ', inputs['nCore'])
+_print('Number of CAS orbitals (CAS electrons) = %d (%d, %d)' %
+       (inputs['nCAS'], inputs['nelCAS'][0], inputs['nelCAS'][1]))
 _print('Number of virtual orbitals = ', nvir)
 
 
+#==== Obtain the site orbitals ====#
 if MAIN_PROCESS:
-    #==== Run HF on the neutral molecule to obtain the orbitals ====#
-    if hf_orb_path is None:
+    if inputs['hf_orb_path'] is defvals.def_hf_orb_path:
+        #==== Run HF on the neutral molecule if HF orbitals are not given ====#
         _print('>>>> Hartree-Fock calculation of the neutral <<<<')
         mf = scf.RHF(mol)
         mf.kernel()
         hf_orb = mf.mo_coeff
         _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
     else:
-        hf_orb = np.load(hf_orb_path)
+        #==== Load the HF orbitals of the neutral ====#
+        hf_orb = np.load(inputs['hf_orb_path'])
         assert len(hf_orb.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
                'array must be a two-dimensional array (a matrix).'
         assert (hf_orb.shape[0] == n_mo and
                 hf_orb.shape[1] == n_mo), \
                'The shape of the Hartree-Fock orbitals array loaded from ' + \
-               str(hf_orb_path) + ' is inconsistent with the number of MO bases (' + \
+               str(inputs['hf_orb_path']) + ' is inconsistent with the number of MO bases (' + \
                str(n_mo) + '). The shape of the loaded orbitals array is ' + \
                str(hf_orb.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
                'reasons may be that the basis set or the molecular species used ' + \
                'to obtain the above HF orbitals is different than what is used ' + \
                'for this simulation.'
     hf_orb_shape = hf_orb.shape
-    _print('MO coefficient shape = ', hf_orb.shape)
 
 
     #==== Get the integrals ====#
     h1e, g2e, ecore, molpro_osym, molpro_wsym = \
-         get_symCASCI_ints(mol, nCore, nCAS, nelCAS, hf_orb, True)
-    g2e = ao2mo.restore('s8', g2e, nCAS)   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
+         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], hf_orb,
+                           True)
+    g2e = ao2mo.restore('s8', g2e, inputs['nCAS'])   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
     h1eshape = h1e.shape
     g2eshape = g2e.shape
 else:
@@ -147,8 +169,6 @@ if hasMPI:
     ecore = commPy.bcast(ecore, root = 0)
     molpro_osym = commPy.bcast(molpro_osym, root = 0)
     molpro_wsym = commPy.bcast(molpro_wsym, root = 0)
-_print('type of molpro_osym : ', type(molpro_osym[0]))
-_print('type of molpro_wsym : ', type(molpro_wsym))
 
     
 #==== Reorder orbitals ====#
@@ -168,89 +188,102 @@ if hasMPI:
 
 
 #==== Initiate the Hamiltonian MPO ====#
-try:
-    memory = memory
-except NameError:
-    memory = assign_defval('memory')
-_print(f'Memory allocation = {memory} Bytes')
-obj = MYTDDMRG(scratch, memory, omp_threads=n_threads, mpi=MPI)
-obj.verbose = verbose_lvl
-obj.init_hamiltonian(pg, nsites, nelCAS[0]+nelCAS[1], nelCAS[0]-nelCAS[1], molpro_wsym, 
+_print(f'Memory allocation = {inputs["memory"]} Bytes')
+obj = MYTDDMRG(scratch, inputs['memory'], omp_threads=n_threads, mpi=MPI)
+obj.verbose = inputs['verbose_lvl']
+obj.init_hamiltonian(pg, nsites, inputs['nelCAS'][0]+inputs['nelCAS'][1],
+                     inputs['nelCAS'][0]-inputs['nelCAS'][1], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
                      save_fcidump=None)
 
-    
-if do_annihilate:    
+
+#==== Print symmetries ====#
+_print('Number of sites = %d (identical to the number of CAS orbitals)' % nsites)
+swap_pg = getattr(PointGroup, "swap_" + pg)
+osym = map(swap_pg, molpro_osym)
+_print('CAS orbitals symmetries = ', [symm.irrep_id2name(mol.groupname, s) for s in osym])
+wsym = swap_pg(molpro_wsym)
+_print('MPS symmetry = ', symm.irrep_id2name(mol.groupname, wsym))
+_print('Core energy = %12.8f Hartree' % ecore)
+
+
+if inputs['do_annihilate']:    
     #==== Run the DMRG ground state iterations ====#
-    try:
-        gs_dav_tols = gs_dav_tols
-    except:
-        gs_dav_tols = assign_defval('gs_dav_tols')
-    try:
-        gs_noise = gs_noise
-    except:
-        gs_noise = assign_defval('gs_noise')
-    _print('\n\n==== Run DMRG ground state ====')
-    obj.dmrg(bond_dims=D_gs, noises=gs_noise, n_steps=gs_steps, dav_tols=gs_dav_tols, occs=None,
-             bias=gs_bias)
+    _print('\n\n\n')
+    _print('-------------------------------------')
+    _print('=====================================')
+    _print('>>>> GROUND STATE DMRG ITERATION <<<<')
+    _print('=====================================')
+    _print('-------------------------------------')
+    _print('')
+    _print('Ground state bond dimensions schedule = ', inputs['D_gs'])
+    _print('Ground state noises schedule = ', inputs['gs_noise'])
+    _print('Ground state Davidson thresholds schedule = ', inputs['gs_dav_tols'])
+    obj.dmrg(inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
+             inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], None,
+             inputs['gs_bias'])
+    _print('\n')
     
     
     #==== Apply the annihilation operator ====#
-    _print('\n\n==== Applying annihilation operator ====')
-    _print('Annihilated orbital index = ', ann_id)
-    D_fit = [d + ann_fit_margin for d in D_gs]
-    obj.annihilate(fit_bond_dims=D_fit, fit_noises=ann_fit_noise, fit_conv_tol=ann_fit_tol, 
-                   fit_n_steps=ann_fit_steps, aid=ann_id, cutoff=ann_fit_cutoff, alpha=ann_sp,
-                   mo_coeff=ocoeff, outmps_name=ann_outmps_fname, outmps_normal=normalize_annout,
-                   outmps_dir=ann_outmps_dir)
+    _print('\n\n\n')
+    _print('----------------------------------------------')
+    _print('==============================================')
+    _print('>>>> APPLICATION OF ANNIHILATION OPERATOR <<<<')
+    _print('==============================================')
+    _print('----------------------------------------------')
+    _print('')
+    D_fit = [d + inputs['ann_fit_margin'] for d in inputs['D_gs']]
+    _print('Fitting bond dimensions schedule = ', D_fit)
+    _print('Fitting noises schedule = ', inputs['ann_fit_noise'])
+    obj.annihilate(D_fit, inputs['ann_fit_noise'], inputs['ann_fit_tol'], inputs['ann_fit_steps'],
+                   inputs['ann_outmps_dir'], inputs['ann_id'], inputs['ann_fit_cutoff'], 
+                   inputs['ann_sp'], None, inputs['ann_fit_bias'], inputs['ocoeff'], 
+                   inputs['ann_outmps_fname'], inputs['normalize_annout'])
+    _print('\n')
     
-    
-    #==== Check 1RDM's ====#
-    _print('\n\n==== Check 1RDM ====')
-    dm = obj.get_one_pdm(False, inmps_name=ann_outmps_fname)
-    _print('pdm shape = ', dm.shape)
-    _print('pdm a: ', dm[0,:,:])
-    _print('trace alpha = ', np.trace(dm[0,:,:]))
-    _print('pdm b: ', dm[1,:,:])
-    _print('trace beta = ', np.trace(dm[1,:,:]))
-    _print('idx = ', obj.idx)
-    _print('ridx = ', obj.ridx)
-    _print('Spin a natural orb. occ. = ', eigvalsh(dm[0,:,:]))
-    _print('Spin b natural orb. occ. = ', eigvalsh(dm[1,:,:]))
-    _print('Spin a CAS orb. occ. = ', np.diag(dm[0,:,:]))
-    _print('Spin b CAS orb. occ. = ', np.diag(dm[1,:,:]))
-
 
 #==== Run the DMRG TD-propagation ====#
-if do_timeevo:
-    _print('\n\n==== Running time-dependent propagation ====')
-    try:
-        exp_tol = exp_tol
-    except NameError:
-        exp_tol = assign_defval('exp_tol')
-    try:
-        krylov_size = krylov_size
-    except NameError:
-        krylov_size = assign_defval('krylov_size')
+if inputs['do_timeevo']:
+    _print('\n\n\n')
+    _print('-----------------------------------')
+    _print('===================================')
+    _print('>>>> TIME EVOLUTION OF THE MPS <<<<')
+    _print('===================================')
+    _print('-----------------------------------')
+    _print('')
 
-    sample_dir = './' + prefix + '.sample'
-    if te_method == 'tdvp':
+    sample_dir = './' + inputs['prefix'] + '.sample'
+    if inputs['te_method'] == 'tdvp':
         method = TETypes.TangentSpace
-    elif te_method == 'rk4':
+    elif inputs['te_method'] == 'rk4':
         method = TETypes.RK4
     else:
         raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
-                         '\'rk4\', while the current value is \'' + te_method + '\'.')
-    obj.time_propagate(te_inmps_fname, te_max_D, method, tmax, dt, inmps_dir=te_inmps_dir, 
-                       exp_tol=exp_tol, krylov_size=krylov_size, t_sample=te_sample, save_mps=te_save_mps, 
-                       save_1pdm=te_save_1pdm, sample_dir=sample_dir)
+                         '\'rk4\', while the current value is \'' + inputs['te_method'] +
+                         '\'.')
+    obj.time_propagate(inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['te_max_D'],
+                       method, inputs['tmax'], inputs['dt'], inputs['exp_tol'], 
+                       inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
+                       inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'], 
+                       inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
+                       inputs['te_save_2pdm'], sample_dir)
+    _print('\n')
 
 
 #==== Wrapping up ====#
 if MAIN_PROCESS:
     t_fin = time.time()
-_print('Total computational time = ', t_fin-t_start, ' seconds')
+_print('Total computational time = ' + format_timespan(t_fin-t_start, max_units=5))
 
+
+_print('\n\n\n')
+_print('--------------------------')
+_print('==========================')
+_print('>>>> PROGRAM FINISHED <<<<')
+_print('==========================')
+_print('--------------------------')
+_print('')
 
 
 
