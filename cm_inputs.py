@@ -6,6 +6,42 @@ import defvals
 
 #######################################################
 def get_inputs(inp_file):
+    '''
+    This function returns a dictionary containing the input parameters and their values
+    as key-value pairs.
+    
+    To define a new input parameters, first decide whether this new input parameter is 
+    mandatory or optional parameter. If it is a mandatory input, then simply add the 
+    following line after the 'inputs = {}' below
+       inputs['new_input'] = new_input
+    where new_input is to be replaced with the intended name of the new input. On the
+    other hand, if the new input is optional, do the following steps.
+       1) If the default value of this optional input does not depend on any other 
+          parameters, then ddd the following line after the 'inputs = {}' line below
+             try:
+                 inputs['new_input'] = new_input
+             except NameError:
+                 inputs['new_input'] = defvals.def_new_input
+          Then, add this line inside defvals.py
+             def_new_input = <value>
+          where def_new_input is to be replaced with the intended name of the variable that
+          holds the default value for this optional input, and <value> is the default value.
+       2) However, if this default value depends on some parameters (e.g. the input
+          prefix below, whose default value depends on the input file name), then 
+          replace the inputs['new_input'] = defvals.def_new_input line in point 1) 
+          above with the appropriate line(s) that involve the dependency parameters.
+          The addition of the corresponding default parameter inside defvals.py is 
+          unnecessary in this case.
+    
+    The newly defined input parameter can then be referred to by invoking inputs['new_input'] 
+    inside cm_dmrg assuming that the output of this function is stored in a variable called 
+    inputs. 
+    
+    It is strongly encouraged that any newly defined inputs are added such that all 
+    mandatory inputs are defined before all optional inputs in their approppriate section 
+    (marked by a comment line such as #=== abcde ===# below).
+    '''
+    
     exec(open(inp_file).read(), globals())
 
     inputs = {}
