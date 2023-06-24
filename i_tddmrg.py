@@ -486,119 +486,6 @@ class MYTDDMRG:
 
 
     #################################################
-    def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
-             occs=None, bias=1.0):
-        """Ground-State DMRG."""
-
-        if self.verbose >= 2:
-            _print('>>> START GS-DMRG <<<')
-        t = time.perf_counter()
-
-        if self.mpi is not None:
-            self.mpi.barrier()
-
-        # MultiMPSInfo
-        mps_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-                           self.target, self.hamil.basis)
-        mps_info.tag = 'KET'
-        if occs is None:
-            if self.verbose >= 2:
-                _print("Using FCI INIT MPS")
-            mps_info.set_bond_dimension(bond_dims[0])
-        else:
-            if self.verbose >= 2:
-                _print("Using occupation number INIT MPS")
-            if self.idx is not None:
-                occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
-            mps_info.set_bond_dimension_using_occ(
-                bond_dims[0], VectorDouble(occs), bias=bias)
-        mps = MPS(self.n_sites, 0, 2)
-        mps.initialize(mps_info)
-        mps.random_canonicalize()
-
-        mps.save_mutable()
-        mps.deallocate()
-        mps_info.save_mutable()
-        mps_info.deallocate_mutable()
-        
-
-        # MPO
-        tx = time.perf_counter()
-        mpo = MPOQC(self.hamil, QCTypes.Conventional)
-        mpo = SimplifiedMPO(mpo, RuleQC(), True, True,
-                            OpNamesSet((OpNames.R, OpNames.RD)))
-        self.mpo_orig = mpo
-
-        if self.mpi is not None:
-            if SpinLabel == SU2:
-                from block2.su2 import ParallelMPO
-            else:
-                from block2.sz import ParallelMPO
-            mpo = ParallelMPO(mpo, self.prule)
-
-        if self.verbose >= 3:
-            _print('MPO time = ', time.perf_counter() - tx)
-
-        if self.print_statistics:
-            _print('GS MPO BOND DIMS = ', ''.join(
-                ["%6d" % (x.m * x.n) for x in mpo.left_operator_names]))
-            max_d = max(bond_dims)
-            mps_info2 = MPSInfo(self.n_sites, self.hamil.vacuum,
-                                self.target, self.hamil.basis)
-            mps_info2.set_bond_dimension(max_d)
-            _, mem2, disk = mpo.estimate_storage(mps_info2, 2)
-            _print("GS EST MAX MPS BOND DIMS = ", ''.join(
-                ["%6d" % x.n_states_total for x in mps_info2.left_dims]))
-            _print("GS EST PEAK MEM = ", MYTDDMRG.fmt_size(
-                mem2), " SCRATCH = ", MYTDDMRG.fmt_size(disk))
-            mps_info2.deallocate_mutable()
-            mps_info2.deallocate()
-
-        # DMRG
-        me = MovingEnvironment(mpo, mps, mps, "DMRG")
-        if self.delayed_contraction:
-            me.delayed_contraction = OpNamesSet.normal_ops()
-            me.cached_contraction = True
-        tx = time.perf_counter()
-        me.init_environments(self.verbose >= 4)
-        if self.verbose >= 3:
-            _print('DMRG INIT time = ', time.perf_counter() - tx)
-        dmrg = DMRG(me, VectorUBond(bond_dims), VectorDouble(noises))
-        dmrg.davidson_conv_thrds = VectorDouble(dav_tols)
-        dmrg.davidson_soft_max_iter = 4000
-        dmrg.noise_type = NoiseTypes.ReducedPerturbative
-        dmrg.decomp_type = DecompositionTypes.SVD
-        dmrg.iprint = max(self.verbose - 1, 0)
-        dmrg.cutoff = cutoff
-        dmrg.solve(n_steps, mps.center == 0, conv_tol)
-
-        self.gs_energy = dmrg.energies[-1][0]
-        self.bond_dim = bond_dims[-1]
-
-        mps.save_data()
-        mps_info.save_data(self.scratch + "/GS_MPS_INFO")
-        mps_info.deallocate()
-        _print('Output ground state max. bond dimension = ', mps.info.bond_dim)
-
-
-        if self.print_statistics:
-            dmain, dseco, imain, iseco = Global.frame.peak_used_memory
-            _print("GS PEAK MEM USAGE:",
-                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
-                   "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
-                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
-                   "(%.0f%%)" % (imain * 100 / (imain + iseco)))
-
-        if self.verbose >= 1:
-            _print("Ground state energy = %20.15f" % self.gs_energy)
-
-        if self.verbose >= 2:
-            _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
-                   (time.perf_counter() - t))
-    #################################################
-
-
-    #################################################
     # one-particle density matrix
     # return value:
     #     pdm[0, :, :] -> <AD_{i,alpha} A_{j,alpha}>
@@ -681,6 +568,138 @@ class MYTDDMRG:
 
     
     #################################################
+    def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
+             occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
+             save_1pdm=False):
+        """Ground-State DMRG."""
+
+        if self.verbose >= 2:
+            _print('>>> START GS-DMRG <<<')
+        t = time.perf_counter()
+
+        if self.mpi is not None:
+            self.mpi.barrier()
+        if outmps_dir0 is None:
+            outmps_dir = self.scratch
+        else:
+            outmps_dir = outmps_dir0
+
+        # MultiMPSInfo
+        mps_info = MPSInfo(self.n_sites, self.hamil.vacuum,
+                           self.target, self.hamil.basis)
+        mps_info.tag = 'KET'
+        if occs is None:
+            if self.verbose >= 2:
+                _print("Using FCI INIT MPS")
+            mps_info.set_bond_dimension(bond_dims[0])
+        else:
+            if self.verbose >= 2:
+                _print("Using occupation number INIT MPS")
+            if self.idx is not None:
+                occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
+            mps_info.set_bond_dimension_using_occ(
+                bond_dims[0], VectorDouble(occs), bias=bias)
+        mps = MPS(self.n_sites, 0, 2)
+        mps.initialize(mps_info)
+        mps.random_canonicalize()
+
+        mps.save_mutable()
+        mps.deallocate()
+        mps_info.save_mutable()
+        mps_info.deallocate_mutable()
+        
+
+        # MPO
+        tx = time.perf_counter()
+        mpo = MPOQC(self.hamil, QCTypes.Conventional)
+        mpo = SimplifiedMPO(mpo, RuleQC(), True, True,
+                            OpNamesSet((OpNames.R, OpNames.RD)))
+        self.mpo_orig = mpo
+
+        if self.mpi is not None:
+            if SpinLabel == SU2:
+                from block2.su2 import ParallelMPO
+            else:
+                from block2.sz import ParallelMPO
+            mpo = ParallelMPO(mpo, self.prule)
+
+        if self.verbose >= 3:
+            _print('MPO time = ', time.perf_counter() - tx)
+
+        if self.print_statistics:
+            _print('GS MPO BOND DIMS = ', ''.join(
+                ["%6d" % (x.m * x.n) for x in mpo.left_operator_names]))
+            max_d = max(bond_dims)
+            mps_info2 = MPSInfo(self.n_sites, self.hamil.vacuum,
+                                self.target, self.hamil.basis)
+            mps_info2.set_bond_dimension(max_d)
+            _, mem2, disk = mpo.estimate_storage(mps_info2, 2)
+            _print("GS EST MAX MPS BOND DIMS = ", ''.join(
+                ["%6d" % x.n_states_total for x in mps_info2.left_dims]))
+            _print("GS EST PEAK MEM = ", MYTDDMRG.fmt_size(
+                mem2), " SCRATCH = ", MYTDDMRG.fmt_size(disk))
+            mps_info2.deallocate_mutable()
+            mps_info2.deallocate()
+
+        # DMRG
+        me = MovingEnvironment(mpo, mps, mps, "DMRG")
+        if self.delayed_contraction:
+            me.delayed_contraction = OpNamesSet.normal_ops()
+            me.cached_contraction = True
+        tx = time.perf_counter()
+        me.init_environments(self.verbose >= 4)
+        if self.verbose >= 3:
+            _print('DMRG INIT time = ', time.perf_counter() - tx)
+        dmrg = DMRG(me, VectorUBond(bond_dims), VectorDouble(noises))
+        dmrg.davidson_conv_thrds = VectorDouble(dav_tols)
+        dmrg.davidson_soft_max_iter = 4000
+        dmrg.noise_type = NoiseTypes.ReducedPerturbative
+        dmrg.decomp_type = DecompositionTypes.SVD
+        dmrg.iprint = max(self.verbose - 1, 0)
+        dmrg.cutoff = cutoff
+        dmrg.solve(n_steps, mps.center == 0, conv_tol)
+
+        self.gs_energy = dmrg.energies[-1][0]
+        self.bond_dim = bond_dims[-1]
+        dm0 = self.get_one_pdm(False, mps)
+        _print('Molecular orbitals occupation: ')
+        _print('   ')
+        for i in range(0, self.n_sites):
+            _print('%18.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
+        if save_1pdm:
+            np.save(outmps_dir + '/GS_1pdm', dm0)
+
+        
+        #==== Save the output MPS ====#
+        #OLD mps.save_data()
+        #OLD mps_info.save_data(self.scratch + "/GS_MPS_INFO")
+        #OLD mps_info.deallocate()
+        _print('Saving the ground state MPS files under ' + outmps_dir)
+        if outmps_dir != self.scratch:
+            mkDir(outmps_dir)
+        mps_info.save_data(outmps_dir + "/" + outmps_name)
+        saveMPStoDir(mps, outmps_dir, self.mpi)
+        _print('Output ground state max. bond dimension = ', mps.info.bond_dim)
+
+
+        if self.print_statistics:
+            dmain, dseco, imain, iseco = Global.frame.peak_used_memory
+            _print("GS PEAK MEM USAGE:",
+                   "DMEM = ", MYTDDMRG.fmt_size(dmain + dseco),
+                   "(%.0f%%)" % (dmain * 100 / (dmain + dseco)),
+                   "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
+                   "(%.0f%%)" % (imain * 100 / (imain + iseco)))
+
+        if self.verbose >= 1:
+            _print("Ground state energy = %20.15f" % self.gs_energy)
+
+        if self.verbose >= 2:
+            _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
+                   (time.perf_counter() - t))
+    #################################################
+
+    
+    #################################################
     def save_gs_mps(self, save_dir='./gs_mps'):
         import shutil
         import pickle
@@ -753,9 +772,10 @@ class MYTDDMRG:
 
     
     #################################################
-    def annihilate(self, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, outmps_dir,
-                   aid=None, cutoff=1E-14, alpha=True, occs=None, bias=1.0, mo_coeff=None,
-                   outmps_name='ANN_KET', outmps_normal=True):
+    def annihilate(self, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
+                   inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
+                   outmps_name='ANN_KET', aid=None, mo_coeff=None, cutoff=1E-14, alpha=True, 
+                   occs=None, bias=1.0, outmps_normal=True, save_1pdm=False):
         """Green's function."""
         ##OLD ops = [None] * len(aid)
         ##OLD rkets = [None] * len(aid)
@@ -763,6 +783,15 @@ class MYTDDMRG:
 
         if self.mpi is not None:
             self.mpi.barrier()
+
+        if inmps_dir0 is None:
+            inmps_dir = self.scratch
+        else:
+            inmps_dir = inmps_dir0
+        if outmps_dir0 is None:
+            outmps_dir = self.scratch
+        else:
+            outmps_dir = outmps_dir0
 
         assert ((aid is None) ^ (mo_coeff is None)), 'Either aid or mo_coeff ' + \
             'should be None, but not both. '
@@ -789,11 +818,15 @@ class MYTDDMRG:
             mpo = ParallelMPO(mpo, self.prule)
 
 
-        #==== Load the GS MPS ====#
+        #==== Load the input MPS ====#
+        inmps_path = inmps_dir + "/" + inmps_name
+        _print('Loading input MPS info from ' + inmps_path)
         mps_info = MPSInfo(0)
-        mps_info.load_data(self.scratch + "/GS_MPS_INFO")
-        mps = MPS(mps_info)
-        mps.load_data()
+        mps_info.load_data(inmps_path)
+        #OLD mps_info.load_data(self.scratch + "/GS_MPS_INFO")
+        #OLD mps = MPS(mps_info)
+        #OLD mps.load_data()
+        mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
         _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
         dm0 = self.get_one_pdm(False, mps)
         _print('Occupations before annihilation:')
@@ -957,11 +990,14 @@ class MYTDDMRG:
         dm1 = self.get_one_pdm(False, rkets)
         _print('Occupations after annihilation:')
         self.print_occupation_table(dm1, aid, mo_coeff)
+        if save_1pdm:
+            np.save(outmps_dir + '/ANN_1pdm', dm1)
 
         
         #==== Save the output MPS ====#
-        _print('Saving output MPS to ' + outmps_dir)
-        mkDir(outmps_dir)
+        _print('Saving output MPS files under ' + outmps_dir)
+        if outmps_dir != self.scratch:
+            mkDir(outmps_dir)
         rket_info.save_data(outmps_dir + "/" + outmps_name)
         saveMPStoDir(rkets, outmps_dir, self.mpi)            
 
@@ -1026,12 +1062,13 @@ class MYTDDMRG:
 
 
     ##################################################################
-    def time_propagate(self, inmps_dir, inmps_name, max_bond_dim: int, method, tmax: float,
-                       dt: float, exp_tol=1e-6, cutoff=0, normalize=False, n_sub_sweeps=2, 
-                       n_sub_sweeps_init=4, krylov_size=20, krylov_tol=5.0E-6, t_sample=None,
-                       save_mps=False, save_1pdm=False, save_2pdm=False, sample_dir='samples', 
-                       prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
-                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
+    def time_propagate(self, max_bond_dim: int, method, tmax: float, dt: float, 
+                       inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
+                       normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
+                       krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
+                       save_2pdm=False, sample_dir='samples', prefit=False, 
+                       prefit_bond_dims=None, prefit_nsteps=None, prefit_noises=None,
+                       prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
         '''
         Coming soon
         '''
@@ -1041,6 +1078,11 @@ class MYTDDMRG:
                 from block2.su2 import ParallelMPO
             else:
                 from block2.sz import ParallelMPO
+
+        if inmps_dir0 is None:
+            inmps_dir = self.scratch
+        else:
+            inmps_dir = inmps_dir0
 
                 
         #==== Identity operator ====#
@@ -1065,9 +1107,9 @@ class MYTDDMRG:
 
 
         #==== Load the initial MPS ====#
-        mps_info = MPSInfo(0)
         inmps_path = inmps_dir + "/" + inmps_name
-        _print('Loading input MPS info from ' + inmps_path)
+        _print('Loading initial MPS info from ' + inmps_path)
+        mps_info = MPSInfo(0)
         mps_info.load_data(inmps_path)
         #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
@@ -1132,7 +1174,7 @@ class MYTDDMRG:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method)
             te.krylov_subspace_size = krylov_size
             te.krylov_conv_thrd = krylov_tol
-        else:
+        elif method == TETypes.RK4:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method, n_sub_sweeps_init)
         te.cutoff = cutoff                    # for tiny systems, this is important
         te.iprint = verbosity

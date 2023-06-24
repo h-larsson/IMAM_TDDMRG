@@ -82,20 +82,10 @@ def get_inputs(inp_file):
     inputs['nCAS'] = nCAS
     inputs['nelCAS'] = nelCAS
 
-    #==== Annihilation operation parameters ====#
-    inputs['do_annihilate'] = do_annihilate
-    if inputs['do_annihilate'] == True:
+    #==== Ground state parameters ====#
+    inputs['do_groundstate'] = do_groundstate
+    if inputs['do_groundstate'] == True:
         inputs['D_gs'] = D_gs
-        inputs['ann_sp'] = ann_sp
-        inputs['ann_id'] = ann_id
-        try:
-            inputs['ann_outmps_dir'] = ann_outmps_dir
-        except NameError:
-            inputs['ann_outmps_dir'] = './' + inputs['prefix'] + '.annihilate_out'
-        try:
-            inputs['ann_outmps_fname'] = ann_outmps_fname
-        except NameError:
-            inputs['ann_outmps_fname'] = defvals.def_ann_outmps_fname
         try:
             inputs['gs_noise'] = gs_noise
         except NameError:
@@ -121,13 +111,48 @@ def get_inputs(inp_file):
         except NameError:
             inputs['gs_bias'] = defvals.def_gs_bias
         try:
+            inputs['gs_outmps_dir'] = gs_outmps_dir
+        except NameError:
+            inputs['gs_outmps_dir'] = 'DEFINE_LATER'
+        try:
+            inputs['gs_outmps_fname'] = gs_outmps_fname
+        except NameError:
+            inputs['gs_outmps_fname'] = defvals.def_gs_outmps_fname
+        try:
+            inputs['save_gs_1pdm'] = save_gs_1pdm
+        except NameError:
+            inputs['save_gs_1pdm'] = defvals.def_save_gs_1pdm
+    
+    #==== Annihilation operation parameters ====#
+    inputs['do_annihilate'] = do_annihilate
+    if inputs['do_annihilate'] == True:
+        inputs['ann_sp'] = ann_sp
+        inputs['ann_id'] = ann_id
+        inputs['D_ann_fit'] = D_ann_fit
+        try:
+            inputs['ann_inmps_dir'] = ann_inmps_dir
+        except NameError:
+            inputs['ann_inmps_dir'] = 'DEFINE_LATER'
+        try:
+            inputs['ann_inmps_fname'] = ann_inmps_fname
+        except NameError:
+            inputs['ann_inmps_fname'] = defvals.def_ann_inmps_fname
+        try:
+            inputs['ann_outmps_dir'] = ann_outmps_dir
+        except NameError:
+            inputs['ann_outmps_dir'] = 'DEFINE_LATER'
+        try:
+            inputs['ann_outmps_fname'] = ann_outmps_fname
+        except NameError:
+            inputs['ann_outmps_fname'] = defvals.def_ann_outmps_fname
+        try:
             inputs['ocoeff'] = ocoeff
         except NameError:
             inputs['ocoeff'] = defvals.def_ocoeff
-        try:
-            inputs['ann_fit_margin'] = ann_fit_margin
-        except NameError:
-            inputs['ann_fit_margin'] = defvals.def_ann_fit_margin
+        #OLD try:
+        #OLD     inputs['ann_fit_margin'] = ann_fit_margin
+        #OLD except NameError:
+        #OLD     inputs['ann_fit_margin'] = defvals.def_ann_fit_margin
         try:
             inputs['ann_fit_noise'] = ann_fit_noise
         except NameError:
@@ -152,6 +177,10 @@ def get_inputs(inp_file):
             inputs['normalize_annout'] = normalize_annout
         except NameError:
             inputs['normalize_annout'] = defvals.def_normalize_annout
+        try:
+            inputs['save_ann_1pdm'] = save_ann_1pdm
+        except NameError:
+            inputs['save_ann_1pdm'] = defvals.def_save_ann_1pdm
 
     #==== Time evolution parameters ====#
     inputs['do_timeevo'] = do_timeevo
@@ -162,16 +191,11 @@ def get_inputs(inp_file):
         try:
             inputs['te_inmps_dir'] = te_inmps_dir
         except NameError:
-            ann_dir = './' + inputs['prefix'] + '.annihilate_out'
-            if exists(ann_dir):
-                inputs['te_inmps_dir'] = ann_dir
-            else:
-                raise NameError('A mandatory input parameter \'te_inmps_dir\' has ' +
-                                'not yet been specified.')
+            inputs['te_inmps_dir'] = 'DEFINE_LATER'
         try:
             inputs['te_inmps_fname'] = te_inmps_fname
         except NameError:
-            inputs['te_inmps_fname'] = defvals.def_ann_outmps_fname        
+            inputs['te_inmps_fname'] = defvals.def_te_inmps_fname        
         try:
             inputs['te_method'] = te_method
         except NameError:

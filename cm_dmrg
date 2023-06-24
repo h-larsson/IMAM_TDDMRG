@@ -207,7 +207,7 @@ _print('MPS symmetry = ', symm.irrep_id2name(mol.groupname, wsym))
 _print('Core energy = %12.8f Hartree' % ecore)
 
 
-if inputs['do_annihilate']:    
+if inputs['do_groundstate']:
     #==== Run the DMRG ground state iterations ====#
     _print('\n\n\n')
     _print('-------------------------------------')
@@ -219,12 +219,19 @@ if inputs['do_annihilate']:
     _print('Ground state bond dimensions schedule = ', inputs['D_gs'])
     _print('Ground state noises schedule = ', inputs['gs_noise'])
     _print('Ground state Davidson thresholds schedule = ', inputs['gs_dav_tols'])
+    if inputs['gs_outmps_dir'] == 'DEFINE_LATER':
+        inputs['gs_outmps_dir'] = scratch
+        kw = 'gs_outmps_dir'
+        if inputs['dump_inputs']:
+            _print('  ', kw, ' = ', inputs[kw])
     obj.dmrg(inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
              inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], None,
-             inputs['gs_bias'])
+             inputs['gs_bias'], inputs['gs_outmps_dir'], inputs['gs_outmps_fname'],
+             inputs['save_gs_1pdm'])
     _print('\n')
-    
-    
+
+
+if inputs['do_annihilate']:    
     #==== Apply the annihilation operator ====#
     _print('\n\n\n')
     _print('----------------------------------------------')
@@ -233,13 +240,24 @@ if inputs['do_annihilate']:
     _print('==============================================')
     _print('----------------------------------------------')
     _print('')
-    D_fit = [d + inputs['ann_fit_margin'] for d in inputs['D_gs']]
-    _print('Fitting bond dimensions schedule = ', D_fit)
+    #OLD D_ann_fit = [d + inputs['ann_fit_margin'] for d in inputs['D_gs']]
+    _print('Fitting bond dimensions schedule = ', inputs['D_ann_fit'])
     _print('Fitting noises schedule = ', inputs['ann_fit_noise'])
-    obj.annihilate(D_fit, inputs['ann_fit_noise'], inputs['ann_fit_tol'], inputs['ann_fit_steps'],
-                   inputs['ann_outmps_dir'], inputs['ann_id'], inputs['ann_fit_cutoff'], 
-                   inputs['ann_sp'], None, inputs['ann_fit_bias'], inputs['ocoeff'], 
-                   inputs['ann_outmps_fname'], inputs['normalize_annout'])
+    if inputs['ann_inmps_dir'] == 'DEFINE_LATER':
+        inputs['ann_inmps_dir'] = scratch
+        kw = 'ann_inmps_dir'
+        if inputs['dump_inputs']:
+            _print('  ', kw, ' = ', inputs[kw])
+    if inputs['ann_outmps_dir'] == 'DEFINE_LATER':
+        inputs['ann_outmps_dir'] = scratch
+        kw = 'ann_outmps_dir'
+        if inputs['dump_inputs']:
+            _print('  ', kw, ' = ', inputs[kw])
+    obj.annihilate(inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], inputs['ann_fit_steps'],
+                   inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], inputs['ann_outmps_dir'],
+                   inputs['ann_outmps_fname'], inputs['ann_id'], inputs['ocoeff'], 
+                   inputs['ann_fit_cutoff'], inputs['ann_sp'], None, inputs['ann_fit_bias'], 
+                   inputs['normalize_annout'], inputs['save_ann_1pdm'])
     _print('\n')
     
 
@@ -262,8 +280,13 @@ if inputs['do_timeevo']:
         raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
                          '\'rk4\', while the current value is \'' + inputs['te_method'] +
                          '\'.')
-    obj.time_propagate(inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['te_max_D'],
-                       method, inputs['tmax'], inputs['dt'], inputs['exp_tol'], 
+    if inputs['te_inmps_dir'] == 'DEFINE_LATER':
+        inputs['te_inmps_dir'] = scratch
+        kw = 'te_inmps_dir'
+        if inputs['dump_inputs']:
+            _print('  ', kw, ' = ', inputs[kw])
+    obj.time_propagate(inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
+                       inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['exp_tol'], 
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'], 
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
