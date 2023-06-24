@@ -666,9 +666,7 @@ class MYTDDMRG:
         _print('   ')
         for i in range(0, self.n_sites):
             _print('%18.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
-        if save_1pdm:
-            np.save(outmps_dir + '/GS_1pdm', dm0)
-
+        
         
         #==== Save the output MPS ====#
         #OLD mps.save_data()
@@ -680,6 +678,8 @@ class MYTDDMRG:
         mps_info.save_data(outmps_dir + "/" + outmps_name)
         saveMPStoDir(mps, outmps_dir, self.mpi)
         _print('Output ground state max. bond dimension = ', mps.info.bond_dim)
+        if save_1pdm:
+            np.save(outmps_dir + '/GS_1pdm', dm0)
 
 
         if self.print_statistics:
@@ -990,8 +990,6 @@ class MYTDDMRG:
         dm1 = self.get_one_pdm(False, rkets)
         _print('Occupations after annihilation:')
         self.print_occupation_table(dm1, aid, mo_coeff)
-        if save_1pdm:
-            np.save(outmps_dir + '/ANN_1pdm', dm1)
 
         
         #==== Save the output MPS ====#
@@ -999,7 +997,9 @@ class MYTDDMRG:
         if outmps_dir != self.scratch:
             mkDir(outmps_dir)
         rket_info.save_data(outmps_dir + "/" + outmps_name)
-        saveMPStoDir(rkets, outmps_dir, self.mpi)            
+        saveMPStoDir(rkets, outmps_dir, self.mpi)
+        if save_1pdm:
+            np.save(outmps_dir + '/ANN_1pdm', dm1)
 
             
         if self.verbose >= 2:
