@@ -490,7 +490,7 @@ class MYTDDMRG:
     # return value:
     #     pdm[0, :, :] -> <AD_{i,alpha} A_{j,alpha}>
     #     pdm[1, :, :] -> < AD_{i,beta}  A_{j,beta}>
-    def get_one_pdm(self, iscomp, mps=None, inmps_name=None):
+    def get_one_pdm(self, iscomp, mps=None, inmps_name=None, dmargin=0):
         if mps is None and inmps_name is None:
             raise ValueError("The 'mps' and 'inmps_name' parameters of "
                              + "get_one_pdm cannot be both None.")
@@ -532,9 +532,9 @@ class MYTDDMRG:
         pme = MovingEnvironment(pmpo, mps, mps, "1PDM")
         pme.init_environments(False)
         if iscomp:
-            expect = ComplexExpect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
+            expect = ComplexExpect(pme, mps.info.bond_dim+dmargin, mps.info.bond_dim+dmargin)   #NOTE
         else:
-            expect = Expect(pme, mps.info.bond_dim+100, mps.info.bond_dim+100)   #NOTE
+            expect = Expect(pme, mps.info.bond_dim+dmargin, mps.info.bond_dim+dmargin)   #NOTE
         expect.iprint = max(self.verbose - 1, 0)
         expect.solve(True, mps.center == 0)
         if SpinLabel == SU2:
@@ -665,7 +665,7 @@ class MYTDDMRG:
         _print('Molecular orbitals occupation: ')
         _print('   ')
         for i in range(0, self.n_sites):
-            _print('%18.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
+            _print('%13.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
         
         
         #==== Save the output MPS ====#
@@ -993,12 +993,13 @@ class MYTDDMRG:
 
         
         #==== Save the output MPS ====#
-        _print('Saving output MPS files under ' + outmps_dir)
         if outmps_dir != self.scratch:
             mkDir(outmps_dir)
         rket_info.save_data(outmps_dir + "/" + outmps_name)
+        _print('Saving output MPS files under ' + outmps_dir)
         saveMPStoDir(rkets, outmps_dir, self.mpi)
         if save_1pdm:
+            _print('Saving 1PDM of the output MPS under ' + outmps_dir)
             np.save(outmps_dir + '/ANN_1pdm', dm1)
 
             
@@ -1062,7 +1063,7 @@ class MYTDDMRG:
 
 
     ##################################################################
-    def time_propagate(self, max_bond_dim: int, method, tmax: float, dt: float, 
+    def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
                        inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
@@ -1165,11 +1166,11 @@ class MYTDDMRG:
         _print('Bond dim in TE : ', mps.info.bond_dim, max_bond_dim)
         if mps.info.bond_dim > max_bond_dim:
             _print('!!! WARNING !!!')
-            _print(f'   The specified max. bond dimension for the time-evolved MPS ' +
-                   '({max_bond_dim:d}) is smaller than the max. bond dimension of the ' +
-                   'initial MPS ({mps.info.bond_dim:d}). This is in general not ' +
-                   'recommended since the time evolution will always excite ' +
-                   'correlation effects that are absent in the initial MPS.')
+            _print('   The specified max. bond dimension for the time-evolved MPS ' +
+                   f'({max_bond_dim:d}) is smaller than the max. bond dimension \n' +
+                   f'  of the initial MPS ({mps.info.bond_dim:d}). This is in general not ' +
+                   'recommended since the time evolution will always excite \n' +
+                   '  correlation effects that are absent in the initial MPS.')
         if method == TETypes.TangentSpace:
             te = TimeEvolution(me, VectorUBond([max_bond_dim]), method)
             te.krylov_subspace_size = krylov_size
@@ -1179,8 +1180,31 @@ class MYTDDMRG:
         te.cutoff = cutoff                    # for tiny systems, this is important
         te.iprint = verbosity
         te.normalize_mps = normalize
-        n_steps = int(tmax/dt + 1)
-        ts = np.linspace(0, tmax, n_steps)    # times
+        
+        #OLD n_steps = int(tmax/dt + 1)
+        #OLD ts = np.linspace(0, tmax, n_steps)    # times
+        if type(dt0) is not list:
+            dt = [dt0]
+        else:
+            dt = dt0
+        ts = [0.0]
+        i = 1
+        while ts[-1] < tmax:
+            if i <= len(dt):
+                ts = ts + [sum(dt[0:i])]
+            else:
+                ts = ts + [ts[-1] + dt[-1]]
+            i += 1
+        if ts[-1] > tmax:
+            ts[-1] = tmax
+            if abs(ts[-1]-ts[-2]) < 1E-3:
+                ts.pop()
+                ts[-1] = tmax
+        ts = np.array(ts)
+        n_steps = len(ts)
+        _print('Time points (a.u.) = ', ts)
+        
+        
         if t_sample is not None:
             issampled = [False] * len(t_sample)
             
@@ -1194,11 +1218,13 @@ class MYTDDMRG:
             t = time.perf_counter()
 
             if it != 0: # time zero: no propagation
+                dt_ = ts[it] - ts[it-1]
+                _print('    DELTA T = %10.5f <<<' % dt_)
                 if method == TETypes.RK4:
-                    te.solve(1, +1j * dt, cmps.center == 0, tol=exp_tol)
+                    te.solve(1, +1j * dt_, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = n_sub_sweeps
                 elif method == TETypes.TangentSpace:
-                    te.solve(2, +1j * dt / 2, cmps.center == 0, tol=exp_tol)
+                    te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1                    
 
             #==== Autocorrelation ====#
