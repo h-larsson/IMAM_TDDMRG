@@ -17,7 +17,8 @@ def get_inputs(inp_file):
     where new_input is to be replaced with the intended name of the new input. On the
     other hand, if the new input is optional, do the following steps.
        1) If the default value of this optional input does not depend on any other 
-          parameters, then ddd the following line after the 'inputs = {}' line below
+          parameters, then add the following line anywhere after the 'inputs = {}' line 
+          below
              try:
                  inputs['new_input'] = new_input
              except NameError:
@@ -26,12 +27,19 @@ def get_inputs(inp_file):
              def_new_input = <value>
           where def_new_input is to be replaced with the intended name of the variable that
           holds the default value for this optional input, and <value> is the default value.
-       2) However, if this default value depends on some parameters (e.g. the input
-          prefix below, whose default value depends on the input file name), then 
+       2) If this default value depends on some parameters and can be determined here (e.g. 
+          the input prefix below, whose default value depends on the input file name), then 
           replace the inputs['new_input'] = defvals.def_new_input line in point 1) 
           above with the appropriate line(s) that involve the dependency parameters.
           The addition of the corresponding default parameter inside defvals.py is 
           unnecessary in this case.
+       3) If this default value depends on some parameters and can only be determined later
+          in the program, then replace the the right-hand side of the 
+          inputs['new_input'] = defvals.def_new_input line in point 1) above with the string
+          'DEFINE_LATER'. And later in the code when this input is about to be used for the 
+          first time, do the assignment in the following way:
+             if inputs['new_input'] == 'DEFINE_LATER':
+                 <the appropriate lines to determine the value of inputs['new_input']>
     
     The newly defined input parameter can then be referred to by invoking inputs['new_input'] 
     inside cm_dmrg assuming that the output of this function is stored in a variable called 
@@ -68,6 +76,10 @@ def get_inputs(inp_file):
         inputs['verbose_lvl'] = verbose_lvl
     except NameError:
         inputs['verbose_lvl'] = defvals.def_verbose_lvl
+    try:
+        inputs['inp_ecp'] = inp_ecp
+    except NameError:
+        inputs['inp_ecp'] = defvals.def_inp_ecp
     try:
         inputs['inp_symmetry'] = inp_symmetry
     except NameError:

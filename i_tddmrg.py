@@ -396,7 +396,11 @@ class MYTDDMRG:
             k = 0
             for i in range(0, n_sites):
                 for j in range(0, i + 1):
-                    assert abs(h1e[i, j] - h1e[j, i]) < tol
+                    assert abs(h1e[i, j] - h1e[j, i]) < tol, '\n' + \
+                        f'   h1e[i,j] = {h1e[i,j]:17.13f} \n' + \
+                        f'   h1e[j,i] = {h1e[j,i]:17.13f} \n' + \
+                        f'   Delta = {h1e[i, j] - h1e[j, i]:17.13f} \n' + \
+                        f'   tol. = {tol:17.13f}'
                     mh1e[k] = h1e[i, j]
                     k += 1
             mg2e = g2e.ravel()
@@ -599,23 +603,30 @@ class MYTDDMRG:
                 occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
             mps_info.set_bond_dimension_using_occ(
                 bond_dims[0], VectorDouble(occs), bias=bias)
+        _print('herep1')
         mps = MPS(self.n_sites, 0, 2)
         mps.initialize(mps_info)
         mps.random_canonicalize()
 
+        _print('herep2')
         mps.save_mutable()
         mps.deallocate()
         mps_info.save_mutable()
         mps_info.deallocate_mutable()
         
 
+        _print('herep3')
         # MPO
         tx = time.perf_counter()
+        _print('herep4')
         mpo = MPOQC(self.hamil, QCTypes.Conventional)
+        _print('herep5')
         mpo = SimplifiedMPO(mpo, RuleQC(), True, True,
                             OpNamesSet((OpNames.R, OpNames.RD)))
+        _print('herep6')
         self.mpo_orig = mpo
 
+        _print('herep4')
         if self.mpi is not None:
             if SpinLabel == SU2:
                 from block2.su2 import ParallelMPO
@@ -641,6 +652,7 @@ class MYTDDMRG:
             mps_info2.deallocate_mutable()
             mps_info2.deallocate()
 
+        _print('herep5')
         # DMRG
         me = MovingEnvironment(mpo, mps, mps, "DMRG")
         if self.delayed_contraction:

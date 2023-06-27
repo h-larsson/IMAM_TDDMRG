@@ -3,6 +3,7 @@ def_memory = 1E9
 def_verbose_lvl = 4
 def_dump_inputs = False
 def_hf_orb_path = None
+def_inp_ecp = None
 def_inp_symmetry = 'c1'
 
 def_gs_steps = 50

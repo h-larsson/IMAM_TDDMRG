@@ -90,7 +90,7 @@ _print('Scratch directory = ', scratch)
     
 #==== Setting up the system ====#
 mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
-            symmetry=inputs['inp_symmetry'])
+            ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'])
 na, nb = mol.nelec
 n_mo = mol.nao
 pg = mol.symmetry.lower()
@@ -193,8 +193,8 @@ obj = MYTDDMRG(scratch, inputs['memory'], omp_threads=n_threads, mpi=MPI)
 obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, inputs['nelCAS'][0]+inputs['nelCAS'][1],
                      inputs['nelCAS'][0]-inputs['nelCAS'][1], molpro_wsym, 
-                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, idx=re_idx,
-                     save_fcidump=None)
+                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, tol=1E-12, 
+                     idx=re_idx, save_fcidump=None)
 
 
 #==== Print symmetries ====#
