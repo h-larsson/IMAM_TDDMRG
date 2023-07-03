@@ -31,7 +31,7 @@ for i in range(0,nx):
 
             
 #==== Setting up the system ====#
-mol = gto.M(atom=inp_coordinates, basis=inp_basis,
+mol = gto.M(atom=inp_coordinates, basis=inp_basis, ecp=inp_ecp,
             symmetry=inp_symmetry)
 na, nb = mol.nelec
 n_mo = mol.nao
@@ -75,7 +75,7 @@ for ifl in range(0, n_sample):
     nel_ref = na + nb - 1
     pdm1 = pdm1/nel * nel_ref
     tr = np.trace(np.sum(pdm1, axis=0))
-    print('  Trace of 1RDM before normalization = %12.8f (Re), %12.8f (Im)' % (tr.real, tr.imag))
+    print('  Trace of 1RDM after normalization =  %12.8f (Re), %12.8f (Im)' % (tr.real, tr.imag))
     
     with open(pdm1_dir + '/dens_fun', 'w') as densplot:
         co = 0
@@ -84,8 +84,8 @@ for ifl in range(0, n_sample):
                 for k in range(0,nz):
                     densf = np.einsum('ij, i, j', np.sum(pdm0-pdm1, axis=0), mo_value[co,:],
                                       mo_value[co,:])
-                    densplot.write('%5d %8.4f %8.4f %8.4f %22.14e\n' %
-                                  (co, x[i], y[j], z[k], densf.real))
+                    densplot.write('%8.4f %8.4f %8.4f %22.14e\n' %
+                                  (x[i], y[j], z[k], densf.real))
                     co = co + 1
     
                 densplot.write(' \n')

@@ -604,7 +604,7 @@ class MYTDDMRG:
             mps_info.set_bond_dimension_using_occ(
                 bond_dims[0], VectorDouble(occs), bias=bias)
         _print('herep1')
-        mps = MPS(self.n_sites, 0, 2)
+        mps = MPS(self.n_sites, 0, 2)   # The 3rd argument controls the use of one/two-site algorithm.
         mps.initialize(mps_info)
         mps.random_canonicalize()
 
@@ -991,8 +991,19 @@ class MYTDDMRG:
             rkets.load_tensor(icent)
             rkets.tensors[icent].normalize()
             rkets.save_tensor(icent)
-            rkets.unload_tensor(icent)            
+            rkets.unload_tensor(icent)
             # rket_info.save_data(self.scratch + "/" + outmps_name)
+
+            
+        #==== Check the norm ====#
+        idMPO_ = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
+        if self.mpi is not None:
+            idMPO_ = ParallelMPO(idMPO_, self.identrule)
+        idN = MovingEnvironment(idMPO_, rkets, rkets, "norm")
+        idN.init_environments()
+        nrm = Expect(idN, rkets.info.bond_dim, rkets.info.bond_dim)
+        nrm_ = nrm.solve(False)
+        _print('Output MPS norm = %11.8f' % nrm_)
 
             
         #==== Print the energy of the output MPS ====#
@@ -1079,7 +1090,7 @@ class MYTDDMRG:
                        inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
-                       save_2pdm=False, sample_dir='samples', prefit=False, 
+                       save_2pdm=False, sample_dir='samples', prefix='te', prefit=False, 
                        prefit_bond_dims=None, prefit_nsteps=None, prefit_noises=None,
                        prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
         '''
@@ -1096,6 +1107,19 @@ class MYTDDMRG:
             inmps_dir = self.scratch
         else:
             inmps_dir = inmps_dir0
+        acorrfile = './' + prefix + '.ac'
+        acorr2tfile = './' + prefix + '.ac2t'
+        hline = ''.join(['-' for i in range(0, 61)])
+        with open(acorrfile, 'w') as acf:
+            acf.write('#' + hline + '\n')
+            acf.write('#%9s %13s   %11s %11s %11s\n' %
+                      ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
+            acf.write('#' + hline + '\n')
+        with open(acorr2tfile, 'w') as ac2tf:
+            ac2tf.write('#' + hline + '\n')
+            ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
+                        ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
+            ac2tf.write('#' + hline + '\n')
 
                 
         #==== Identity operator ====#
@@ -1129,6 +1153,12 @@ class MYTDDMRG:
         #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
         mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
 
+        idN = MovingEnvironment(idMPO, mps, mps, "norm_in")
+        idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
+        nrm = Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
+        nrm_ = nrm.solve(False)
+        _print(f'Initial MPS norm = {nrm_:11.8f}')
+               
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
         if prefit:
@@ -1246,6 +1276,18 @@ class MYTDDMRG:
             _print('Autocorrelation function = ' +
                    f'{acorr_t.real:11.8f} (Re), {acorr_t.imag:11.8f} (Im), ' +
                    f'{abs(acorr_t):11.8f} (Abs)')
+            with open(acorrfile, 'a') as acf:
+                acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
+                          (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t)) )
+            if tt > tmax/2:
+                if cmps.wfns[0].data.size == 0:
+                    loaded = True
+                    cmps.load_tensor(cmps.center)
+                vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
+                acorr_2t = np.vdot(vec.conj(),vec)
+                with open(acorr2tfile, 'a') as ac2tf:
+                    ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
+                                (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
 
             
             #==== 1PDM IMAM

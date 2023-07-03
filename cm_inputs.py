@@ -27,14 +27,14 @@ def get_inputs(inp_file):
              def_new_input = <value>
           where def_new_input is to be replaced with the intended name of the variable that
           holds the default value for this optional input, and <value> is the default value.
-       2) If this default value depends on some parameters and can be determined here (e.g. 
+       2) If the default value depends on some parameters and can be determined here (e.g. 
           the input prefix below, whose default value depends on the input file name), then 
           replace the inputs['new_input'] = defvals.def_new_input line in point 1) 
           above with the appropriate line(s) that involve the dependency parameters.
           The addition of the corresponding default parameter inside defvals.py is 
-          unnecessary in this case.
-       3) If this default value depends on some parameters and can only be determined later
-          in the program, then replace the the right-hand side of the 
+          unnecessary in this case since the default value has been calculated here.
+       3) If the default value depends on some parameters and can only be determined later
+          in the program, then replace the right-hand side of the 
           inputs['new_input'] = defvals.def_new_input line in point 1) above with the string
           'DEFINE_LATER'. And later in the code when this input is about to be used for the 
           first time, do the assignment in the following way:
@@ -88,6 +88,10 @@ def get_inputs(inp_file):
         inputs['hf_orb_path'] = hf_orb_path
     except NameError:
         inputs['hf_orb_path'] = defvals.def_hf_orb_path
+    try:
+        inputs['orb_order'] = orb_order
+    except NameError:
+        inputs['orb_order'] = 'DEFINE_LATER'
         
     #==== CAS parameters ====#
     inputs['nCore'] = nCore

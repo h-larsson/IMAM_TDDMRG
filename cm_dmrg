@@ -173,7 +173,20 @@ if hasMPI:
     
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
-    re_idx = orbital_reorder(h1e, g2e)
+    if inputs['orb_order'] == 'DEFINE_LATER':
+        _print('Orbital ordering will be computed by the program.')
+        re_idx = orbital_reorder(h1e, g2e)
+    elif type(inputs['orb_order']) == list:
+        re_idx = np.array(inputs['orb_order'])
+    else:
+        _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
+        re_idx = np.load(inputs['orb_order'])
+    _print('CAS orbitals ordering = ', re_idx)
+    if not all(isinstance(idx, (int, np.int8, np.int16, np.int32, np.int64)) \
+               for idx in re_idx):
+        raise ValueError('All elements of the \'orb_order\' input must ' +
+                         'be an integer.')
+    np.save('./' + inputs['prefix'] + '.ord', re_idx)
     re_idx_shape = re_idx.shape
     re_idx_type = type(re_idx)
 else:
@@ -288,9 +301,9 @@ if inputs['do_timeevo']:
     obj.time_propagate(inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
                        inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['exp_tol'], 
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
-                       inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'], 
+                       inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
-                       inputs['te_save_2pdm'], sample_dir)
+                       inputs['te_save_2pdm'], sample_dir, inputs['prefix'])
     _print('\n')
 
 
