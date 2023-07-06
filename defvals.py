@@ -15,7 +15,7 @@ def_gs_bias = 1.0
 def_gs_outmps_fname = 'GS_MPS_INFO'
 def_save_gs_1pdm = False
 
-def_ocoeff = None
+def_ann_orb_thr = 1.0E-12
 def_ann_inmps_fname = 'GS_MPS_INFO'
 def_ann_outmps_fname = 'ANN_KET'
 #OLD def_ann_fit_margin = 150

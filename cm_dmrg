@@ -213,7 +213,8 @@ obj.init_hamiltonian(pg, nsites, inputs['nelCAS'][0]+inputs['nelCAS'][1],
 #==== Print symmetries ====#
 _print('Number of sites = %d (identical to the number of CAS orbitals)' % nsites)
 swap_pg = getattr(PointGroup, "swap_" + pg)
-osym = map(swap_pg, molpro_osym)
+osym = list(map(swap_pg, molpro_osym))
+_print('CAS orbitals symmetries = ', [s for s in osym])
 _print('CAS orbitals symmetries = ', [symm.irrep_id2name(mol.groupname, s) for s in osym])
 wsym = swap_pg(molpro_wsym)
 _print('MPS symmetry = ', symm.irrep_id2name(mol.groupname, wsym))
@@ -266,11 +267,12 @@ if inputs['do_annihilate']:
         kw = 'ann_outmps_dir'
         if inputs['dump_inputs']:
             _print('  ', kw, ' = ', inputs[kw])
-    obj.annihilate(inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], inputs['ann_fit_steps'],
-                   inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], inputs['ann_outmps_dir'],
-                   inputs['ann_outmps_fname'], inputs['ann_id'], inputs['ocoeff'], 
-                   inputs['ann_fit_cutoff'], inputs['ann_sp'], None, inputs['ann_fit_bias'], 
-                   inputs['normalize_annout'], inputs['save_ann_1pdm'])
+    obj.annihilate(
+        inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], 
+        inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], 
+        inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'], 
+        inputs['ann_sp'], inputs['ann_fit_cutoff'], None, inputs['ann_fit_bias'], 
+        inputs['normalize_annout'], inputs['save_ann_1pdm'])
     _print('\n')
     
 

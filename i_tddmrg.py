@@ -38,7 +38,7 @@ from block2 import OrbitalOrdering, VectorUInt16, TETypes
 import time
 import numpy as np
 import scipy.linalg
-from scipy.linalg import eigvalsh
+from scipy.linalg import eigvalsh, eigh
 
 # Set spin-adapted or non-spin-adapted here
 SpinLabel = SU2
@@ -128,6 +128,7 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
                 noise_type='reduced_perturb', delay_contract=True, verbose_lvl=1):
 
     #==== Construct the LHS and RHS Moving Environment objects ====#
+    _print('hereh0')
     if lmpo is None:
         lme = None
     else:
@@ -136,13 +137,17 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
         if delay_contract:
             lme.delayed_contraction = OpNamesSet.normal_ops()
     #fordebug rme = MovingEnvironment(lmpo, mps, mps, "RHS")
+    _print('hereh1')
     rme = MovingEnvironment(rmpo, fitket, mps, "RHS")
+    _print('hereh2')
     rme.init_environments(False)
+    _print('hereh3')
     if delay_contract:
         rme.delayed_contraction = OpNamesSet.normal_ops()
 
         
     #==== Begin MPS fitting ====#
+    _print('hereh4')
     if fit_margin == None:
         fit_margin = max(int(mps.info.bond_dim / 10.0), 100)
     fit = Linear(lme, rme, VectorUBond(fit_bond_dims),
@@ -167,6 +172,7 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
         raise ValueError("The 'decomp_type' parameter of 'MPS_fitting' does not" +
                          "correspond to any available options, which are 'svd' or 'density_mat'.")
 
+    _print('hereh2')
     if lme is not None:
         fit.eq_type = EquationTypes.PerturbativeCompression
     fit.iprint = max(verbose_lvl, 0)
@@ -357,6 +363,9 @@ class MYTDDMRG:
         assert self.fcidump is None
         self.fcidump = FCIDUMP()
         self.fcidump.read(filename)
+        self.groupname = pg
+        self.n_elec = ( int((self.fcidump.n_elec + self.fcidump.twos)/2),
+                        int((self.fcidump.n_elec - self.fcidump.twos)/2) )
         if idx is not None:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
@@ -364,9 +373,14 @@ class MYTDDMRG:
         #OLD self.orb_sym = VectorUInt8(
         #OLD     map(PointGroup.swap_d2h, self.fcidump.orb_sym))
         swap_pg = getattr(PointGroup, "swap_" + pg)
-        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))
+        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
         _print("# fcidump symmetrize error:", self.fcidump.symmetrize(orb_sym))
+        self.wfn_sym = swap_pg(self.fcidump.isym)
+        # NOTE:
+        # 1) Because of the self.fcidump.reorder invocation above, self.orb_sym contains
+        #    orbital symmetries AFTER REORDERING.
 
+        
         vacuum = SpinLabel(0)
         self.target = SpinLabel(self.fcidump.n_elec, self.fcidump.twos,
                                 swap_pg(self.fcidump.isym))
@@ -391,6 +405,8 @@ class MYTDDMRG:
         #==== Initialize self.fcidump ====#
         assert self.fcidump is None
         self.fcidump = FCIDUMP()
+        self.groupname = pg
+        self.n_elec = ( int((n_elec+twos)/2), int((n_elec-twos)/2) )
         if not isinstance(h1e, tuple):
             mh1e = np.zeros((n_sites * (n_sites + 1) // 2))
             k = 0
@@ -437,17 +453,23 @@ class MYTDDMRG:
 
         #==== Take care of the symmetry conventions. Note that ====#
         #====   self.fcidump.orb_sym is in Molpro convention,  ====#
-        #====     while self.orb_sym is in block2 convetion    ====#
+        #====     while self.orb_sym is in block2 convention   ====#
         self.fcidump.orb_sym = VectorUInt8(orb_sym)       # Hence, self.fcidump.orb_sym is in Molpro convention.
 
+        _print('hml osym = ', orb_sym)
+        _print('hml osym = ', self.fcidump.orb_sym)
         if idx is not None:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-#OLD        self.orb_sym = VectorUInt8(
-#OLD            map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+        #OLD self.orb_sym = VectorUInt8(
+        #OLD     map(PointGroup.swap_d2h, self.fcidump.orb_sym))
         swap_pg = getattr(PointGroup, "swap_" + pg)
-        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))
+        self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
+        self.wfn_sym = swap_pg(isym)
+        # NOTE:
+        # 1) Because of the self.fcidump.reorder invocation above, self.orb_sym contains
+        #    orbital symmetries AFTER REORDERING.
 
 
         #==== Construct the Hamiltonian MPO ====#
@@ -603,19 +625,17 @@ class MYTDDMRG:
                 occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
             mps_info.set_bond_dimension_using_occ(
                 bond_dims[0], VectorDouble(occs), bias=bias)
-        _print('herep1')
+        
         mps = MPS(self.n_sites, 0, 2)   # The 3rd argument controls the use of one/two-site algorithm.
         mps.initialize(mps_info)
         mps.random_canonicalize()
 
-        _print('herep2')
         mps.save_mutable()
         mps.deallocate()
         mps_info.save_mutable()
         mps_info.deallocate_mutable()
         
 
-        _print('herep3')
         # MPO
         tx = time.perf_counter()
         _print('herep4')
@@ -742,56 +762,77 @@ class MYTDDMRG:
 
 
     #################################################
-    def print_occupation_table(self, dm, aid=None, mo_coeff=None):
+    def print_occupation_table(self, dm, aorb):
 
-        assert ((aid is None) ^ (mo_coeff is None)), 'Either aid or mo_coeff ' + \
-               'should be None, but not both. '
+        from pyscf import symm
         
         natocc_a = eigvalsh(dm[0,:,:])
+        natocc_a = natocc_a[::-1]
         natocc_b = eigvalsh(dm[1,:,:])
+        natocc_b = natocc_b[::-1]
 
         mk = ''
-        if mo_coeff is None:
+        if isinstance(aorb, int):
             mk = ' (ann.)'
-        ll = 4 + (4 if mo_coeff is None else 5)*18 + 2*len(mk)
+        ll = 4 + 16 + 15 + 12 + (0 if isinstance(aorb, int) else 13) + \
+             (3+18) + 18 + 2*len(mk)
         hline = ''.join(['-' for i in range(0, ll)])
         aspace = ''.join([' ' for i in range(0,len(mk))])
 
         _print(hline)
         _print('%4s'  % 'No.', end='') 
-        _print('%18s' % 'Alpha MO occ.' + aspace, end='')
-        _print('%18s' % 'Beta MO occ.' + aspace,  end='')
-        if mo_coeff is not None:
-            _print('%18s' % 'ann. coeff', end='')
-        _print('%18s' % 'Alpha natorb occ.', end='')
+        _print('%16s' % 'Alpha MO occ.' + aspace, end='')
+        _print('%15s' % 'Beta MO occ.' + aspace,  end='')
+        _print('%13s' % 'Irrep / ID',  end='')
+        if isinstance(aorb, np.ndarray):
+            _print('%13s' % 'aorb coeff', end='')
+        _print('   %18s' % 'Alpha natorb occ.', end='')
         _print('%18s' % 'Beta natorb occ.',  end='\n')
         _print(hline)
 
         for i in range(0, dm.shape[1]):
-            if i == aid and mo_coeff is None:
-                mk0 = mk
+            if isinstance(aorb, int):
+                mk0 = aspace
+                if i == aorb: mk0 = mk
             else:
                 mk0 = aspace
 
-            _print('%4d'     % i, end='')
-            _print('%18.8f' % np.diag(dm[0,:,:])[i] + mk0, end='')
-            _print('%18.8f' % np.diag(dm[1,:,:])[i] + mk0, end='')
-            if mo_coeff is not None:
-                _print('%18.8f' % mo_coeff[i], end='')
-            _print('%18.8f' % natocc_a[i], end='')
+            _print('%4d' % i, end='')
+            _print('%16.8f' % np.diag(dm[0,:,:])[i] + mk0, end='')
+            _print('%15.8f' % np.diag(dm[1,:,:])[i] + mk0, end='')
+            j = self.ridx[i]
+            sym_label = symm.irrep_id2name(self.groupname, self.orb_sym[j])
+            _print('%13s' % (sym_label + ' / ' + str(self.orb_sym[j])), end='')
+            if isinstance(aorb, np.ndarray):
+                _print('%13.8f' % aorb[i], end='')
+            _print('   %18.8f' % natocc_a[i], end='')
             _print('%18.8f' % natocc_b[i], end='\n')
+
+        _print(hline)
+        _print('%4s' % 'Sum', end='')
+        _print('%16.8f' % np.trace(dm[0,:,:]) + aspace, end='')
+        _print('%15.8f' % np.trace(dm[1,:,:]) + aspace, end='')
+        _print('%13s' % ' ', end='')
+        if isinstance(aorb, np.ndarray):
+            _print('%13s' % ' ', end='')
+        _print('   %18.8f' % sum(natocc_a), end='')
+        _print('%18.8f' % sum(natocc_b), end='\n')
+        _print(hline)
     #################################################
 
     
     #################################################
-    def annihilate(self, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
+    def annihilate(self, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, pg,
                    inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
-                   outmps_name='ANN_KET', aid=None, mo_coeff=None, cutoff=1E-14, alpha=True, 
-                   occs=None, bias=1.0, outmps_normal=True, save_1pdm=False):
-        """Green's function."""
-        ##OLD ops = [None] * len(aid)
-        ##OLD rkets = [None] * len(aid)
-        ##OLD rmpos = [None] * len(aid)
+                   outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
+                   cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False):
+        """
+        aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
+        """
+        ##OLD ops = [None] * len(aorb)
+        ##OLD rkets = [None] * len(aorb)
+        ##OLD rmpos = [None] * len(aorb)
+        from pyscf import symm
 
         if self.mpi is not None:
             self.mpi.barrier()
@@ -805,9 +846,41 @@ class MYTDDMRG:
         else:
             outmps_dir = outmps_dir0
 
-        assert ((aid is None) ^ (mo_coeff is None)), 'Either aid or mo_coeff ' + \
-            'should be None, but not both. '
+            
+        #==== Checking input parameters ====#
+        if not (isinstance(aorb, int) or isinstance(aorb, np.ndarray) or
+                isinstance(aorb, str)):
+            raise ValueError('The argument \'aorb\' of MYTDDMRG.annihilate method must ' +
+                             'be either an integer, a numpy.ndarray, or a string. ' +
+                             f'Currently, aorb = {aorb}.')
 
+        use_natorb = False
+        if isinstance(aorb, str):
+            nn = len(aorb)
+            ss = aorb[0:3]
+            ss_ = aorb[3:nn]
+            if ss != 'nat' or not ss_.isdigit:
+                _print('aorb = ', aorb)
+                raise ValueError(
+                    'The only way the argument \'aorb\' of MYTDDMRG.annihilate ' +
+                    'can be a string is when it has the format of \'nat<n>\', ' +
+                    'where \'n\' must be an integer, e.g. \'nat1\', \'nat24\', ' +
+                    f'etc. Currently aorb = {aorb:s}')
+            nat_id = int(ss_)
+            if nat_id < 0 or nat_id >= self.n_sites:
+                raise ValueError('The index of the natural orbital specified by ' +
+                                 'the argument \'aorb\' of MYTDDMRG.annihilate ' +
+                                 'is out of bound, which is between 0 and ' +
+                                 f'{self.n_sites:d}. Currently, the specified index ' +
+                                 f'is {nat_id:d}.')
+            use_natorb = True
+
+            
+        idMPO_ = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
+        if self.mpi is not None:
+            idMPO_ = ParallelMPO(idMPO_, self.identrule)
+
+        
 
         if self.mpi is not None:
             if SpinLabel == SU2:
@@ -840,9 +913,21 @@ class MYTDDMRG:
         #OLD mps.load_data()
         mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
         _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
+
+
+        #==== Compute the requested natural orbital ====#
         dm0 = self.get_one_pdm(False, mps)
+        if use_natorb:
+            e0, aorb = eigh(dm0[0 if alpha else 1,:,:])
+            aorb = aorb[:,::-1]       # Reverse columns
+            aorb = aorb[:,nat_id]
+            aorb[np.abs(aorb) < aorb_thr] = 0.0          # 1)
+            _print(aorb)
         _print('Occupations before annihilation:')
-        self.print_occupation_table(dm0, aid, mo_coeff)
+        self.print_occupation_table(dm0, aorb)
+        # NOTES:
+        # 1) For some reason, without setting the small elements to zero,
+        #    a segfault error happens later inside the MPS_fitting function.
 
         
         #==== Some statistics ====#
@@ -862,43 +947,67 @@ class MYTDDMRG:
         #NOTE: check if ridx is not none
 
         
-        #==== Begin constructing the annihilation MPO ====#
-        if mo_coeff is None:
-            idx = self.ridx[aid]
-        else:
+        #==== Determine the reordered index of the annihilated orbital ====#
+        if isinstance(aorb, int):
+            idx = self.ridx[aorb]
+        elif isinstance(aorb, np.ndarray):
             if self.idx is not None:
-                mo_coeff = mo_coeff[self.idx]            
-            ops = [None] * self.n_sites
+                aorb = aorb[self.idx]            
+            
+            #== Determine the irrep. of aorb ==#
+            for i in range(0, self.n_sites):
+                j = self.ridx[i]
+                if (np.abs(aorb[j]) >= aorb_thr):
+                    aorb_sym = self.orb_sym[j]            # 1)
+                    break
+            for i in range(0, self.n_sites):
+                j = self.ridx[i]
+                if (np.abs(aorb[j]) >= aorb_thr and self.orb_sym[j] != aorb_sym):
+                    _print(self.orb_sym)
+                    _print('An inconsistency in the orbital symmetry found in aorb: ')
+                    _print(f'   The first detected nonzero element has a symmetry ID of {aorb_sym:d}, ', end='')
+                    _print(f'but the symmetry ID of another nonzero element (the {i:d}-th element) ', end='')
+                    _print(f'is {self.orb_sym[j]:d}.')
+                    raise ValueError('The orbitals making the linear combination in ' +
+                                     'aorb must all have the same symmetry.')
+            # NOTES:
+            # 1) j instead of i is used as the index for self.orb_sym because the
+            #    contents of this array have been reordered (see its assignment in the
+            #    self.init_hamiltonian or self.init_hamiltonian_fcidump function).
 
+                
+        #==== Begin constructing the annihilation MPO ====#
         gidxs = list(range(self.n_sites))
-        for ii, ix in enumerate(gidxs):
-            if mo_coeff is not None or (mo_coeff is None and ix==idx):
+        if isinstance(aorb, int):
+            if SpinLabel == SZ:
+                ops = OpElement(OpNames.D, SiteIndex((idx, ), (0 if alpha else 1, )), 
+                    SZ(-1, -1 if alpha else 1, self.orb_sym[idx]))
+            else:
+                ops = OpElement(OpNames.D, SiteIndex((idx, ), ()), 
+                    SU2(-1, 1, self.orb_sym[idx]))
+        elif isinstance(aorb, np.ndarray):
+            ops = [None] * self.n_sites
+            for ii, ix in enumerate(gidxs):
                 if SpinLabel == SZ:
-                    opsx = OpElement(OpNames.D, SiteIndex(
-                        (ix, ), (0 if alpha else 1, )), SZ(-1, -1 if alpha else 1, self.orb_sym[ix]))
+                    ops[ii] = OpElement(OpNames.D, SiteIndex((ix, ), (0 if alpha else 1, )),
+                        SZ(-1, -1 if alpha else 1, aorb_sym))
                 else:
-                    opsx = OpElement(OpNames.D, SiteIndex(
-                        (ix, ), ()), SU2(-1, 1, self.orb_sym[ix]))
-                if mo_coeff is not None:
-                    ops[ii] = opsx
-                else:
-                    ops = opsx
+                    ops[ii] = OpElement(OpNames.D, SiteIndex((ix, ), ()), 
+                        SU2(-1, 1, aorb_sym))
                     
 
         #==== Determine if the annihilated orbital is a site orbital ====#
         #====  or a linear combination of them (orbital transform)   ====#
-        if mo_coeff is None:
+        if isinstance(aorb, int):
             rmpos = SimplifiedMPO(
                 SiteMPO(self.hamil, ops), NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
-        else:
+        elif isinstance(aorb, np.ndarray):
             ao_ops = VectorOpElement([None] * self.n_sites)
-            _print('mo_coeff = ', mo_coeff)
             for ix in range(self.n_sites):
-                ao_ops[ix] = ops[ix] * mo_coeff[ix]
+                ao_ops[ix] = ops[ix] * aorb[ix]
                 _print('opsx = ', ops[ix], type(ops[ix]), ao_ops[ix], type(ao_ops[ix]))
             rmpos = SimplifiedMPO(
                 LocalMPO(self.hamil, ao_ops), NoTransposeRule(RuleQC()), True, True, OpNamesSet((OpNames.R, OpNames.RD)))
-            
         if self.mpi is not None:
             rmpos = ParallelMPO(rmpos, self.siterule)
 
@@ -910,24 +1019,33 @@ class MYTDDMRG:
         t = time.perf_counter()
 
 
-        #==== Instantiate and setup the output MPS, rkets ====#
-        if mo_coeff is None:
-            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-                                self.target + ops.q_label, self.hamil.basis)
-        else:
-            rket_info = MPSInfo(self.n_sites, self.hamil.vacuum,
-                                self.target + ops[0].q_label, self.hamil.basis)
-            # define new target witht the correct ionic wave function symmetry (in pyscf convention). GS_IRREP XOR removed orbital irrep.
-
-            for i in range(self.n_sites):
-                _print('qlabel : ', i, self.target, ops[i].q_label,
-                       self.target + ops[i].q_label)
-
+        #==== Determine the quantum numbers of the output MPS, rkets ====#
+        if isinstance(aorb, int):
+            ion_target = self.target + ops.q_label
+        elif isinstance(aorb, np.ndarray):
+            ion_sym = self.wfn_sym ^ aorb_sym
+            ion_target = SpinLabel(sum(self.n_elec)-1, 1, ion_sym)
+        rket_info = MPSInfo(self.n_sites, self.hamil.vacuum, ion_target, self.hamil.basis)
         
-        if mo_coeff is None:
+        _print('Quantum number information:')
+        _print(' - Input MPS = ', self.target)
+        _print(' - Input MPS multiplicity = ', self.target.multiplicity)
+        if isinstance(aorb, int):
+            _print(' - Annihilated orbital = ', ops.q_label)
+        elif isinstance(aorb, np.ndarray):
+            _print(' - Annihilated orbital = ', SpinLabel(-1, 1, aorb_sym))
+        _print(' - Output MPS = ', ion_target)
+        _print(' - Output MPS multiplicity = ', ion_target.multiplicity)
+
+
+        #==== Tag the output MPS ====#
+        if isinstance(aorb, int):
             rket_info.tag = 'DKET_%d' % idx
-        else:
+        elif isinstance(aorb, np.ndarray):
             rket_info.tag = 'DKET_C'
+        
+
+        #==== Set the bond dimension of output MPS ====#
         rket_info.set_bond_dimension(mps.info.bond_dim)
         if occs is None:
             if self.verbose >= 2:
@@ -940,6 +1058,8 @@ class MYTDDMRG:
                 mps.info.bond_dim, VectorDouble(occs), bias=bias)
 
 
+        #==== Initialization of output MPS ====#
+        _print('herej0')
         rket_info.save_data(self.scratch + "/" + outmps_name)
         rkets = MPS(self.n_sites, mps.center, 2)
         rkets.initialize(rket_info)
@@ -970,13 +1090,14 @@ class MYTDDMRG:
 
 
         #==== Solve for the output MPS ====#
+        _print('herej1')
         MPS_fitting(rkets, mps, rmpos, fit_bond_dims, fit_n_steps, fit_noises,
                     fit_conv_tol, 'density_mat', cutoff, lmpo=mpo,
                     verbose_lvl=self.verbose-1)
         _print('Output MPS max. bond dimension = ', rkets.info.bond_dim)
 
 
-        #==== Normalize the output MPS if requested====#
+        #==== Normalize the output MPS if requested ====#
         if outmps_normal:
             _print('Normalizing the output MPS')
             icent = rkets.center
@@ -1012,7 +1133,10 @@ class MYTDDMRG:
         _print('Canonical form of the annihilation output = ', rkets.canonical_form)
         dm1 = self.get_one_pdm(False, rkets)
         _print('Occupations after annihilation:')
-        self.print_occupation_table(dm1, aid, mo_coeff)
+        if isinstance(aorb, int):
+            self.print_occupation_table(dm1, aorb)
+        elif isinstance(aorb, np.ndarray):
+            self.print_occupation_table(dm1, aorb[self.ridx])
 
         
         #==== Save the output MPS ====#

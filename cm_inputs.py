@@ -143,7 +143,7 @@ def get_inputs(inp_file):
     inputs['do_annihilate'] = do_annihilate
     if inputs['do_annihilate'] == True:
         inputs['ann_sp'] = ann_sp
-        inputs['ann_id'] = ann_id
+        inputs['ann_orb'] = ann_orb
         inputs['D_ann_fit'] = D_ann_fit
         try:
             inputs['ann_inmps_dir'] = ann_inmps_dir
@@ -162,9 +162,9 @@ def get_inputs(inp_file):
         except NameError:
             inputs['ann_outmps_fname'] = defvals.def_ann_outmps_fname
         try:
-            inputs['ocoeff'] = ocoeff
+            inputs['ann_orb_thr'] = ann_orb_thr
         except NameError:
-            inputs['ocoeff'] = defvals.def_ocoeff
+            inputs['ann_orb_thr'] = defvals.def_ann_orb_thr
         #OLD try:
         #OLD     inputs['ann_fit_margin'] = ann_fit_margin
         #OLD except NameError:
