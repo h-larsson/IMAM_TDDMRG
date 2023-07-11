@@ -29,7 +29,7 @@ print('No. of CAS orbitals = ', nCAS)
 mo_c = np.load(mocoeff_path)
 
             
-# ==== Evaluate the hole density (input the PDM's in MO basis here) ====#
+#==== Obtain the range of AO id's for each atom ====#
 atom_ao_range = [None] * mol.natm
 start_found = False
 ia = 0
@@ -54,14 +54,19 @@ for ia in range(0, mol.natm):
 print('atom_ao_range = ', atom_ao_range)
 
 
+#==== AO overlap matrix ====#
 ovl = mol.intor('int1e_ovlp')
 es, U = eigh(ovl)
 ovl_half = U @ (np.diag( np.sqrt(es) ) @ U.conj().T)
 
+
+#=== Construct the core part of the PDM ====#
 pdm1 = np.zeros((2, n_mo, n_mo), dtype=complex)
 for i in range(0,2):
     for j in range(0, nCore): pdm1[i,j,j] = complex(1.0, 0.0)
 
+
+#==== Calculate the partial charge ====#
 for ifl in range(0, n_sample):
     pdm1_dir = './' + prefix + '.sample/mps_sp-' + str(ifl)
     pdm1_ = np.load(pdm1_dir + '/1pdm.npy')
