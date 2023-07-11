@@ -128,7 +128,6 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
                 noise_type='reduced_perturb', delay_contract=True, verbose_lvl=1):
 
     #==== Construct the LHS and RHS Moving Environment objects ====#
-    _print('hereh0')
     if lmpo is None:
         lme = None
     else:
@@ -137,17 +136,13 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
         if delay_contract:
             lme.delayed_contraction = OpNamesSet.normal_ops()
     #fordebug rme = MovingEnvironment(lmpo, mps, mps, "RHS")
-    _print('hereh1')
     rme = MovingEnvironment(rmpo, fitket, mps, "RHS")
-    _print('hereh2')
     rme.init_environments(False)
-    _print('hereh3')
     if delay_contract:
         rme.delayed_contraction = OpNamesSet.normal_ops()
 
         
     #==== Begin MPS fitting ====#
-    _print('hereh4')
     if fit_margin == None:
         fit_margin = max(int(mps.info.bond_dim / 10.0), 100)
     fit = Linear(lme, rme, VectorUBond(fit_bond_dims),
@@ -172,7 +167,6 @@ def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises,
         raise ValueError("The 'decomp_type' parameter of 'MPS_fitting' does not" +
                          "correspond to any available options, which are 'svd' or 'density_mat'.")
 
-    _print('hereh2')
     if lme is not None:
         fit.eq_type = EquationTypes.PerturbativeCompression
     fit.iprint = max(verbose_lvl, 0)
@@ -638,15 +632,11 @@ class MYTDDMRG:
 
         # MPO
         tx = time.perf_counter()
-        _print('herep4')
         mpo = MPOQC(self.hamil, QCTypes.Conventional)
-        _print('herep5')
         mpo = SimplifiedMPO(mpo, RuleQC(), True, True,
                             OpNamesSet((OpNames.R, OpNames.RD)))
-        _print('herep6')
         self.mpo_orig = mpo
 
-        _print('herep4')
         if self.mpi is not None:
             if SpinLabel == SU2:
                 from block2.su2 import ParallelMPO
@@ -672,7 +662,7 @@ class MYTDDMRG:
             mps_info2.deallocate_mutable()
             mps_info2.deallocate()
 
-        _print('herep5')
+            
         # DMRG
         me = MovingEnvironment(mpo, mps, mps, "DMRG")
         if self.delayed_contraction:
@@ -1059,7 +1049,6 @@ class MYTDDMRG:
 
 
         #==== Initialization of output MPS ====#
-        _print('herej0')
         rket_info.save_data(self.scratch + "/" + outmps_name)
         rkets = MPS(self.n_sites, mps.center, 2)
         rkets.initialize(rket_info)
@@ -1090,7 +1079,6 @@ class MYTDDMRG:
 
 
         #==== Solve for the output MPS ====#
-        _print('herej1')
         MPS_fitting(rkets, mps, rmpos, fit_bond_dims, fit_n_steps, fit_noises,
                     fit_conv_tol, 'density_mat', cutoff, lmpo=mpo,
                     verbose_lvl=self.verbose-1)
@@ -1233,11 +1221,11 @@ class MYTDDMRG:
             inmps_dir = inmps_dir0
         acorrfile = './' + prefix + '.ac'
         acorr2tfile = './' + prefix + '.ac2t'
-        hline = ''.join(['-' for i in range(0, 61)])
+        hline = ''.join(['-' for i in range(0, 73)])
         with open(acorrfile, 'w') as acf:
             acf.write('#' + hline + '\n')
-            acf.write('#%9s %13s   %11s %11s %11s\n' %
-                      ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
+            acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
+                      ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
             acf.write('#' + hline + '\n')
         with open(acorr2tfile, 'w') as ac2tf:
             ac2tf.write('#' + hline + '\n')
@@ -1290,7 +1278,8 @@ class MYTDDMRG:
             ref_mps = mps.deep_copy('ref_mps_t0')
             if self.mpi is not None: self.mpi.barrier()
             MPS_fitting(mps, ref_mps, idMPO, prefit_bond_dims, prefit_nsteps, prefit_noises,
-                        prefit_conv_tol, 'svd', prefit_cutoff, lmpo=idMPO, verbose_lvl=self.verbose-1)
+                        prefit_conv_tol, 'density_mat', prefit_cutoff, lmpo=idMPO,
+                        verbose_lvl=self.verbose-1)
 
 
         #==== Make the initial MPS complex ====#
@@ -1393,6 +1382,7 @@ class MYTDDMRG:
                     te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1                    
 
+            
             #==== Autocorrelation ====#
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
             acorr = ComplexExpect(idME, max_bond_dim, max_bond_dim)
@@ -1400,18 +1390,28 @@ class MYTDDMRG:
             _print('Autocorrelation function = ' +
                    f'{acorr_t.real:11.8f} (Re), {acorr_t.imag:11.8f} (Im), ' +
                    f'{abs(acorr_t):11.8f} (Abs)')
+
+            
+            #==== Norm ====#
+            if it == 0:
+                normsqs = abs(acorr_t)
+            elif it > 0:
+                normsqs = te.normsqs[0]
+
+                
+            #==== Print autocorrelation ====#
             with open(acorrfile, 'a') as acf:
-                acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
-                          (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t)) )
-            if tt > tmax/2:
-                if cmps.wfns[0].data.size == 0:
-                    loaded = True
-                    cmps.load_tensor(cmps.center)
-                vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
-                acorr_2t = np.vdot(vec.conj(),vec)
-                with open(acorr2tfile, 'a') as ac2tf:
-                    ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
-                                (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
+                acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
+                          (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t), normsqs) )
+            #OLDif tt > tmax/2:
+            if cmps.wfns[0].data.size == 0:
+                loaded = True
+                cmps.load_tensor(cmps.center)
+            vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
+            acorr_2t = np.vdot(vec.conj(),vec)
+            with open(acorr2tfile, 'a') as ac2tf:
+                ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
+                            (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
 
             
             #==== 1PDM IMAM
@@ -1484,10 +1484,6 @@ class MYTDDMRG:
 
 
                     #==== Save time info ====#
-                    if it == 0:
-                        normsqs = abs(acorr_t)
-                    elif it > 0:
-                        normsqs = te.normsqs[0]
                     self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
                                         normsqs, acorr_t, save_mps, save_1pdm, dm)
                     

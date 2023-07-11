@@ -118,52 +118,53 @@ _print('Number of virtual orbitals = ', nvir)
 
 #==== Obtain the site orbitals ====#
 if MAIN_PROCESS:
-    if inputs['hf_orb_path'] is defvals.def_hf_orb_path:
+    if inputs['orb_path'] is defvals.def_orb_path:
         #==== Run HF on the neutral molecule if HF orbitals are not given ====#
-        _print('>>>> Hartree-Fock calculation of the neutral <<<<')
+        _print('>>>> Running Hartree-Fock to get the site orbitals <<<<')
         mf = scf.RHF(mol)
         mf.kernel()
-        hf_orb = mf.mo_coeff
+        site_orb = mf.mo_coeff
         _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
     else:
         #==== Load the HF orbitals of the neutral ====#
-        hf_orb = np.load(inputs['hf_orb_path'])
-        assert len(hf_orb.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
+        _print('Loading site orbitals from ' + inputs['orb_path'] + '.')
+        site_orb = np.load(inputs['orb_path'])
+        assert len(site_orb.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
                'array must be a two-dimensional array (a matrix).'
-        assert (hf_orb.shape[0] == n_mo and
-                hf_orb.shape[1] == n_mo), \
+        assert (site_orb.shape[0] == n_mo and
+                site_orb.shape[1] == n_mo), \
                'The shape of the Hartree-Fock orbitals array loaded from ' + \
-               str(inputs['hf_orb_path']) + ' is inconsistent with the number of MO bases (' + \
+               str(inputs['orb_path']) + ' is inconsistent with the number of MO bases (' + \
                str(n_mo) + '). The shape of the loaded orbitals array is ' + \
-               str(hf_orb.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
+               str(site_orb.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
                'reasons may be that the basis set or the molecular species used ' + \
                'to obtain the above HF orbitals is different than what is used ' + \
                'for this simulation.'
-    hf_orb_shape = hf_orb.shape
+    site_orb_shape = site_orb.shape
 
 
     #==== Get the integrals ====#
     h1e, g2e, ecore, molpro_osym, molpro_wsym = \
-         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], hf_orb,
+         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], site_orb,
                            True)
     g2e = ao2mo.restore('s8', g2e, inputs['nCAS'])   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
     h1eshape = h1e.shape
     g2eshape = g2e.shape
 else:
-    hf_orb = h1e = g2e = None
-    hf_orb_shape = h1eshape = g2eshape = None
+    site_orb = h1e = g2e = None
+    site_orb_shape = h1eshape = g2eshape = None
     ecore = None
     molpro_osym = molpro_wsym = None
 
 if hasMPI:
-    hf_orb_shape = commPy.bcast(hf_orb_shape, root = 0)
+    site_orb_shape = commPy.bcast(site_orb_shape, root = 0)
     h1eshape = commPy.bcast(h1eshape, root = 0)
     g2eshape = commPy.bcast(g2eshape, root = 0)
     if not MAIN_PROCESS:
-        hf_orb = np.empty(hf_orb_shape, dtype=np.float64)
+        site_orb = np.empty(site_orb_shape, dtype=np.float64)
         h1e = np.empty(h1eshape, dtype=np.float64)
         g2e = np.empty(g2eshape, dtype=np.float64)
-    commPy.Bcast([hf_orb, MPIpy.DOUBLE], root=0)
+    commPy.Bcast([site_orb, MPIpy.DOUBLE], root=0)
     commPy.Bcast([h1e, MPIpy.DOUBLE], root=0)
     commPy.Bcast([g2e, MPIpy.DOUBLE], root=0)
     ecore = commPy.bcast(ecore, root = 0)

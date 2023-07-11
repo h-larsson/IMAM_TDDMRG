@@ -85,9 +85,9 @@ def get_inputs(inp_file):
     except NameError:
         inputs['inp_symmetry'] = defvals.def_inp_symmetry
     try:
-        inputs['hf_orb_path'] = hf_orb_path
+        inputs['orb_path'] = orb_path
     except NameError:
-        inputs['hf_orb_path'] = defvals.def_hf_orb_path
+        inputs['orb_path'] = defvals.def_orb_path
     try:
         inputs['orb_order'] = orb_order
     except NameError:
