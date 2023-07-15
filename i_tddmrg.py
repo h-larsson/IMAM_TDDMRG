@@ -909,14 +909,14 @@ class MYTDDMRG:
         dm0 = self.get_one_pdm(False, mps)
         if use_natorb:
             e0, aorb = eigh(dm0[0 if alpha else 1,:,:])
-            aorb = aorb[:,::-1]       # Reverse columns
+            aorb = aorb[:,::-1]       # Reverse the columns
             aorb = aorb[:,nat_id]
             aorb[np.abs(aorb) < aorb_thr] = 0.0          # 1)
             _print(aorb)
         _print('Occupations before annihilation:')
         self.print_occupation_table(dm0, aorb)
         # NOTES:
-        # 1) For some reason, without setting the small elements to zero,
+        # 1) For some reason, without setting the small coefficients to zero,
         #    a segfault error happens later inside the MPS_fitting function.
 
         
