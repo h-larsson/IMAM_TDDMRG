@@ -93,7 +93,7 @@ mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
             ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'])
 na, nb = mol.nelec
 n_mo = mol.nao
-pg = mol.symmetry.lower()
+pg = mol.groupname.lower()
 _print('Atomic coordinates (in angstrom) = ', inputs['inp_coordinates'])
 _print('Point group = ', pg)
 _print('Number of electrons (alpha, beta) = ', mol.nelec)
@@ -203,7 +203,7 @@ if hasMPI:
 
 #==== Initiate the Hamiltonian MPO ====#
 _print(f'Memory allocation = {inputs["memory"]} Bytes')
-obj = MYTDDMRG(scratch, inputs['memory'], omp_threads=n_threads, mpi=MPI)
+obj = MYTDDMRG(mol, site_orb, scratch, inputs['memory'], omp_threads=n_threads, mpi=MPI)
 obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, inputs['nelCAS'][0]+inputs['nelCAS'][1],
                      inputs['nelCAS'][0]-inputs['nelCAS'][1], molpro_wsym, 
@@ -240,9 +240,9 @@ if inputs['do_groundstate']:
         if inputs['dump_inputs']:
             _print('  ', kw, ' = ', inputs[kw])
     obj.dmrg(inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
-             inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], None,
-             inputs['gs_bias'], inputs['gs_outmps_dir'], inputs['gs_outmps_fname'],
-             inputs['save_gs_1pdm'])
+             inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
+             inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
+             inputs['gs_outmps_fname'], inputs['save_gs_1pdm'])
     _print('\n')
 
 
@@ -272,8 +272,8 @@ if inputs['do_annihilate']:
         inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], 
         inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], 
         inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'], 
-        inputs['ann_sp'], inputs['ann_fit_cutoff'], None, inputs['ann_fit_bias'], 
-        inputs['normalize_annout'], inputs['save_ann_1pdm'])
+        inputs['ann_sp'], inputs['ann_fit_cutoff'], inputs['ann_fit_occs'], 
+        inputs['ann_fit_bias'], inputs['normalize_annout'], inputs['save_ann_1pdm'])
     _print('\n')
     
 

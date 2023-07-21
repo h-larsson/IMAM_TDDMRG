@@ -222,6 +222,9 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
                'this function has not been checked.')
         _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
+    #forlater irname = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, ocoeff)
+    #forlater print('here ocoeff irname = ', irname)
+    
     
     #==== Setting up the CAS ====#
     mf = scf.RHF(mol)
@@ -235,7 +238,11 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     wSym = wSym if wSym is not None else 0
     molpro_wSym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wSym]
     oSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:nCore+nCAS]
-    molpro_oSym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in oSym]   
+    #debug _print('here osym = ', oSym)
+    molpro_oSym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in oSym]
+    #debug _print('here molpro_osym = ', molpro_oSym)
+    #forlater irname = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, _mcCI.mo_coeff)
+    #forlater _print('here mo_coeff irname = ', irname)
 
 
     #==== Get the 1e and 2e integrals ====#
@@ -271,8 +278,9 @@ class MYTDDMRG:
 
 
     #################################################
-    def __init__(self, scratch='./nodex', memory=1*1E9, isize=2E8, omp_threads=8, verbose=2,
-                 print_statistics=True, mpi=None, delayed_contraction=True):
+    def __init__(self, mol, site_orbs, scratch='./nodex', memory=1*1E9, isize=2E8, 
+                 omp_threads=8, verbose=2, print_statistics=True, mpi=None,
+                 delayed_contraction=True):
         """
         Memory is in bytes.
         verbose = 0 (quiet), 2 (per sweep), 3 (per iteration)
@@ -348,6 +356,25 @@ class MYTDDMRG:
             self.pdmrule = None
             self.siterule = None
             self.identrule = None
+
+        #==== Site orbitals ====#
+        if SpinLabel == SU2:
+            assert len(site_orbs.shape) == 2, \
+                'If SU2 symmetry is invoked, site_orbs must be a 2D array.'
+            self.site_orbs = np.zeros((2, site_orbs.shape[0], site_orbs.shape[1]))
+            for i in range(0,2): self.site_orbs[i,:,:] = site_orbs
+        elif SpinLabel == SZ:
+            assert len(site_orbs.shape) == 3 and site_orbs.shape[0] == 2, \
+                'If SZ symmetry is invoked, site_orbs must be a 3D array with the size ' + \
+                'of first dimension being two.'
+            self.site_orbs = site_orbs
+            
+        #==== Multipole component matrices in AO rep. ====#
+        self.mol = mol
+        self.ovl_ao = mol.intor('int1e_ovlp')
+        mol.set_common_origin([0,0,0])
+        self.dpole_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
+        self.qpole_ao = mol.intor('int1e_rr').reshape(3,3,mol.nao,mol.nao)
     #################################################
 
             
@@ -364,8 +391,10 @@ class MYTDDMRG:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-        #OLD self.orb_sym = VectorUInt8(
-        #OLD     map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+            
+            #==== Orbitals ====#
+            self.site_orbs = self.site_orbs[:,:,idx]
+            
         swap_pg = getattr(PointGroup, "swap_" + pg)
         self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
         _print("# fcidump symmetrize error:", self.fcidump.symmetrize(orb_sym))
@@ -386,9 +415,8 @@ class MYTDDMRG:
 
 
     #################################################
-    def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym,
-                         e_core, h1e, g2e, tol=1E-13, idx=None,
-                         save_fcidump=None):
+    def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym, e_core, 
+                         h1e, g2e, tol=1E-13, idx=None, save_fcidump=None):
         """
         Initialize integrals using h1e, g2e, etc.
         isym: wfn symmetry in molpro convention? See the getFCIDUMP function in CAS_example.py.
@@ -437,7 +465,7 @@ class MYTDDMRG:
                         xmh1e[k] = xh1e[i, j]
                         k += 1
                 xmh1e[np.abs(xmh1e) < tol] = 0.0
-#OLD            mg2e = tuple(xg2e.flatten() for xg2e in g2e)
+            #OLD mg2e = tuple(xg2e.flatten() for xg2e in g2e)
             mg2e = tuple(xg2e.ravel() for xg2e in g2e)
             for xmg2e in mg2e:
                 xmg2e[np.abs(xmg2e) < tol] = 0.0      # xmg2e works like a pointer to the elements of mg2e tuple.
@@ -456,8 +484,10 @@ class MYTDDMRG:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-        #OLD self.orb_sym = VectorUInt8(
-        #OLD     map(PointGroup.swap_d2h, self.fcidump.orb_sym))
+
+            #==== Orbitals ====#
+            self.site_orbs = self.site_orbs[:,:,idx]
+
         swap_pg = getattr(PointGroup, "swap_" + pg)
         self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
         self.wfn_sym = swap_pg(isym)
@@ -586,6 +616,43 @@ class MYTDDMRG:
             return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
     #################################################
 
+
+    #################################################
+    def expect_multipole(self, pdm):
+        '''
+        Calculates the expectation value of a spin-independent 1-electron operator 
+        (whose first quantization form is O = o(1) + o(2) + ... + o(N) for an N-electron 
+        system) using the 1pdm.
+        '''
+
+        #==== Inverse ordering of site_orb because the index ====#
+        #====  of pdm corresponds to that before reordering  ====#
+        if self.ridx is None:
+            site_orbs = self.site_orbs
+        else:
+            site_orbs = self.site_orbs[:,:,self.ridx]
+
+        
+        #==== Dipole ====#
+        n_dpole = np.zeros((3))
+        for i in range(0,self.mol.natm):
+            n_dpole += self.mol.atom_charge(i) * self.mol.atom_coord(i)
+        dpole_mo = np.einsum('sji,xjk,skl -> xsil', site_orbs, self.dpole_ao, site_orbs)
+        e_dpole = -np.einsum('xskj,sjk -> x', dpole_mo, pdm)
+
+
+        #==== Quadrupole ====#
+        n_qpole = np.zeros((3,3))
+        for i in range(0,self.mol.natm):
+            n_qpole += self.mol.atom_charge(i) * np.outer(self.mol.atom_coord(i),
+                                                         self.mol.atom_coord(i))
+        qpole_mo = np.einsum('sji,xyjk,skl -> xysil', site_orbs, self.qpole_ao, site_orbs)
+        e_qpole = -np.einsum('xyskj,sjk -> xy', qpole_mo, pdm)
+
+            
+        return e_dpole, n_dpole, e_qpole, n_qpole
+    #################################################
+
     
     #################################################
     def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
@@ -616,7 +683,8 @@ class MYTDDMRG:
             if self.verbose >= 2:
                 _print("Using occupation number INIT MPS")
             if self.idx is not None:
-                occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
+                #ERR occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
+                occs = occs[self.idx]
             mps_info.set_bond_dimension_using_occ(
                 bond_dims[0], VectorDouble(occs), bias=bias)
         
@@ -689,7 +757,14 @@ class MYTDDMRG:
         for i in range(0, self.n_sites):
             _print('%13.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
         
-        
+
+        #==== Multipole analysis ====#
+        e_dpole, n_dpole, e_qpole, n_qpole = self.expect_multipole(dm0)
+        _print('Electronic dipole moment = ', end='')
+        for i in range(0, 3): _print('%13.8f' % e_dpole[i], end=(' ' if i < 2 else '\n'))
+        _print('Nuclear dipole moment = ', end='')
+        for i in range(0, 3): _print('%13.8f' % n_dpole[i], end=(' ' if i < 2 else '\n'))
+            
         #==== Save the output MPS ====#
         #OLD mps.save_data()
         #OLD mps_info.save_data(self.scratch + "/GS_MPS_INFO")
@@ -790,7 +865,7 @@ class MYTDDMRG:
             _print('%4d' % i, end='')
             _print('%16.8f' % np.diag(dm[0,:,:])[i] + mk0, end='')
             _print('%15.8f' % np.diag(dm[1,:,:])[i] + mk0, end='')
-            j = self.ridx[i]
+            j = i if self.ridx is None else self.ridx[i]
             sym_label = symm.irrep_id2name(self.groupname, self.orb_sym[j])
             _print('%13s' % (sym_label + ' / ' + str(self.orb_sym[j])), end='')
             if isinstance(aorb, np.ndarray):
@@ -939,19 +1014,20 @@ class MYTDDMRG:
         
         #==== Determine the reordered index of the annihilated orbital ====#
         if isinstance(aorb, int):
-            idx = self.ridx[aorb]
+            idx = aorb if self.ridx is None else self.ridx[aorb]
+            # idx is the index of the annihilated orbital after reordering.
         elif isinstance(aorb, np.ndarray):
             if self.idx is not None:
                 aorb = aorb[self.idx]            
             
             #== Determine the irrep. of aorb ==#
             for i in range(0, self.n_sites):
-                j = self.ridx[i]
+                j = i if self.ridx is None else self.ridx[i]
                 if (np.abs(aorb[j]) >= aorb_thr):
                     aorb_sym = self.orb_sym[j]            # 1)
                     break
             for i in range(0, self.n_sites):
-                j = self.ridx[i]
+                j = i if self.ridx is None else self.ridx[i]
                 if (np.abs(aorb[j]) >= aorb_thr and self.orb_sym[j] != aorb_sym):
                     _print(self.orb_sym)
                     _print('An inconsistency in the orbital symmetry found in aorb: ')
@@ -1044,6 +1120,8 @@ class MYTDDMRG:
         else:
             if self.verbose >= 2:
                 _print("Using occupation number INIT MPS")
+            if self.idx is not None:
+                occs = occs[self.idx]
             rket_info.set_bond_dimension_using_occ(
                 mps.info.bond_dim, VectorDouble(occs), bias=bias)
 
@@ -1124,7 +1202,10 @@ class MYTDDMRG:
         if isinstance(aorb, int):
             self.print_occupation_table(dm1, aorb)
         elif isinstance(aorb, np.ndarray):
-            self.print_occupation_table(dm1, aorb[self.ridx])
+            if self.ridx is None:
+                self.print_occupation_table(dm1, aorb)
+            else:
+                self.print_occupation_table(dm1, aorb[self.ridx])
 
         
         #==== Save the output MPS ====#
@@ -1412,37 +1493,6 @@ class MYTDDMRG:
             with open(acorr2tfile, 'a') as ac2tf:
                 ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
                             (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
-
-            
-            #==== 1PDM IMAM
-            ## pme.init_environments()
-            ## _print('here1')
-            ## expect = ComplexExpect(pme, max_bond_dim+100, max_bond_dim+100)   #NOTE
-            ## _print('here2')
-            ## expect.solve(True, cmps.center == 0)    #NOTE: setting the 1st param to True makes cmps real.
-            ## _print('here3')
-            ## if SpinLabel == SU2:
-            ##     dmr = expect.get_1pdm_spatial(self.n_sites)
-            ##     dm = np.array(dmr).copy()
-            ## else:
-            ##     dmr = expect.get_1pdm(self.n_sites)
-            ##     dm = np.array(dmr).copy()
-            ##     dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
-            ##     dm = np.transpose(dm, (0, 2, 1, 3))
-            ## _print('here4')
-            ## cmps.save_data()
-            ## if self.ridx is not None:
-            ##     dm[:, :] = dm[self.ridx, :][:, self.ridx]
-            ## _print('here5')
-            ## dmr.deallocate()
-            ## _print('here6')
-            ## if SpinLabel == SU2:
-            ##     dm = np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
-            ## else:
-            ##     dm = np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
-            ## _print('here7')
-            ## _print('splabel ', SpinLabel)
-            ## _print('DM eigvals = ', dm.shape, scipy.linalg.norm(dm), dm.dtype)
 
 
             #==== Stores MPS and/or PDM's at sampling times ====#

@@ -1,14 +1,15 @@
 #! /usr/bin/env python
 
 import sys
+import os
 import numpy as np
 from pyscf import gto, scf, ao2mo, symm
+from pyscf.tools import cubegen
 
 
 
 inp_file = str(sys.argv[1])
 exec(open(inp_file).read())
-
 
 
 #==== Setting up the system ====#
@@ -107,3 +108,19 @@ for s in range(0, ns):
                   ('('+coeff_str+', '+atom_label[jj]+', '+sph_label[jj])+')', end='  ')
         print('')
         print(' '+hline_)
+
+
+#==== Print to cube files ====#
+spin_str = ['.a', '.b']
+if print_cubes:
+    if not os.path.isdir('./' + cube_dir): os.mkdir(cube_dir)
+    for j in range(0,ns):
+        if ns == 1:
+            for i, mo in enumerate(mo_cube):
+                cubegen.orbital(mol, cube_dir + '/' + prefix + '.mo_' + str(mo) + '.cube',
+                                mf.mo_coeff[:,mo])
+        elif ns == 2:
+            for i, mo in enumerate(mo_cube[j]):
+                cubegen.orbital(mol, cube_dir + '/' + prefix + spin_str[j] + 'mo_' + str(mo) + '.cube',
+                                mf.mo_coeff[j,:,mo])
+        

@@ -123,6 +123,10 @@ def get_inputs(inp_file):
         except NameError:
             inputs['gs_cutoff'] = defvals.def_gs_cutoff
         try:
+            inputs['gs_occs'] = gs_occs
+        except NameError:
+            inputs['gs_occs'] = defvals.def_gs_occs
+        try:
             inputs['gs_bias'] = gs_bias
         except NameError:
             inputs['gs_bias'] = defvals.def_gs_bias
@@ -185,6 +189,10 @@ def get_inputs(inp_file):
             inputs['ann_fit_cutoff'] = ann_fit_cutoff
         except NameError:
             inputs['ann_fit_cutoff'] = defvals.def_ann_fit_cutoff
+        try:
+            inputs['ann_fit_occs'] = ann_fit_occs
+        except NameError:
+            inputs['ann_fit_occs'] = defvals.def_ann_fit_occs
         try:
             inputs['ann_fit_bias'] = ann_fit_bias
         except NameError:
