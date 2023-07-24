@@ -92,6 +92,8 @@ _print('Scratch directory = ', scratch)
 mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
             ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'])
 na, nb = mol.nelec
+assert na == nb, 'For the moment cm_dmrg can only be used with closed shell system. ' + \
+    'n_alpha = {na} vs. n_beta = {nb}.'
 n_mo = mol.nao
 pg = mol.groupname.lower()
 _print('Atomic coordinates (in angstrom) = ', inputs['inp_coordinates'])
