@@ -74,7 +74,7 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
     atom_fmt = '%' + str(max(ln_atom)) + 's'
     sph_fmt = '%' + str(max(ln_sph)) + 's'
     hline = ''.join(['-' for i in range(0, 127)])
-    hline_ = ''.join(['-' for i in range(0, 125)])
+    hline_ = ''.join(['-- ' for i in range(0, 42)])
     nlarge = min(6, n_mo)
         
     for s in range(0, ns):

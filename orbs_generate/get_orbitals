@@ -1,0 +1,151 @@
+#! /usr/bin/env python
+
+import sys
+import os
+import numpy as np
+from pyscf import gto
+from pyscf.tools import cubegen
+import orbs_gen
+
+
+inp_file = str(sys.argv[1])
+exec(open(inp_file).read())
+
+
+#==== Setting up the system ====#
+mol = gto.M(atom=inp_coordinates, basis=inp_basis, ecp=inp_ecp, symmetry=inp_symmetry)
+na, nb = mol.nelec
+pg = mol.symmetry.lower()
+n_mo = mol.nao
+print('Point group = ', mol.groupname)
+print('Number of electrons (alpha, beta) = ', mol.nelec)
+print('Number of AO bases = ', mol.nao)
+print('Number of MO bases = ', n_mo)
+
+
+if source == 'rhf':
+    orbs = orbs_gen.get_rhf_orbs(
+        mol, sz, natorb, loc_orb, loc_type=, loc_irrep)
+elif source == 'casscf':
+    orbs = orbs_gen.get_casscf_orbs(
+        mol, nCAS, nelCAS, frozen, init_mo, ss, ss_shift, sz, wfnsym, natorb, loc_orb, 
+        loc_type, loc_thr, loc_irrep, fcisolver)
+elif source  == 'dft':
+    raise ValueError('DFT is not yet implemented.')
+
+np.save(save_dir + '/' + prefix + '.orb', orbs)
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+#OLD #==== Run HF on the neutral molecule to obtain the orbitals ====#
+#OLD print('>>>> Hartree-Fock calculation of the neutral <<<<')
+#OLD mf = scf.RHF(mol)
+#OLD mf.kernel()
+#OLD osym = scf.hf_symm.get_orbsym(mol, mf.mo_coeff)[0:n_mo]
+#OLD osym_l = [symm.irrep_id2name(mol.groupname, s) for s in osym]
+#OLD np.save('./' + prefix + '.hfo', mf.mo_coeff)
+#OLD 
+#OLD 
+#OLD #==== Determine the no. of unique spin channels ====#
+#OLD if len(mf.mo_coeff.shape) == 3:
+#OLD     ns = 2
+#OLD elif len(mf.mo_coeff.shape) == 2:
+#OLD     ns = 1
+#OLD     
+#OLD 
+#OLD #==== Recast MO coefficients into another array ====#
+#OLD mo_c = np.zeros((ns, n_mo, n_mo))
+#OLD if ns == 1:
+#OLD     mo_c[0,:,:] = mf.mo_coeff
+#OLD elif ns == 2:
+#OLD     mo_c = mf.mo_coeff
+#OLD 
+#OLD 
+#OLD #==== Get the index of the sorted MO coefficients ====#
+#OLD idsort = np.zeros((ns, n_mo, n_mo))
+#OLD for s in range(0, ns):
+#OLD     for i in range(0, n_mo):
+#OLD         idsort[s,:,i] = np.argsort(np.abs(mo_c[s,:,i]))   # Sort from smallest to largest.
+#OLD         idsort[s,:,i] = idsort[s,::-1,i]                  # Sort from largest to smallest.
+#OLD 
+#OLD print('eri shape, size = ', mf._eri.shape, mf._eri.size)
+#OLD print('MO coeff shape = ', mf.mo_coeff.shape)
+#OLD 
+#OLD 
+#OLD #==== Construct various labels ====#
+#OLD atom_label = [None] * n_mo
+#OLD sph_label =  [None] * n_mo
+#OLD for i in range(0, n_mo):
+#OLD     ao_label = mol.ao_labels(fmt=False)[i]
+#OLD     atom_label[i] = ao_label[1] + str(ao_label[0])
+#OLD     if ao_label[3] == '':
+#OLD         sph_label[i] = 's'
+#OLD     else:
+#OLD         sph_label[i] = ao_label[3]
+#OLD 
+#OLD 
+#OLD #==== Print orbital properties ====#
+#OLD ln_atom = [len(ss) for ss in atom_label]
+#OLD ln_sph = [len(ss) for ss in sph_label]
+#OLD atom_fmt = '%' + str(max(ln_atom)) + 's'
+#OLD sph_fmt = '%' + str(max(ln_sph)) + 's'
+#OLD hline = ''.join(['-' for i in range(0, 127)])
+#OLD hline_ = ''.join(['-' for i in range(0, 125)])
+#OLD nlarge = min(6, n_mo)
+#OLD 
+#OLD for s in range(0, ns):
+#OLD     if ns == 2:
+#OLD         print('Orbital properties of spin-%s channel:' % ('alpha' if s==0 else 'beta'))
+#OLD     elif ns == 1:
+#OLD         print('Orbital properties:')
+#OLD 
+#OLD     #== Column headers ==#
+#OLD     space1 = '    '
+#OLD     print(hline)
+#OLD     print(' %4s %14s %14s %10s%s%s' % (\
+#OLD             'No.', 'Occupation', 'Energy', 'Irrep.', space1,
+#OLD             'Six largest coefficients (value, center, spher.)'))
+#OLD     print(hline)
+#OLD     for i in range(0,n_mo):
+#OLD         print(' %4d %14.8f %14.8f %10s' % \
+#OLD               (i+1, mf.mo_occ[i], mf.mo_energy[i], osym_l[i]+' / '+str(osym[i])),
+#OLD               end=space1)
+#OLD 
+#OLD         for j in range(0,nlarge):
+#OLD             jj = int(idsort[s,j,i])
+#OLD 
+#OLD             if (j == int(nlarge/2)):
+#OLD                 print('')
+#OLD                 print('%46s' % '', end=space1)
+#OLD             coeff_str = "{:.6f}".format(mo_c[s,jj,i])
+#OLD             print('%s' % \
+#OLD                   ('('+coeff_str+', '+atom_label[jj]+', '+sph_label[jj])+')', end='  ')
+#OLD         print('')
+#OLD         print(' '+hline_)
+#OLD 
+#OLD 
+#OLD #==== Print to cube files ====#
+#OLD spin_str = ['.a', '.b']
+#OLD if print_cubes:
+#OLD     if not os.path.isdir('./' + cube_dir): os.mkdir(cube_dir)
+#OLD     for j in range(0,ns):
+#OLD         if ns == 1:
+#OLD             for i, mo in enumerate(mo_cube):
+#OLD                 cubegen.orbital(mol, cube_dir + '/' + prefix + '.mo_' + str(mo) + '.cube',
+#OLD                                 mf.mo_coeff[:,mo])
+#OLD         elif ns == 2:
+#OLD             for i, mo in enumerate(mo_cube[j]):
+#OLD                 cubegen.orbital(mol, cube_dir + '/' + prefix + spin_str[j] + 'mo_' + str(mo) + '.cube',
+#OLD                                 mf.mo_coeff[j,:,mo])
+        

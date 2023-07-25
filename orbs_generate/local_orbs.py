@@ -45,10 +45,12 @@ def localize(orbs, mol, loc_type='PM', occs=None, large_occ=1.9, loc_irrep=True)
         do_loc = lo.ER
     elif loc_type == 'PM':
         do_loc = lo.PM
+    elif loc_type == 'B':
+        do_loc = lo.Boys
     else:
-        raise ValueError('localize: The value of the argument loc_type is undefined, ' + \
-                         'loc_type = ' + str(loc_type))
-    
+        raise ValueError('localize: The value of the argument \'loc_type\' is undefined, ' + \
+                         'loc_type = ' + str(loc_type) + '. The available options are ' + \
+                         '\'ER\', \'PM\', and \'B\'.')
     orbs_l = []
     if loc_irrep:
         #== Loop over the large/small occupation sections ==#
