@@ -1,7 +1,9 @@
 import numpy as np
 from pyscf import gto, symm
+from scipy.linalg import eigh
 
 
+##########################################################################
 def analyze(mol, ocoeff, oocc=None, oerg=None):
     n_mo = mol.nao
     
@@ -111,7 +113,109 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
                       ('('+coeff_str+', '+atom_label[jj]+', '+sph_label[jj])+')', end='  ')
             print('')
             print(' '+hline_)    
+##########################################################################
 
 
+##########################################################################
+def analyze_multipole(mol, orbs):
+
+    #==== The multipole operator matrices in AO rep. ====#
+    dpole_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
+    qpole_ao = mol.intor('int1e_rr').reshape(3,3,mol.nao,mol.nao)
+
+    #==== Column title ====#
+    hline = ''.join(['-' for i in range(0, 7+11*9)])
+    print(hline)
+    print('%5s  %11s%11s%11s%11s%11s%11s%11s%11s%11s' %
+          ('No.', 'x', 'y', 'z', 'xx', 'yy', 'zz', 'xy', 'yz', 'xz'))
+    print(hline)
+
+    #==== Multipole values ====#
+    for i in range(0, mol.nao):
+        dpole = np.einsum('j, xjk, k -> x', orbs[:,i], dpole_ao, orbs[:,i])
+        qpole = np.einsum('j, xyjk, k -> xy', orbs[:,i], qpole_ao, orbs[:,i])
+        print('%5d  ' % (i+1), end='')
+        for j in range(0,3): print('%11.6f' % dpole[j], end='')
+        for j in range(0,3): print('%11.6f' % np.diag(qpole,0)[j], end='')
+        for j in range(0,2): print('%11.6f' % np.diag(qpole,1)[j], end='')
+        for j in range(0,1): print('%11.6f' % np.diag(qpole,2)[j])
+
+##########################################################################
 
 
+##########################################################################
+def analyze_population(mol, orbs, qtype='low'):
+
+    #==== Obtain the range of AO id's for each atom ====#
+    atom_ao_range = [None] * mol.natm
+    start_found = False
+    ia = 0
+    for ia in range(0, mol.natm):
+        for ib in range(0, mol.nao):
+            ibm = min(ib+1, mol.nao-1)
+            if mol.ao_labels(fmt=False)[ib][0] == ia:
+                if not start_found:
+                    ia_start = ib
+                    start_found = True
+                if mol.ao_labels(fmt=False)[ibm][0] == ia+1 or \
+                   ib == mol.nao-1:
+                    ia_last = ib
+                    start_found = False
+                    break
+        atom_ao_range[ia] = (ia_start, ia_last)
+    
+    #==== Overlap matrix ====#
+    ovl = mol.intor('int1e_ovlp')
+    es, U = eigh(ovl)
+    ovl_half = U @ (np.diag( np.sqrt(es) ) @ U.conj().T)
+
+    #==== Calculate atomic populations ====#
+    q = np.zeros((mol.nao, mol.natm))
+    for i in range(0, mol.nao):
+        #==== Density matrix ====#
+        P = np.outer(orbs[:,i], orbs[:,i])
+
+        #==== Population type ====#
+        if qtype == 'low':
+            T = np.einsum('ij, jk, ki -> i', ovl_half, P, ovl_half)
+        elif qtype == 'mul':
+            T = np.einsum('ij, ji -> i', P, ovl)
+        else:
+            raise ValueError(
+                'analyze_population: The argument \'qtype\' has an undefined value. The ' + \
+                'available options are \'low\' (Loewdin) or \'mul\' (Mulliken).')
+        for ia in range(0, mol.natm):
+            ib_1 = atom_ao_range[ia][0]
+            ib_2 = atom_ao_range[ia][1]
+    
+            #==== Mulliken population ====#
+            q[i,ia] = np.sum( T[ib_1:ib_2+1] )
+
+
+    #==== Print atomic populations ====#
+    maxcol = 10
+    nblock = int(np.ceil(mol.natm/maxcol))
+    j1 = 0
+    j2 = min(maxcol, mol.natm) - 1
+    for b in range(0, nblock):
+
+        #== Column title ==#
+        hline = ''.join(['-' for i in range(0, 7+11*min(maxcol, mol.natm))])
+        print(hline)
+        print('%5s  ' % 'No.', end='')
+        for j in range(j1, j2+1):
+            print('%11s' % (mol.atom_symbol(j) + str(j+1)), end='')
+        print('')
+        print(hline)
+
+        #== Population values ==#
+        for i in range(0, mol.nao):
+            print('%5d  ' % (i+1), end='')
+            for j in range(j1, j2+1):
+                print('%11.6f' % q[i,j], end='')
+            print('')
+        print('')
+        j1 += maxcol
+        j2 += min(maxcol, mol.natm)
+
+##########################################################################

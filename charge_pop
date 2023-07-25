@@ -75,9 +75,8 @@ for ifl in range(0, n_sample):
         pdm1[i, nCore:nocc, nCore:nocc] = pdm1_[i,:,:]
         P = P + mo_c @ (pdm1[i,:,:] @ mo_c.T)
     
-    print('P = %13.8f  %13.8f' % (P[3,14].real, P[3,14].imag))
-    print('P = %13.8f  %13.8f' % (P[14,3].real, P[14,3].imag))
-
+    # print('P = %13.8f  %13.8f' % (P[3,14].real, P[3,14].imag))
+    # print('P = %13.8f  %13.8f' % (P[14,3].real, P[14,3].imag))
     
     Tmul = np.einsum('ij, ji -> i', P, ovl)
     qmul = [None] * mol.natm

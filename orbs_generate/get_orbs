@@ -5,17 +5,31 @@ import os
 import numpy as np
 from pyscf import gto
 from pyscf.tools import cubegen
-import orbs_gen
+import orbs_gen, get_orbs_input
 
 
+
+######################
+#vvvv Input File vvvv#
+######################
+import sys
 inp_file = str(sys.argv[1])
-exec(open(inp_file).read())
+inputs = get_orbs_input.get_inputs(inp_file)
+if inputs['dump_inputs']:
+    print('\nInput parameters:')
+    for kw in inputs:
+        _print('  ', kw, ' = ', inputs[kw])
+    print(' ')
+######################
+#^^^^ Input File ^^^^#
+######################
+
 
 
 #==== Setting up the system ====#
 mol = gto.M(atom=inp_coordinates, basis=inp_basis, ecp=inp_ecp, symmetry=inp_symmetry)
 na, nb = mol.nelec
-pg = mol.symmetry.lower()
+pg = mol.groupname.lower()
 n_mo = mol.nao
 print('Point group = ', mol.groupname)
 print('Number of electrons (alpha, beta) = ', mol.nelec)
@@ -25,13 +39,18 @@ print('Number of MO bases = ', n_mo)
 
 if source == 'rhf':
     orbs = orbs_gen.get_rhf_orbs(
-        mol, sz, natorb, loc_orb, loc_type=, loc_irrep)
+           mol, sz, natorb, loc_orb, loc_type, loc_irrep)
 elif source == 'casscf':
+    if init_orbs is not None:
+        init_orbs_ = np.load(init_orbs)
     orbs = orbs_gen.get_casscf_orbs(
-        mol, nCAS, nelCAS, frozen, init_mo, ss, ss_shift, sz, wfnsym, natorb, loc_orb, 
-        loc_type, loc_thr, loc_irrep, fcisolver)
+           mol, nCAS, nelCAS, frozen, init_orbs_, ss, ss_shift, sz, wfnsym, natorb, loc_orb, 
+           loc_type, loc_thr, loc_irrep, fcisolver, max_bond_dim)
 elif source  == 'dft':
     raise ValueError('DFT is not yet implemented.')
+else:
+    raise ValueError('get_orbs: The value of \'source\' corresponds to an undefined ' + \
+                     'value. The available options are \'rhf\', \'casscf\', and \'dft\'.')
 
 np.save(save_dir + '/' + prefix + '.orb', orbs)
                     

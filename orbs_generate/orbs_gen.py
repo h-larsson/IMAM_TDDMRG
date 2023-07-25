@@ -3,7 +3,7 @@ from functools import reduce
 from pyscf import gto, scf, ao2mo, symm, mcscf
 from pyscf.dmrgscf import DMRGCI
 from orbs_generate.local_orbs import localize
-from orbs_generate.analyze_orbs import analyze
+from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 
 
 
@@ -45,10 +45,16 @@ def get_rhf_orbs(mol, sz=None, natorb=False, loc_orb=False, loc_type='PM', loc_i
                loc_orb = True.
     loc_irrep = If True, then the orbitals will be localized within each irreducible 
                 representation of the spatial symmetry. Useful to prevent symmetry 
-                breaking of the orbitals as a result of the localization. So, unless 
-                absolutely needed, this argument should always be True. Only meaningful 
-                when loc_orb = True. 
+                breaking of the orbitals as a result of the localization. Therefore, 
+                unless absolutely needed, this argument should always be True. Only 
+                meaningful when loc_orb = True. 
     '''
+
+    if natorb:
+        print('>>> ATTENTION <<<')
+        print('Natural orbitals are specified for get_rhf_orbs which does not have any ' + \
+              'effect because in Hartree-Fock method, the natural orbitals are the ' + \
+              'the same as the canonical orbitals.')
     
     #==== Set up system (mol) ====#
     assert isinstance(nelCAS, tuple)
@@ -110,6 +116,7 @@ def get_rhf_orbs(mol, sz=None, natorb=False, loc_orb=False, loc_type='PM', loc_i
     #==== Analyze the final orbitals ====#
     print('\n>>> Output orbitals analysis <<<')
     analyze(mol, orbs, occs, ergs)
+    analyze_multipole(mol, orbs)
     
 ##########################################################################
 
@@ -122,20 +129,20 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
     Input parameters:
     ----------------
 
-    mol = Mole object.
+    mol = Mole object of the molecule.
     nCAS = The number of active space orbitals.
     nelCAS = The number of electrons in the active space.
     frozen = Orbitals to be frozen, i.e. not optimized. If given an integer, it is used 
              as the number of the lowest orbitals to be frozen. If it is given a list of
              integers, it must contain the base-1 indices of the orbitals to be frozen.
-    init_mo = The guess orbitals for the CASSCF iteration.
+    init_mo = The guess orbitals to initiate the CASSCF iteration.
     ss = The value of <S^2> = S(S+1) of the desired state. Note that the value of <S^2>
          given to this function is not guaranteed to be achieved at the end of the CASSCF
-         procedure. Adjust ss_shift if this happens.
+         procedure. Adjust ss_shift if the final <S^2> is not equal to the value of ss.
     ss_shift = A parameter to control the energy shift of the CASSCF solution when ss is
-              not None.
+               not None.
     sz = The z-projection of the total spin operator (S).
-    wfnsym = The spatial symmetry of the desired state.
+    wfnsym = The irreducible representation of the desired multi-electron state.
     natorb = If True, the natural orbitals will be returned, otherwise, the 
              canonical orbitals will be returned.
     loc_orb = If True, the requested orbitals (natural or canonical) will be localized.
@@ -145,16 +152,16 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
     loc_thr = The threshold value used to classify the occupied orbitals into those 
               with large and small occupation numbers. Useful for ensuring that the 
               reference configuration (the one with the largest CI coefficient) is still
-              contained within the same number of orbitals. Only meaningful when loc_orb 
-              = True. 
+              contained within the same number of orbitals after localization. Only 
+              meaningful when loc_orb = True. 
     loc_irrep = If True, then the orbitals will be localized within each irreducible 
-                representation of the spatial symmetry. Useful to prevent symmetry 
-                breaking of the orbitals as a result of the localization. So, unless 
-                absolutely needed, this argument should always be True. Only meaningful 
-                when loc_orb = True. 
-    fcisolver = Controls the use of external FCI solver, at the moment only \'DMRG\' is
+                representation of the point group of the molecule. Useful for preventing 
+                symmetry breaking of the orbitals as a result of the localization. 
+                Therefore, unless absolutely needed, this argument should always be True. 
+                Only meaningful when loc_orb = True. 
+    fcisolver = Controls the use of external FCI solver, at the moment only 'DMRG' is
                 is supported. By default, it will use the original CASSCF solver.
-    maxM = The maximum bond dimension for DMRG solver. Only meaningful if fcisolver =
+    maxM = The maximum bond dimension for the DMRG solver. Only meaningful if fcisolver =
            'DMRG'.
     '''
 
@@ -294,8 +301,12 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
         occs, orbs, ergs = sort_occs(occs, orbs, ergs)
 
     #==== Analyze the final orbitals ====#
-    print('\n>>> Output orbitals analysis <<<')
+    print('\n\nOrbital occupations, energies, and symmetries:')
     analyze(mol, orbs, occs, ergs)
+    print('\n\nOrbital multipole components:')
+    analyze_multipole(mol, orbs)
+    print('\n\nOrbital atomic populations:')
+    analyze_population(mol, orbs, 'low')
     
     return orbs
 ##########################################################################
@@ -330,7 +341,7 @@ shift = None
 sz = 0
 
 mol = gto.M(
-    atom = 'C 0 0 0; C 0 0 1.2',
+    atom = 'C 0 0 -0.6; C 0 0 0.6',
     basis = 'cc-pvdz',
     symmetry = True,
     symmetry_subgroup = 'c2v',
@@ -338,7 +349,8 @@ mol = gto.M(
 
 ncore = 2
 nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
-nCAS = max(nelCAS) + 8
+#nCAS = max(nelCAS) + 8
+nCAS = max(nelCAS) + 3
 
 
 
@@ -359,15 +371,15 @@ nCAS = max(nelCAS) + 8
 
 print('\n\n\n!!! CASSCF !!!')
 orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
-                      sz=sz, natorb=True, loc_orb=True, loc_type='PM',
+                      sz=sz, natorb=False, loc_orb=True, loc_type='PM',
                        loc_irrep=True, fcisolver=None)
 
 
 print('\n\n\n!!! CASSCF with DMRG !!!')
 orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
-                      sz=sz, natorb=True, loc_orb=True, loc_type='PM',
+                      sz=sz, natorb=False, loc_orb=False, loc_type='PM',
                        loc_irrep=True, fcisolver='DMRG', maxM=400)
 
 
-#print('\n\n\n!!! RHF !!!')
-#orbs = get_rhf_orbs(mol, sz, loc_orb=True, loc_type='PM', loc_irrep=True)
+print('\n\n\n!!! RHF !!!')
+orbs = get_rhf_orbs(mol, sz, loc_orb=False, loc_type='PM', loc_irrep=True)
