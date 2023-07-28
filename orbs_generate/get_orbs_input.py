@@ -42,35 +42,26 @@ def get_inputs(inp_file):
         inputs['natorb'] = natorb
     except NameError:
         inputs['natorb'] = defvals.def_natorb
-    try:
-        inputs['loc_orb'] = loc_orb
-    except NameError:
-        inputs['loc_orb'] = defvals.def_loc_orb
-    if inputs['loc_orb']:
-        try:
-            inputs['loc_type'] = loc_type
-        except NameError:
-            inputs['loc_type'] = defvals.def_loc_type
-        try:
-            inputs['loc_irrep'] = loc_irrep
-        except NameError:
-            inputs['loc_irrep'] = defvals.def_loc_irrep
-    
+
         
     #==== CAS parameters ====#
-    inputs['source'] = source
-    if inputs['source'] == 'casscf':
+    try:
+        inputs['source'] = source
+    except NameError:
+        inputs['source'] = defvals.def_source
+        
+    if inputs['source'] == 'rhf':
+        # All inputs used by RHF are also used by CASSCF.
+        pass
+    elif inputs['source'] == 'casscf':
         inputs['nCAS'] = nCAS
         inputs['nelCAS'] = nelCAS
+        inputs['init_orbs'] = init_orbs
 
         try:
             inputs['frozen'] = frozen
         except NameError:
             inputs['frozen'] = defvals.def_frozen
-        try:
-            inputs['init_orbs'] = init_orbs
-        except NameError:
-            inputs['init_orbs'] = defvals.def_init_orbs
         try:            
             inputs['ss'] = ss
         except NameError:
@@ -83,14 +74,37 @@ def get_inputs(inp_file):
             inputs['wfnsym'] = wfnsym
         except NameError:
             inputs['wfnsym'] = defvals.def_wfnsym
-        if inputs['loc_orb']:
-            try:
-                inputs['loc_thr'] = loc_thr
-            except NameError:
-                inputs['loc_thr'] = defvals.def_loc_thr
         try:
             inputs['fcisolver'] = fcisolver
         except NameError:
             inputs['fcisolver'] = defvals.def_fcisolver
         if inputs['fcisolver'] is not None:
             inputs['max_bond_dim'] = max_bond_dim
+
+    try:
+        inputs['localize'] = localize
+    except NameError:
+        inputs['localize'] = defvals.def_localize
+        
+    if inputs['localize']:
+        inputs['loc_subs'] = loc_subs
+            
+        try:
+            inputs['loc_type'] = loc_type
+        except NameError:
+            inputs['loc_type'] = ['PM'] * len(inputs['loc_subs'])
+        try:
+            inputs['loc_irrep'] = loc_irrep
+        except NameError:
+            inputs['loc_irrep'] = [True] * len(inputs['loc_subs'])
+        
+        try:
+            inputs['update_loc_occs'] = update_loc_occs
+        except NameError:
+            inputs['update_loc_occs'] = defvals.def_update_loc_occs
+        try:
+            inputs['update_loc_rdm'] = update_loc_rdm
+        except NameError:
+            inputs['update_loc_rdm'] = defvals.def_update_loc_rdm
+        
+    return inputs

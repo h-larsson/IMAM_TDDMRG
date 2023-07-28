@@ -3,9 +3,49 @@ from pyscf import gto, lo, symm
 
 
 ##########################################################################
-def localize(orbs, mol, loc_type='PM', occs=None, large_occ=1.9, loc_irrep=True):
+def localize(orbs, mol, loc_type='PM', loc_irrep=True, rdm_mo=None):
     '''
-    large_occ = only used when occs is not None.
+    The occupations of the output localized orbitals (occs_) will be returned only if
+    rdm_mo is not None.
+    loc_type = Orbital localization type, the supported values are 'PM' (Pipek-Mezey, the
+               default), 'ER' (Edmiston-Ruedenberg), and 'B' (Boys). Only meaningful when 
+               loc_orb = True.
+    loc_irrep = If True, then the orbitals will be localized within each irreducible 
+                representation of the point group of the molecule. Useful for preventing 
+                symmetry breaking of the orbitals as a result of the localization. 
+                Therefore, unless absolutely needed, this argument should always be True. 
+                Only meaningful when loc_orb = True. 
+    '''
+    
+    print('>>> Performing localization <<<')
+    if loc_type == 'PM': loc_type_ = 'Pipek-Mezey'
+    if loc_type == 'ER': loc_type_ = 'Edmiston-Ruedenberg'
+    if loc_type == 'B': loc_type_ = 'Boys'        
+    print('Localization type = %s' % loc_type_)
+
+    if rdm_mo is not None:
+        ovl = mol.intor('int1e_ovlp') 
+        rdm_ao = reduce(np.dot, (ovl, orbs, rdm_mo, orbs.T, ovl))    # rdm_ao is in AO rep.
+        
+    orbs_ = localize_sub(orbs, mol, loc_type, loc_irrep)
+
+    #==== Calculate occupations of the loc. orbitals if rdm_mo is not None ====#
+    if rdm_mo is not None:
+        occs_ = [None] * orbs.shape[1]
+        for i in range(0, orbs.shape[1]):
+            occs_[i] = np.einsum('j, jk, k', orbs[:,i], rdm_ao, orbs[:,i])
+
+        orbs_, occs_, ergs_ = sort_orbs(orbs_, occs_, None, 'occ', 'de')
+        return orbs_, occs_
+    else:
+        return orbs_
+
+##########################################################################
+
+
+##########################################################################
+def localize_sub(orbs, mol, loc_type='PM', loc_irrep=True):
+    '''
     orb_sym = onlyused when loc_irrep is True.
     '''
 
@@ -14,31 +54,10 @@ def localize(orbs, mol, loc_type='PM', occs=None, large_occ=1.9, loc_irrep=True)
         orb_sym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, orbs)
                 
     #==== Divide orbs into large and small occupations ====#
-    if occs is not None:
-        #== occs must be monotonically decreasing ==#
-        t = [occs[i] >= occs[i+1] for i in range(0,len(occs)-1)]
-        assert all(t), 'localize_orbs: The \'occs\' argument is not monotonically ' + \
-            'decreasing. occs = ' + str(occs)
-
-        #== Assign the orbitals with large and small occupations ==#
-        n_large_occ = sum(occs > large_occ)
-        orbs_ = [None] * 2
-        orbs_[0] = orbs[:,:n_large_occ]    # Orbitals with large occupations.
-        orbs_[1] = orbs[:,n_large_occ:]    # Orbitals with small occupations.
-
-        if loc_irrep:
-            orb_sym_ = [None] * 2
-            orb_sym_[0] = orb_sym[:n_large_occ]    # Irrep of orbitals with large occupations.
-            orb_sym_[1] = orb_sym[n_large_occ:]    # Irrep of orbitals with small occupations.
-    else:
-        #== No division ==#
-        orbs_ = [None]
-        orbs_[0] = orbs
-
-        if loc_irrep:
-            orb_sym_ = [None]
-            orb_sym_[0] = orb_sym
-
+    #== No division ==#
+    orbs_ = orbs
+    if loc_irrep:
+        orb_sym_ = orb_sym
         
     #==== Perform localization within each irrep ====#
     if loc_type == 'ER':
@@ -54,18 +73,16 @@ def localize(orbs, mol, loc_type='PM', occs=None, large_occ=1.9, loc_irrep=True)
     orbs_l = []
     if loc_irrep:
         #== Loop over the large/small occupation sections ==#
-        for i in range(0,len(orb_sym_)):
-            n = len(orb_sym_[i])
-            symset = set(orb_sym_[i])     # Unique elements of the irreps in orb_sym_[i]
+        n = len(orb_sym_)
+        symset = set(orb_sym_)     # Unique elements of the irreps in orb_sym_[i]
 
-            #== Loop over the unique irreps ==#
-            for s in symset:
-                ids = [k for k in range(0,n) if orb_sym_[i][k]==s]
-                orbs_s = orbs_[i][:, ids]
-                orbs_l.append( do_loc(mol, orbs_s).kernel() )
+        #== Loop over the unique irreps ==#
+        for s in symset:
+            ids = [k for k in range(0,n) if orb_sym_[k]==s]
+            orbs_s = orbs_[:, ids]
+            orbs_l.append( do_loc(mol, orbs_s).kernel() )
     else:
-        for i in range(0, len(orbs_)):
-            orbs_l.append( do_loc(mol, orbs_[i]).kernel() )
+        orbs_l.append( do_loc(mol, orbs_).kernel() )
 
             
     orbs_l = np.hstack(orbs_l)

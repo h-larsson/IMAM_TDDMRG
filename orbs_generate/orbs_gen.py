@@ -2,52 +2,56 @@ import numpy as np
 from functools import reduce
 from pyscf import gto, scf, ao2mo, symm, mcscf
 from pyscf.dmrgscf import DMRGCI
-from orbs_generate.local_orbs import localize
-from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
-
 
 
 ##########################################################################
-def sort_occs(occs, orbs, ergs, s='de'):
+def sort_orbs(orbs, occs, ergs, sr='erg', s='de'):
     '''
-    Sort occs, orbs, and ergs based on the elements of occs.
+    Sort occs, orbs, and ergs based on the elements of occs or ergs.
     '''
-    
-    assert occs is not None, 'sort_occs: The input occs cannot be None.'
+
+    assert sr == 'erg' or sr == 'occ', \
+        'sort_orbs: The value of the argument \'sr\' can only either ' + \
+        'be \'erg\' or \'occ\'. Its current value: sr = ' + sr + '.'
+    assert s == 'de' or s == 'as', \
+        'sort_orbs: The value of the argument \'s\' can only either ' + \
+        'be \'de\' or \'as\'. Its current value: s = ' + s + '.'
+
+    if sr == 'erg' and ergs is None:
+        raise ValueError('sort_orbs: If sr = \'erg\', then ergs must ' + \
+                         'not be None.')
+    if sr == 'occ' and occs is None:
+        raise ValueError('sort_orbs: If sr = \'occ\', then occs must ' + \
+                         'not be None.')
+
     if s == 'de':       # Descending
-        isort = np.argsort(-occs)
+        if sr == 'erg': isort = np.argsort(-ergs)
+        if sr == 'occ': isort = np.argsort(-occs)
     elif s == 'as':     # Ascending
-        isort = np.argsort(occs)
-    else:
-        raise ValueError('sort_occs: The value of the argument \'s\' can ' +
-                         'only either be \'de\' or \'as\'. Its current ' + \
-                         'value: s = ' + s + '.')
+        if sr == 'erg': isort = np.argsort(ergs)
+        if sr == 'occ': isort = np.argsort(occs)
     
-    occs = occs[isort]
+    if occs is not None: occs = occs[isort]
     if ergs is not None: ergs = ergs[isort]
     orbs = orbs[:,isort]
 
-    return occs, orbs, ergs
+    return orbs, occs, ergs
 ##########################################################################
 
 
 ##########################################################################
-def get_rhf_orbs(mol, sz=None, natorb=False, loc_orb=False, loc_type='PM', loc_irrep=True): 
+def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False): 
     '''
     Input parameters:
     ----------------
 
     mol = Mole object.
     sz = The z-projection of the total spin operator (S).
-    loc_orb = If True, the requested orbitals (natural or canonical) will be localized.
-    loc_type = Orbital localization type, the supported values are 'PM' (Pipek-Mezey, the
-               default), 'ER' (Edmiston-Ruedenberg), and 'B' (Boys). Only meaningful when 
-               loc_orb = True.
-    loc_irrep = If True, then the orbitals will be localized within each irreducible 
-                representation of the spatial symmetry. Useful to prevent symmetry 
-                breaking of the orbitals as a result of the localization. Therefore, 
-                unless absolutely needed, this argument should always be True. Only 
-                meaningful when loc_orb = True. 
+
+    Outputs:
+    -------
+ 
+    The output is a dictionary.
     '''
 
     if natorb:
@@ -57,7 +61,6 @@ def get_rhf_orbs(mol, sz=None, natorb=False, loc_orb=False, loc_type='PM', loc_i
               'the same as the canonical orbitals.')
     
     #==== Set up system (mol) ====#
-    assert isinstance(nelCAS, tuple)
     dnel = mol.nelec[0] - mol.nelec[1]
     if sz is not None:
         mol.spin = int(2 * sz)
@@ -84,47 +87,24 @@ def get_rhf_orbs(mol, sz=None, natorb=False, loc_orb=False, loc_type='PM', loc_i
     print('Spin square = %-10.6f' % ssq)
     print('Spin multiplicity = %-10.6f' % mult)
 
-    #== Sort orbs with decreasing occs ==#
-    occs, orbs, ergs = sort_occs(occs, orbs, ergs)
-        
-    #==== Localize orbitals ====#
-    if loc_orb:
-        print('>>> Performing localization <<<')
-        if loc_type == 'PM': loc_type_ = 'Pipek-Mezey'
-        if loc_type == 'ER': loc_type_ = 'Edmiston-Ruedenberg'
-        if loc_type == 'B': loc_type_ = 'Boys'
-            
-        print('Localization type = %s' % loc_type_)
-        nocc = max(mol.nelec)
-        
-        #== Occupied localized orbitals ==#
-        loc_thr = 0.9
-        orbs[:,:nocc] = localize(orbs[:,:nocc], mol, loc_type, occs[:nocc], loc_thr,
-                                 loc_irrep)
+    orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
 
-        #== Virtual localized orbitals ==#
-        orbs[:,nocc:] = localize(orbs[:,nocc:], mol, loc_type, loc_irrep=loc_irrep)
-
-        ovl = mol.intor('int1e_ovlp') 
-        rdm_mo = np.diag(occs)
-        rdm_ao = reduce(np.dot, (ovl, orbs, rdm_mo, orbs.T, ovl))    # rdm_ao is in AO rep.
-        for i in range(0, mol.nao):
-            occs[i] = np.einsum('j, jk, k', orbs[:,i], rdm_ao, orbs[:,i])
-        ergs = None
-        occs, orbs, ergs = sort_occs(occs, orbs, ergs)
-
-    #==== Analyze the final orbitals ====#
-    print('\n>>> Output orbitals analysis <<<')
-    analyze(mol, orbs, occs, ergs)
-    analyze_multipole(mol, orbs)
     
+    #==== What to output ====#
+    outs = {}
+    outs['orbs'] = orbs
+    outs['occs'] = occs
+    outs['ergs'] = ergs
+    if save_rdm: outs['rdm'] = np.diag(occs)
+    
+    return outs
 ##########################################################################
 
 
 ##########################################################################
-def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_shift=None, 
-                    sz=None, wfnsym=None, natorb=False, loc_orb=False, loc_type='PM', 
-                    loc_thr=0.8, loc_irrep=True, fcisolver=None, maxM=None):
+def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
+                    sz=None, wfnsym=None, natorb=False, save_rdm=True, fcisolver=None,
+                    maxM=None):
     '''
     Input parameters:
     ----------------
@@ -145,24 +125,16 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
     wfnsym = The irreducible representation of the desired multi-electron state.
     natorb = If True, the natural orbitals will be returned, otherwise, the 
              canonical orbitals will be returned.
-    loc_orb = If True, the requested orbitals (natural or canonical) will be localized.
-    loc_type = Orbital localization type, the supported values are 'PM' (Pipek-Mezey, the
-               default), 'ER' (Edmiston-Ruedenberg), and 'B' (Boys). Only meaningful when 
-               loc_orb = True.
-    loc_thr = The threshold value used to classify the occupied orbitals into those 
-              with large and small occupation numbers. Useful for ensuring that the 
-              reference configuration (the one with the largest CI coefficient) is still
-              contained within the same number of orbitals after localization. Only 
-              meaningful when loc_orb = True. 
-    loc_irrep = If True, then the orbitals will be localized within each irreducible 
-                representation of the point group of the molecule. Useful for preventing 
-                symmetry breaking of the orbitals as a result of the localization. 
-                Therefore, unless absolutely needed, this argument should always be True. 
-                Only meaningful when loc_orb = True. 
+    save_rdm = Return the 1RDM in the MO rep.
     fcisolver = Controls the use of external FCI solver, at the moment only 'DMRG' is
                 is supported. By default, it will use the original CASSCF solver.
     maxM = The maximum bond dimension for the DMRG solver. Only meaningful if fcisolver =
            'DMRG'.
+
+    Outputs:
+    -------
+ 
+    The output is a dictionary.
     '''
 
     
@@ -187,18 +159,9 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
     ncore = nelcore[0]
     
     #==== Run HF because it is needed by CASSCF ====#
-    print('\n\n')
-    print('==================================')
-    print('>>>> HARTREE-FOCK CALCULATION <<<<')
-    print('==================================')
-    print('')
-    print('No. of MO / no. of electrons = %d / (%d, %d)' % 
-          (mol.nao, mol.nelec[0], mol.nelec[1]))
     mf = scf.RHF(mol)
     mf.conv_tol = 1e-7
     mf.kernel()
-    print('\n>>> Hartree-Fock orbitals analysis <<<')
-    analyze(mol, mf.mo_coeff, mf.mo_occ, mf.mo_energy)
 
     #==== Set up the CAS ====#
     print('\n\n')
@@ -238,12 +201,9 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
             mc.fcisolver.wfnsym = 'A'
         else:
             pass
-        
+    
     #==== Run CASSCF ====#
-    if init_mo is None:
-        mc.kernel(mf.mo_coeff)
-    else:
-        mc.kernel(init_mo)
+    mc.kernel(init_mo)
     orbs = mc.mo_coeff
     ergs = mc.mo_energy
     if fcisolver is None:
@@ -270,45 +230,24 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
         orbs = orbs @ natorb
         ergs = None
 
+        orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
+        rdm_mo = np.diag(occs)
         # 2) rdm_mo needs to be in an orthonormal basis rep. to be an input to symm.eigh(),
         #    in this case the MO is chosen as the orthonormal basis.
     else:
         occs = np.diag(rdm_mo)
+        orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
+        rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))     # Take into account the reordering of the columns of orbs.
 
-    #== Sort orbs with decreasing occs ==#
-    occs, orbs, ergs = sort_occs(occs, orbs, ergs)
         
-    #==== Localize orbitals ====#
-    if loc_orb:
-        print('>>> Performing localization <<<')
-        if loc_type == 'PM': loc_type_ = 'Pipek-Mezey'
-        if loc_type == 'ER': loc_type_ = 'Edmiston-Ruedenberg'
-        if loc_type == 'B': loc_type_ = 'Boys'
-            
-        print('Localization type = %s' % loc_type_)
-        nocc = ncore + nCAS
-        
-        #== Occupied localized orbitals ==#
-        orbs[:,:nocc] = localize(orbs[:,:nocc], mol, loc_type, occs[:nocc], loc_thr,
-                                 loc_irrep)
+    #==== What to output ====#
+    outs = {}
+    outs['orbs'] = orbs
+    outs['occs'] = occs
+    if ergs is not None: outs['ergs'] = ergs
+    if save_rdm: outs['rdm'] = rdm_mo
 
-        #== Virtual localized orbitals ==#
-        orbs[:,nocc:] = localize(orbs[:,nocc:], mol, loc_type, loc_irrep=loc_irrep)
-
-        for i in range(0, mol.nao):
-            occs[i] = np.einsum('j, jk, k', orbs[:,i], rdm_ao, orbs[:,i])
-        ergs = None
-        occs, orbs, ergs = sort_occs(occs, orbs, ergs)
-
-    #==== Analyze the final orbitals ====#
-    print('\n\nOrbital occupations, energies, and symmetries:')
-    analyze(mol, orbs, occs, ergs)
-    print('\n\nOrbital multipole components:')
-    analyze_multipole(mol, orbs)
-    print('\n\nOrbital atomic populations:')
-    analyze_population(mol, orbs, 'low')
-    
-    return orbs
+    return outs
 ##########################################################################
 
 
@@ -318,68 +257,69 @@ def get_casscf_orbs(mol, nCAS, nelCAS, frozen=None, init_mo=None, ss=None, ss_sh
 #=================#
 #==== TESTING ====#
 #=================#
-#ss = 2
-#shift = None
-#sz = 1
-#
-#mol = gto.M(
-#    atom = 'O 0 0 0; O 0 0 1.2',
-#    basis = 'cc-pvdz',
-#    symmetry = True,
-#    symmetry_subgroup = 'c2v',
-#    spin = 2 * sz)
-#
-#ncore = 2
-#nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
-#nCAS = max(nelCAS) + 2
-
-
-
-
-ss = 0
-shift = None
-sz = 0
-
-mol = gto.M(
-    atom = 'C 0 0 -0.6; C 0 0 0.6',
-    basis = 'cc-pvdz',
-    symmetry = True,
-    symmetry_subgroup = 'c2v',
-    spin = 2 * sz)
-
-ncore = 2
-nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
-#nCAS = max(nelCAS) + 8
-nCAS = max(nelCAS) + 3
-
-
-
-#ss = 0
-#shift = None
-#sz = 0
-#
-#mol = gto.M(
-#    atom = 'H 0 0 0; H 0 0 1.2',
-#    basis = 'cc-pvdz',
-#    symmetry = 'd2h',
-#    spin = 2 * sz)
-#
-#ncore = 0
-#nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
-#nCAS = max(nelCAS) + 5
-
-
-print('\n\n\n!!! CASSCF !!!')
-orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
-                      sz=sz, natorb=False, loc_orb=True, loc_type='PM',
-                       loc_irrep=True, fcisolver=None)
-
-
-print('\n\n\n!!! CASSCF with DMRG !!!')
-orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
-                      sz=sz, natorb=False, loc_orb=False, loc_type='PM',
-                       loc_irrep=True, fcisolver='DMRG', maxM=400)
-
-
-print('\n\n\n!!! RHF !!!')
-orbs = get_rhf_orbs(mol, sz, loc_orb=False, loc_type='PM', loc_irrep=True)
+if __name__ == "__main__":
+    #ss = 2
+    #shift = None
+    #sz = 1
+    #
+    #mol = gto.M(
+    #    atom = 'O 0 0 0; O 0 0 1.2',
+    #    basis = 'cc-pvdz',
+    #    symmetry = True,
+    #    symmetry_subgroup = 'c2v',
+    #    spin = 2 * sz)
+    #
+    #ncore = 2
+    #nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
+    #nCAS = max(nelCAS) + 2
+    
+    
+    
+    
+    ss = 0
+    shift = None
+    sz = 0
+    
+    mol = gto.M(
+        atom = 'C 0 0 -0.6; C 0 0 0.6',
+        basis = 'cc-pvdz',
+        symmetry = True,
+        symmetry_subgroup = 'c2v',
+        spin = 2 * sz)
+    
+    ncore = 2
+    nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
+    #nCAS = max(nelCAS) + 8
+    nCAS = max(nelCAS) + 3
+    
+    
+    
+    #ss = 0
+    #shift = None
+    #sz = 0
+    #
+    #mol = gto.M(
+    #    atom = 'H 0 0 0; H 0 0 1.2',
+    #    basis = 'cc-pvdz',
+    #    symmetry = 'd2h',
+    #    spin = 2 * sz)
+    #
+    #ncore = 0
+    #nelCAS = (mol.nelec[0]-ncore, mol.nelec[1]-ncore)
+    #nCAS = max(nelCAS) + 5
+    
+    
+    print('\n\n\n!!! CASSCF !!!')
+    orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
+                          sz=sz, natorb=False, loc_orb=True, loc_type='PM',
+                           loc_irrep=True, fcisolver=None)
+    
+    
+    print('\n\n\n!!! CASSCF with DMRG !!!')
+    orbs = get_casscf_orbs(mol, nCAS, nelCAS, ss=ss, ss_shift=shift,
+                          sz=sz, natorb=False, loc_orb=False, loc_type='PM',
+                           loc_irrep=True, fcisolver='DMRG', maxM=400)
+    
+    
+    print('\n\n\n!!! RHF !!!')
+    orbs = get_rhf_orbs(mol, sz, loc_orb=False, loc_type='PM', loc_irrep=True)

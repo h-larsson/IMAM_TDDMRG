@@ -79,13 +79,16 @@ for ifl in range(0, n_sample):
     
     with open(pdm1_dir + '/dens_fun', 'w') as densplot:
         co = 0
+        densplot.write('%12s  %12s  %12s  %22s\n' %
+                       ('x (angstrom)', 'y (angstrom)', 'z (angstrom)', 'hole density'))
         for i in range(0,nx):
             for j in range(0,ny):
                 for k in range(0,nz):
                     densf = np.einsum('ij, i, j', np.sum(pdm0-pdm1, axis=0), mo_value[co,:],
                                       mo_value[co,:])
-                    densplot.write('%8.4f %8.4f %8.4f %22.14e\n' %
-                                  (x[i], y[j], z[k], densf.real))
+                    x_, y_, z_ = x[i]/ang2bohr, y[j]/ang2bohr, z[k]/ang2bohr
+                    densplot.write('%12.4f  %12.4f  %12.4f  %22.14e\n' %
+                                  (x_, y_, z_, densf.real))
                     co = co + 1
     
                 densplot.write(' \n')
