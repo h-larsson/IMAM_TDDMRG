@@ -94,11 +94,18 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
         print(hline)
         for i in range(0,n_mo):
 
-            occ_s = 'N/A'
-            if oocc is not None: occ_s = '%14.8f' % oocc_[s,i]
-            erg_s = 'N/A'
-            if oerg is not None: erg_s = '%14.8f' % oerg_[s,i]
+            if oocc is None:
+                occ_s = 'N/A'
+            else:
+                if oocc_[s,i] is None: 'N/A'
+                else: occ_s = '%14.8f' % oocc_[s,i]
 
+            if oerg is None:
+                erg_s = 'N/A'
+            else:
+                if oerg_[s,i] is None: 'N/A'
+                else: erg_s = '%14.8f' % oerg_[s,i]
+            
             print((' %4d %14s %14s %' + str(10+of) + 's') % \
                   (i+1, occ_s, erg_s, osym_l[s][i]+' / '+str(osym[s][i])), end=space1)
     
@@ -204,6 +211,7 @@ def analyze_population(mol, orbs, qtype='low'):
         print(hline)
         print('%5s  ' % 'No.', end='')
         for j in range(j1, j2+1):
+            
             print('%11s' % (mol.atom_symbol(j) + str(j+1)), end='')
         print('')
         print(hline)
@@ -216,6 +224,6 @@ def analyze_population(mol, orbs, qtype='low'):
             print('')
         print('')
         j1 += maxcol
-        j2 += min(maxcol, mol.natm)
+        j2 = min(j1+maxcol, mol.natm-1)
 
 ##########################################################################

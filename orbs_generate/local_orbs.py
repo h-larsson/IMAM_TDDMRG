@@ -1,5 +1,7 @@
 import numpy as np
 from pyscf import gto, lo, symm
+from functools import reduce
+from util_orbs import sort_orbs
 
 
 ##########################################################################
@@ -24,16 +26,16 @@ def localize(orbs, mol, loc_type='PM', loc_irrep=True, rdm_mo=None):
     print('Localization type = %s' % loc_type_)
 
     if rdm_mo is not None:
-        ovl = mol.intor('int1e_ovlp') 
+        ovl = mol.intor('int1e_ovlp')
         rdm_ao = reduce(np.dot, (ovl, orbs, rdm_mo, orbs.T, ovl))    # rdm_ao is in AO rep.
         
     orbs_ = localize_sub(orbs, mol, loc_type, loc_irrep)
 
     #==== Calculate occupations of the loc. orbitals if rdm_mo is not None ====#
     if rdm_mo is not None:
-        occs_ = [None] * orbs.shape[1]
+        occs_ = np.zeros(orbs.shape[1])
         for i in range(0, orbs.shape[1]):
-            occs_[i] = np.einsum('j, jk, k', orbs[:,i], rdm_ao, orbs[:,i])
+            occs_[i] = np.einsum('j, jk, k', orbs_[:,i], rdm_ao, orbs_[:,i])
 
         orbs_, occs_, ergs_ = sort_orbs(orbs_, occs_, None, 'occ', 'de')
         return orbs_, occs_

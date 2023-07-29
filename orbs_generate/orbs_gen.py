@@ -2,41 +2,7 @@ import numpy as np
 from functools import reduce
 from pyscf import gto, scf, ao2mo, symm, mcscf
 from pyscf.dmrgscf import DMRGCI
-
-
-##########################################################################
-def sort_orbs(orbs, occs, ergs, sr='erg', s='de'):
-    '''
-    Sort occs, orbs, and ergs based on the elements of occs or ergs.
-    '''
-
-    assert sr == 'erg' or sr == 'occ', \
-        'sort_orbs: The value of the argument \'sr\' can only either ' + \
-        'be \'erg\' or \'occ\'. Its current value: sr = ' + sr + '.'
-    assert s == 'de' or s == 'as', \
-        'sort_orbs: The value of the argument \'s\' can only either ' + \
-        'be \'de\' or \'as\'. Its current value: s = ' + s + '.'
-
-    if sr == 'erg' and ergs is None:
-        raise ValueError('sort_orbs: If sr = \'erg\', then ergs must ' + \
-                         'not be None.')
-    if sr == 'occ' and occs is None:
-        raise ValueError('sort_orbs: If sr = \'occ\', then occs must ' + \
-                         'not be None.')
-
-    if s == 'de':       # Descending
-        if sr == 'erg': isort = np.argsort(-ergs)
-        if sr == 'occ': isort = np.argsort(-occs)
-    elif s == 'as':     # Ascending
-        if sr == 'erg': isort = np.argsort(ergs)
-        if sr == 'occ': isort = np.argsort(occs)
-    
-    if occs is not None: occs = occs[isort]
-    if ergs is not None: ergs = ergs[isort]
-    orbs = orbs[:,isort]
-
-    return orbs, occs, ergs
-##########################################################################
+from util_orbs import sort_orbs
 
 
 ##########################################################################
@@ -235,7 +201,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         # 2) rdm_mo needs to be in an orthonormal basis rep. to be an input to symm.eigh(),
         #    in this case the MO is chosen as the orthonormal basis.
     else:
-        occs = np.diag(rdm_mo)
+        occs = np.diag(rdm_mo).copy()
         orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
         rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))     # Take into account the reordering of the columns of orbs.
 
