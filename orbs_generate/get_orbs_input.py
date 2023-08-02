@@ -78,8 +78,24 @@ def get_inputs(inp_file):
             inputs['fcisolver'] = fcisolver
         except NameError:
             inputs['fcisolver'] = defvals.def_fcisolver
-        if inputs['fcisolver'] is not None:
+
+        #==== DMRGSCF ====#
+        try:
             inputs['max_bond_dim'] = max_bond_dim
+        except NameError:
+            inputs['max_bond_dim'] = defvals.def_max_bond_dim
+        try:
+            inputs['sweep_tol'] = sweep_tol
+        except NameError:
+            inputs['sweep_tol'] = defvals.def_sweep_tol
+        try:
+            inputs['dmrg_nthreads'] = dmrg_nthreads
+        except NameError:
+            inputs['dmrg_nthreads'] = defvals.def_dmrg_nthreads
+
+    elif inputs['source'] == 'dft':
+        inputs['xc'] = xc
+                
 
     try:
         inputs['localize'] = localize

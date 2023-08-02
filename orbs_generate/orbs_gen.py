@@ -1,7 +1,8 @@
 import numpy as np
 from functools import reduce
-from pyscf import gto, scf, ao2mo, symm, mcscf
+from pyscf import gto, scf, dft, ao2mo, symm, mcscf
 from pyscf.dmrgscf import DMRGCI
+from IMAM_TDDMRG.utils.util_print import print_matrix
 from util_orbs import sort_orbs
 
 
@@ -24,13 +25,13 @@ def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False):
         print('>>> ATTENTION <<<')
         print('Natural orbitals are specified for get_rhf_orbs which does not have any ' + \
               'effect because in Hartree-Fock method, the natural orbitals are the ' + \
-              'the same as the canonical orbitals.')
+              'same as the canonical orbitals.')
     
     #==== Set up system (mol) ====#
     dnel = mol.nelec[0] - mol.nelec[1]
     if sz is not None:
         mol.spin = int(2 * sz)
-        assert mol.spin == dnel, \
+        assert mol.spin == dnel, 'get_rhf_orbs:' + \
             f'The chosen value of sz ({sz}) is inconsistent with the difference ' + \
             f'between the number of alpha and beta electrons ({dnel}).'
     else:
@@ -69,8 +70,8 @@ def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False):
 
 ##########################################################################
 def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
-                    sz=None, wfnsym=None, natorb=False, save_rdm=True, fcisolver=None,
-                    maxM=None):
+                    sz=None, wfnsym=None, natorb=False, save_rdm=True, verbose=2,
+                    fcisolver=None, maxM=None, sweep_tol=1.0E-7, dmrg_nthreads=1):
     '''
     Input parameters:
     ----------------
@@ -153,7 +154,8 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         if maxM is None:
             raise ValueError('get_casscf_orbs: maxM is needed when fcisolver = ' + \
                              '\'DMRG\'.')
-        mc.fcisolver = DMRGCI(mf.mol, maxM=maxM, tol=1e-8, num_thrds=1, memory = 7)
+        mc.fcisolver = DMRGCI(mf.mol, maxM=maxM, tol=sweep_tol, num_thrds=dmrg_nthreads,
+                              memory = 7)
         mc.internal_rotation = True
     
         #====   Use the callback function to catch some   ====#
@@ -205,6 +207,21 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
         rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))     # Take into account the reordering of the columns of orbs.
 
+
+    #==== Analyze ====#
+    print('\n')
+    print('=====================================')
+    print('*** Analysis of the CASSCF result ***')
+    print('=====================================')
+    print('')
+    cc = np.einsum('im, mn, nj -> ij', init_mo.T, ovl, orbs)
+    print('Overlap between the final and initial (guess) orbitals ' +
+          '(row -> initial, column -> final):')
+    print_matrix(cc)
+    print('')
+    mc.verbose = verbose
+    mc.analyze()
+        
         
     #==== What to output ====#
     outs = {}
@@ -212,6 +229,70 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     outs['occs'] = occs
     if ergs is not None: outs['ergs'] = ergs
     if save_rdm: outs['rdm'] = rdm_mo
+
+    return outs
+##########################################################################
+
+
+##########################################################################
+def get_dft_orbs(mol, xc, sz=None, save_rdm=True, natorb=False):
+    '''
+    Input parameters:
+    ----------------
+
+    mol = Mole object.
+    sz = The z-projection of the total spin operator (S).
+
+    Outputs:
+    -------
+ 
+    The output is a dictionary.
+    '''
+
+    if natorb:
+        print('>>> ATTENTION <<<')
+        print('Natural orbitals are specified for get_dft_orbs which does not have any ' + \
+              'effect because in DFT, the natural orbitals are the same as the canonical ' + \
+              'orbitals.')
+
+        
+    #==== Set up system (mol) ====#
+    print('\n\n')
+    print('=========================')
+    print('>>>> DFT CALCULATION <<<<')
+    print('=========================')
+    print('')
+    print('No. of MO / no. of electrons = %d / (%d, %d)' % 
+          (mol.nao, mol.nelec[0], mol.nelec[1]))
+    dnel = mol.nelec[0] - mol.nelec[1]
+    if sz is not None:
+        mol.spin = int(2 * sz)
+        assert mol.spin == dnel, 'get_dft_orbs:' + \
+            f'The chosen value of sz ({sz}) is inconsistent with the difference ' + \
+            f'between the number of alpha and beta electrons ({dnel}).'
+    else:
+        mol.spin = dnel
+    mol.build()
+
+
+    #==== Run DFT ====#
+    mf = dft.RKS(mol)
+    mf.xc = xc
+    mf.kernel()
+    orbs, occs, ergs = mf.mo_coeff, mf.mo_occ, mf.mo_energy
+    ssq, mult = mf.spin_square()
+    print('Spin square = %-10.6f' % ssq)
+    print('Spin multiplicity = %-10.6f' % mult)
+
+    orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
+
+
+    #==== What to output ====#
+    outs = {}
+    outs['orbs'] = orbs
+    outs['occs'] = occs
+    outs['ergs'] = ergs
+    if save_rdm: outs['rdm'] = np.diag(occs)
 
     return outs
 ##########################################################################

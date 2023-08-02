@@ -1,16 +1,18 @@
 #! /usr/bin/env python
 
-import sys
-import os
+import os, sys, time
 from functools import reduce
+from humanfriendly import format_timespan
 import numpy as np
 from pyscf import gto
 from pyscf.tools import cubegen
-from orbs_gen import get_rhf_orbs, get_casscf_orbs
+from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
 
+
+t_start = time.time()
 
 ######################
 #vvvv Input File vvvv#
@@ -63,7 +65,8 @@ elif inputs['source'] == 'casscf':
     outs = get_casscf_orbs(
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
         inputs['ss'], inputs['ss_shift'], inputs['sz'], inputs['wfnsym'], inputs['natorb'], 
-        True, inputs['fcisolver'], inputs['max_bond_dim'])
+        True, 2, inputs['fcisolver'], inputs['max_bond_dim'], inputs['sweep_tol'],
+        inputs['dmrg_nthreads'])
     orbs = outs['orbs']
     occs = outs['occs']
     try:
@@ -82,8 +85,16 @@ elif inputs['source'] == 'casscf':
 
 #==== DFT ====#
 elif inputs['source']  == 'dft':
-    raise ValueError('DFT is not yet implemented.')
-
+    outs = get_dft_orbs(mol, inputs['xc'], inputs['sz'], True, inputs['natorb'])
+    orbs = outs['orbs']
+    occs = outs['occs']
+    ergs = outs['ergs']
+    try:
+        rdm = outs['rdm']
+    except KeyError:
+        rdm = None
+        print(' >>> ATTENTION <<<')
+        print('   The RDM from the DFT calculation will not be saved.')
 
 else:
     pass
@@ -209,5 +220,7 @@ else:
                     
 
 
-
+print('')
+t_fin = time.time()
+print('Total computational time = ' + format_timespan(t_fin-t_start, max_units=5))
 print('\n\n')
