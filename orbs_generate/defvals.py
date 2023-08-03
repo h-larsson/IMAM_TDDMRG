@@ -16,4 +16,3 @@ def_update_loc_rdm = False
 def_fcisolver = None
 def_max_bond_dim = -1
 def_sweep_tol = 1.0E-7
-def_dmrg_nthreads = 1

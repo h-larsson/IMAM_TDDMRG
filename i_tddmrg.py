@@ -65,49 +65,58 @@ else:
     except ImportError:
         hasMPI = False
 
-
 import tools; tools.init(SpinLabel)
 from tools import saveMPStoDir, loadMPSfromDir, mkDir
 from gfdmrg import orbital_reorder
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_partial_charge
+from IMAM_TDDMRG.utils.util_qm import make_full_dm
+from IMAM_TDDMRG.observables import partial_charge, multipole
 
-        
 if hasMPI:
     MPI = MPICommunicator()
+    r0 = (MPI.rank == 0)
 else:
     class _MPI:
         rank = 0
     MPI = _MPI()
+    r0 = True
+    
+_print = getVerbosePrinter(r0, flush=True)
+print_i2 = getVerbosePrinter(r0, indent=2*' ', flush=True)
+print_i4 = getVerbosePrinter(r0, indent=4*' ', flush=True)
     
     
+    
 
-#################################################
-def _print(*args, **kwargs):
-    if MPI.rank == 0:
-        print(*args, **kwargs)
-#################################################
-
-
-#################################################
-def printDummyFunction(*args, **kwargs):
-    """ Does nothing"""
-    pass
-#################################################
-
-
-#################################################
-def getVerbosePrinter(verbose,indent="",flush=False):
-    if verbose:
-        if flush:
-            def _print(*args, **kwargs):
-                kwargs["flush"] = True
-                print(indent,*args,**kwargs)
-        else:
-            def _print(*args, **kwargs):
-                print(indent, *args, **kwargs)
-    else:
-        _print = printDummyFunction
-    return _print        
-#################################################
+    
+#OLD #################################################
+#OLD def _print(*args, **kwargs):
+#OLD     if MPI.rank == 0:
+#OLD         print(*args, **kwargs)
+#OLD #################################################
+#OLD 
+#OLD 
+#OLD #################################################
+#OLD def printDummyFunction(*args, **kwargs):
+#OLD     """ Does nothing"""
+#OLD     pass
+#OLD #################################################
+#OLD 
+#OLD 
+#OLD #################################################
+#OLD def getVerbosePrinter(verbose,indent="",flush=False):
+#OLD     if verbose:
+#OLD         if flush:
+#OLD             def _print(*args, **kwargs):
+#OLD                 kwargs["flush"] = True
+#OLD                 print(indent,*args,**kwargs)
+#OLD         else:
+#OLD             def _print(*args, **kwargs):
+#OLD                 print(indent, *args, **kwargs)
+#OLD     else:
+#OLD         _print = printDummyFunction
+#OLD     return _print        
+#OLD #################################################
 
 
 #################################################
@@ -278,7 +287,7 @@ class MYTDDMRG:
 
 
     #################################################
-    def __init__(self, mol, site_orbs, scratch='./nodex', memory=1*1E9, isize=2E8, 
+    def __init__(self, mol, nel_site, scratch='./nodex', memory=1*1E9, isize=2E8, 
                  omp_threads=8, verbose=2, print_statistics=True, mpi=None,
                  delayed_contraction=True):
         """
@@ -357,44 +366,76 @@ class MYTDDMRG:
             self.siterule = None
             self.identrule = None
 
-        #==== Site orbitals ====#
-        if SpinLabel == SU2:
-            assert len(site_orbs.shape) == 2, \
-                'If SU2 symmetry is invoked, site_orbs must be a 2D array.'
-            self.site_orbs = np.zeros((2, site_orbs.shape[0], site_orbs.shape[1]))
-            for i in range(0,2): self.site_orbs[i,:,:] = site_orbs
-        elif SpinLabel == SZ:
-            assert len(site_orbs.shape) == 3 and site_orbs.shape[0] == 2, \
-                'If SZ symmetry is invoked, site_orbs must be a 3D array with the size ' + \
-                'of first dimension being two.'
-            self.site_orbs = site_orbs
-            
-        #==== Multipole component matrices in AO rep. ====#
+        #==== Some persistent quantities ====#
         self.mol = mol
+        assert isinstance(nel_site, tuple), 'init: The argument nel_site must be a tuple.'
+        self.nel = sum(mol.nelec)
+        self.nel_site = nel_site
+        self.nel_core = self.nel - sum(nel_site)
+        assert self.nel_core%2 == 0, \
+            f'The number of core electrons (currently {self.nel_core}) must be an even ' + \
+            'number.'
         self.ovl_ao = mol.intor('int1e_ovlp')
         mol.set_common_origin([0,0,0])
         self.dpole_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
         self.qpole_ao = mol.intor('int1e_rr').reshape(3,3,mol.nao,mol.nao)
+            
+    #################################################
+
+
+    #################################################
+    def assign_orbs(self, n_core, n_sites, orbs):
+
+        if SpinLabel == SU2:
+            n_mo = orbs.shape[1]
+            assert orbs.shape[0] == orbs.shape[1]
+        elif SpinLabel == SZ:
+            n_mo = orbs.shape[2]
+            assert orbs.shape[1] == orbs.shape[2]
+        assert n_mo == self.mol.nao
+        n_occ = n_core + n_sites
+        n_virt = n_mo - n_occ
+
+        if SpinLabel == SU2:
+            assert len(orbs.shape) == 2, \
+                'If SU2 symmetry is invoked, orbs must be a 2D array.'
+            orbs_c = np.zeros((2, n_mo, n_core))
+            orbs_s = np.zeros((2, n_mo, n_sites))
+            orbs_v = np.zeros((2, n_mo, n_virt))
+            for i in range(0,2):
+                orbs_c[i,:,:] = orbs[:, 0:n_core]
+                orbs_s[i,:,:] = orbs[:, n_core:n_occ]
+                orbs_v[i,:,:] = orbs[:, n_occ:n_mo]
+        elif SpinLabel == SZ:
+            assert len(orbs.shape) == 3 and orbs.shape[0] == 2, \
+                'If SZ symmetry is invoked, orbs must be a 3D array with the size ' + \
+                'of first dimension being two.'
+            orbs_c = orbs[:, :, 0:n_core]
+            orbs_s = orbs[:, :, n_core:n_occ]
+            orbs_v = orbs[:, :, n_occ:n_mo]
+
+        return orbs_c, orbs_s, orbs_v
     #################################################
 
             
     #################################################
-    def init_hamiltonian_fcidump(self, pg, filename, idx=None):
+    def init_hamiltonian_fcidump(self, pg, filename, orbs, idx=None):
         """Read integrals from FCIDUMP file."""
         assert self.fcidump is None
         self.fcidump = FCIDUMP()
         self.fcidump.read(filename)
         self.groupname = pg
-        self.n_elec = ( int((self.fcidump.n_elec + self.fcidump.twos)/2),
-                        int((self.fcidump.n_elec - self.fcidump.twos)/2) )
+        assert self.fcidump.n_elec == sum(self.nel_site), \
+            f'init_hamiltonian_fcidump: self.fcidump.n_elec ({self.fcidump.n_elec}) must ' + \
+            'be identical to sum(self.nel_site) (%d).' % sum(self.nel_site)
+
+        #==== Reordering indices ====#
         if idx is not None:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
-            
-            #==== Orbitals ====#
-            self.site_orbs = self.site_orbs[:,:,idx]
-            
+
+        #==== Orbitals and MPS symemtries ====#
         swap_pg = getattr(PointGroup, "swap_" + pg)
         self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
         _print("# fcidump symmetrize error:", self.fcidump.symmetrize(orb_sym))
@@ -403,22 +444,33 @@ class MYTDDMRG:
         # 1) Because of the self.fcidump.reorder invocation above, self.orb_sym contains
         #    orbital symmetries AFTER REORDERING.
 
-        
+        #==== Construct the Hamiltonian MPO ====#
         vacuum = SpinLabel(0)
         self.target = SpinLabel(self.fcidump.n_elec, self.fcidump.twos,
                                 swap_pg(self.fcidump.isym))
         self.n_sites = self.fcidump.n_sites
-
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
+
+        #==== Assign orbitals ====#
+        self.core_orbs, self.site_orbs, self.virt_orbs = \
+            self.assign_orbs(int(self.nel_core/2), self.n_sites, orbs)
+        self.n_core, self.n_virt = self.core_orbs.shape[2], self.virt_orbs.shape[2]
+        self.n_orbs = self.n_core + self.n_sites + self.n_virt
+
+        #==== Reordering orbitals ====#
+        if idx is not None:
+            self.site_orbs = self.site_orbs[:,:,idx]
     #################################################
 
 
     #################################################
     def init_hamiltonian(self, pg, n_sites, n_elec, twos, isym, orb_sym, e_core, 
-                         h1e, g2e, tol=1E-13, idx=None, save_fcidump=None):
+                         h1e, g2e, orbs, tol=1E-13, idx=None, save_fcidump=None):
         """
         Initialize integrals using h1e, g2e, etc.
+        n_elec : The number of electrons within the sites. This means, if there are core
+                 orbitals, then n_elec are the number of electrons in the active space only.
         isym: wfn symmetry in molpro convention? See the getFCIDUMP function in CAS_example.py.
         g2e: Does it need to be in 8-fold symmetry? See the getFCIDUMP function in CAS_example.py.
         orb_sym: orbitals symmetry in molpro convention.
@@ -428,7 +480,11 @@ class MYTDDMRG:
         assert self.fcidump is None
         self.fcidump = FCIDUMP()
         self.groupname = pg
-        self.n_elec = ( int((n_elec+twos)/2), int((n_elec-twos)/2) )
+        assert n_elec == sum(self.nel_site), \
+            f'init_hamiltonian: The argument n_elec ({n_elec}) must be identical to ' + \
+            'sum(self.nel_site) (%d).' % sum(self.nel_site)
+
+        #==== Rearrange the 1e and 2e integrals, and initialize FCIDUMP ====#
         if not isinstance(h1e, tuple):
             mh1e = np.zeros((n_sites * (n_sites + 1) // 2))
             k = 0
@@ -452,6 +508,11 @@ class MYTDDMRG:
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
         else:
             assert SpinLabel == SZ
+            assert twos == 2*(self.nel_site[0]-self.nel_site[1]), \
+                'init_hamiltonian: When SZ symmetry is enabled, the argument twos must be ' + \
+                'equal to twice the difference between alpha and beta electrons. ' + \
+                f'Currently, their values are twos = {twos} and 2*(n_alpha - n_beta) = ' + \
+                f'{2*(self.nel_site[0]-self.nel_site[1])}.'
             assert isinstance(h1e, tuple) and len(h1e) == 2
             assert isinstance(g2e, tuple) and len(g2e) == 3
             mh1e_a = np.zeros((n_sites * (n_sites + 1) // 2))
@@ -472,22 +533,18 @@ class MYTDDMRG:
             self.fcidump.initialize_sz(
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
 
-
         #==== Take care of the symmetry conventions. Note that ====#
         #====   self.fcidump.orb_sym is in Molpro convention,  ====#
         #====     while self.orb_sym is in block2 convention   ====#
         self.fcidump.orb_sym = VectorUInt8(orb_sym)       # Hence, self.fcidump.orb_sym is in Molpro convention.
 
-        _print('hml osym = ', orb_sym)
-        _print('hml osym = ', self.fcidump.orb_sym)
+        #==== Reordering indices ====#
         if idx is not None:
             self.fcidump.reorder(VectorUInt16(idx))
             self.idx = idx
             self.ridx = np.argsort(idx)
 
-            #==== Orbitals ====#
-            self.site_orbs = self.site_orbs[:,:,idx]
-
+        #==== Orbitals and MPS symemtries ====#
         swap_pg = getattr(PointGroup, "swap_" + pg)
         self.orb_sym = VectorUInt8(map(swap_pg, self.fcidump.orb_sym))      # 1)
         self.wfn_sym = swap_pg(isym)
@@ -503,6 +560,15 @@ class MYTDDMRG:
         self.hamil = HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
 
+        #==== Assign orbitals ====#
+        self.core_orbs, self.site_orbs, self.virt_orbs = \
+            self.assign_orbs(int(self.nel_core/2), self.n_sites, orbs)
+        self.n_core, self.n_virt = self.core_orbs.shape[2], self.virt_orbs.shape[2]
+        self.n_orbs = self.n_core + self.n_sites + self.n_virt
+
+        #==== Reorder orbitals ====#
+        if idx is not None:
+            self.site_orbs = self.site_orbs[:,:,idx]
         
         #==== Save self.fcidump ====#
         if save_fcidump is not None:
@@ -514,6 +580,16 @@ class MYTDDMRG:
 
         if self.mpi is not None:
             self.mpi.barrier()
+    #################################################
+
+
+    #################################################
+    def unordered_site_orbs(self):
+        
+        if self.ridx is None:
+            return self.site_orbs
+        else:
+            return self.site_orbs[:,:,self.ridx]
     #################################################
 
 
@@ -617,41 +693,41 @@ class MYTDDMRG:
     #################################################
 
 
-    #################################################
-    def expect_multipole(self, pdm):
-        '''
-        Calculates the expectation value of a spin-independent 1-electron operator 
-        (whose first quantization form is O = o(1) + o(2) + ... + o(N) for an N-electron 
-        system) using the 1pdm.
-        '''
-
-        #==== Inverse ordering of site_orb because the index ====#
-        #====  of pdm corresponds to that before reordering  ====#
-        if self.ridx is None:
-            site_orbs = self.site_orbs
-        else:
-            site_orbs = self.site_orbs[:,:,self.ridx]
-
-        
-        #==== Dipole ====#
-        n_dpole = np.zeros((3))
-        for i in range(0,self.mol.natm):
-            n_dpole += self.mol.atom_charge(i) * self.mol.atom_coord(i)
-        dpole_mo = np.einsum('sji,xjk,skl -> xsil', site_orbs, self.dpole_ao, site_orbs)
-        e_dpole = -np.einsum('xskj,sjk -> x', dpole_mo, pdm)
-
-
-        #==== Quadrupole ====#
-        n_qpole = np.zeros((3,3))
-        for i in range(0,self.mol.natm):
-            n_qpole += self.mol.atom_charge(i) * np.outer(self.mol.atom_coord(i),
-                                                         self.mol.atom_coord(i))
-        qpole_mo = np.einsum('sji,xyjk,skl -> xysil', site_orbs, self.qpole_ao, site_orbs)
-        e_qpole = -np.einsum('xyskj,sjk -> xy', qpole_mo, pdm)
-
-            
-        return e_dpole, n_dpole, e_qpole, n_qpole
-    #################################################
+    #OLD #################################################
+    #OLD def expect_multipole(self, pdm):
+    #OLD     '''
+    #OLD     Calculates the expectation value of a spin-independent 1-electron operator 
+    #OLD     (whose first quantization form is O = o(1) + o(2) + ... + o(N) for an N-electron 
+    #OLD     system) using the 1pdm.
+    #OLD     '''
+    #OLD 
+    #OLD     #==== Inverse ordering of site_orb because the index ====#
+    #OLD     #====  of pdm corresponds to that before reordering  ====#
+    #OLD     if self.ridx is None:
+    #OLD         site_orbs = self.site_orbs
+    #OLD     else:
+    #OLD         site_orbs = self.site_orbs[:,:,self.ridx]
+    #OLD 
+    #OLD     
+    #OLD     #==== Dipole ====#
+    #OLD     n_dpole = np.zeros((3))
+    #OLD     for i in range(0,self.mol.natm):
+    #OLD         n_dpole += self.mol.atom_charge(i) * self.mol.atom_coord(i)
+    #OLD     dpole_mo = np.einsum('sji,xjk,skl -> xsil', site_orbs, self.dpole_ao, site_orbs)
+    #OLD     e_dpole = -np.einsum('xskj,sjk -> x', dpole_mo, pdm)
+    #OLD 
+    #OLD 
+    #OLD     #==== Quadrupole ====#
+    #OLD     n_qpole = np.zeros((3,3))
+    #OLD     for i in range(0,self.mol.natm):
+    #OLD         n_qpole += self.mol.atom_charge(i) * np.outer(self.mol.atom_coord(i),
+    #OLD                                                      self.mol.atom_coord(i))
+    #OLD     qpole_mo = np.einsum('sji,xyjk,skl -> xysil', site_orbs, self.qpole_ao, site_orbs)
+    #OLD     e_qpole = -np.einsum('xyskj,sjk -> xy', qpole_mo, pdm)
+    #OLD 
+    #OLD         
+    #OLD     return e_dpole, n_dpole, e_qpole, n_qpole
+    #OLD #################################################
 
     
     #################################################
@@ -753,18 +829,30 @@ class MYTDDMRG:
         self.bond_dim = bond_dims[-1]
         dm0 = self.get_one_pdm(False, mps)
         _print('Molecular orbitals occupation: ')
-        _print('   ')
         for i in range(0, self.n_sites):
             _print('%13.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
-        
+
+            
+        #==== Partial charge ====#
+        orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs(), self.virt_orbs),
+                              axis=2)
+        self.qmul0, self.qlow0 = \
+            partial_charge.calc(self.mol, make_full_dm(int(self.nel_core/2), dm0), orbs,
+                                self.ovl_ao)
+        print_partial_charge(self.mol, self.qmul0, self.qlow0)
+
 
         #==== Multipole analysis ====#
-        e_dpole, n_dpole, e_qpole, n_qpole = self.expect_multipole(dm0)
+        e_dpole, n_dpole, e_qpole, n_qpole = \
+            multipole.calc(self.mol, self.dpole_ao, self.qpole_ao,
+                           make_full_dm(int(self.nel_core/2), dm0), orbs)
+        #OLD e_dpole, n_dpole, e_qpole, n_qpole = self.expect_multipole(dm0)
         _print('Electronic dipole moment = ', end='')
         for i in range(0, 3): _print('%13.8f' % e_dpole[i], end=(' ' if i < 2 else '\n'))
         _print('Nuclear dipole moment = ', end='')
         for i in range(0, 3): _print('%13.8f' % n_dpole[i], end=(' ' if i < 2 else '\n'))
-            
+
+        
         #==== Save the output MPS ====#
         #OLD mps.save_data()
         #OLD mps_info.save_data(self.scratch + "/GS_MPS_INFO")
@@ -1090,7 +1178,7 @@ class MYTDDMRG:
             ion_target = self.target + ops.q_label
         elif isinstance(aorb, np.ndarray):
             ion_sym = self.wfn_sym ^ aorb_sym
-            ion_target = SpinLabel(sum(self.n_elec)-1, 1, ion_sym)
+            ion_target = SpinLabel(sum(self.nel_site)-1, 1, ion_sym)
         rket_info = MPSInfo(self.n_sites, self.hamil.vacuum, ion_target, self.hamil.basis)
         
         _print('Quantum number information:')
@@ -1532,10 +1620,25 @@ class MYTDDMRG:
                         cmps_cp.info.deallocate()
                         ## cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
 
+                        
+                    #==== Inverse ordering of site_orb because the index ====#
+                    #====  of pdm corresponds to that before reordering  ====#
+                    if self.ridx is None:
+                        site_orbs = self.site_orbs
+                    else:
+                        site_orbs = self.site_orbs[:,:,self.ridx]
 
                     #==== Save time info ====#
                     self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
                                         normsqs, acorr_t, save_mps, save_1pdm, dm)
+
+                    #==== Partial charges ====#
+                    qmul, qlow = \
+                        partial_charge.calc(self.mol, int(self.nel_core/2), self.n_sites, 
+                                            dm, site_orbs, self.ovl_ao)
+
+                    #==== Multipole components ====#
+                    dpole, qpole = multipole.calc()
                     
                     issampled[i_sp] = True
                     i_sp += 1

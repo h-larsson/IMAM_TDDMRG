@@ -97,6 +97,7 @@ def get_inputs(inp_file):
     inputs['nCore'] = nCore
     inputs['nCAS'] = nCAS
     inputs['nelCAS'] = nelCAS
+    inputs['twos'] = twos
 
     #==== Ground state parameters ====#
     inputs['do_groundstate'] = do_groundstate

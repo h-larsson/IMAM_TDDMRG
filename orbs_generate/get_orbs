@@ -61,12 +61,13 @@ if inputs['source'] == 'rhf':
 #==== CASSCF ====#
 elif inputs['source'] == 'casscf':
     init_orbs_ = np.load(inputs['init_orbs'])
-        
+
+    dmrg_nthreads = int(os.environ.get("OMP_NUM_THREADS", 1))
     outs = get_casscf_orbs(
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
         inputs['ss'], inputs['ss_shift'], inputs['sz'], inputs['wfnsym'], inputs['natorb'], 
         True, 2, inputs['fcisolver'], inputs['max_bond_dim'], inputs['sweep_tol'],
-        inputs['dmrg_nthreads'])
+        dmrg_nthreads)
     orbs = outs['orbs']
     occs = outs['occs']
     try:

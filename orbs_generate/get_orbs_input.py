@@ -88,10 +88,6 @@ def get_inputs(inp_file):
             inputs['sweep_tol'] = sweep_tol
         except NameError:
             inputs['sweep_tol'] = defvals.def_sweep_tol
-        try:
-            inputs['dmrg_nthreads'] = dmrg_nthreads
-        except NameError:
-            inputs['dmrg_nthreads'] = defvals.def_dmrg_nthreads
 
     elif inputs['source'] == 'dft':
         inputs['xc'] = xc

@@ -8,8 +8,8 @@ from humanfriendly import format_timespan
 import block2
 from block2 import TETypes, PointGroup
 from pyscf import gto, scf, ao2mo, symm
-from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints, getVerbosePrinter
-#OLDfrom assign_defs import assign_defval
+from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
 import defvals, cm_inputs
 yn_bools = ('No','Yes')
 
@@ -125,48 +125,48 @@ if MAIN_PROCESS:
         _print('>>>> Running Hartree-Fock to get the site orbitals <<<<')
         mf = scf.RHF(mol)
         mf.kernel()
-        site_orb = mf.mo_coeff
+        orbs = mf.mo_coeff
         _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
     else:
         #==== Load the HF orbitals of the neutral ====#
         _print('Loading site orbitals from ' + inputs['orb_path'] + '.')
-        site_orb = np.load(inputs['orb_path'])
-        assert len(site_orb.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
+        orbs = np.load(inputs['orb_path'])
+        assert len(orbs.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
                'array must be a two-dimensional array (a matrix).'
-        assert (site_orb.shape[0] == n_mo and
-                site_orb.shape[1] == n_mo), \
+        assert (orbs.shape[0] == n_mo and
+                orbs.shape[1] == n_mo), \
                'The shape of the Hartree-Fock orbitals array loaded from ' + \
                str(inputs['orb_path']) + ' is inconsistent with the number of MO bases (' + \
                str(n_mo) + '). The shape of the loaded orbitals array is ' + \
-               str(site_orb.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
+               str(orbs.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
                'reasons may be that the basis set or the molecular species used ' + \
                'to obtain the above HF orbitals is different than what is used ' + \
                'for this simulation.'
-    site_orb_shape = site_orb.shape
+    orbs_shape = orbs.shape
 
 
     #==== Get the integrals ====#
     h1e, g2e, ecore, molpro_osym, molpro_wsym = \
-         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], site_orb,
+         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], orbs,
                            True)
     g2e = ao2mo.restore('s8', g2e, inputs['nCAS'])   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
     h1eshape = h1e.shape
     g2eshape = g2e.shape
 else:
-    site_orb = h1e = g2e = None
-    site_orb_shape = h1eshape = g2eshape = None
+    orbs = h1e = g2e = None
+    orbs_shape = h1eshape = g2eshape = None
     ecore = None
     molpro_osym = molpro_wsym = None
 
 if hasMPI:
-    site_orb_shape = commPy.bcast(site_orb_shape, root = 0)
+    orbs_shape = commPy.bcast(orbs_shape, root = 0)
     h1eshape = commPy.bcast(h1eshape, root = 0)
     g2eshape = commPy.bcast(g2eshape, root = 0)
     if not MAIN_PROCESS:
-        site_orb = np.empty(site_orb_shape, dtype=np.float64)
+        orbs = np.empty(orbs_shape, dtype=np.float64)
         h1e = np.empty(h1eshape, dtype=np.float64)
         g2e = np.empty(g2eshape, dtype=np.float64)
-    commPy.Bcast([site_orb, MPIpy.DOUBLE], root=0)
+    commPy.Bcast([orbs, MPIpy.DOUBLE], root=0)
     commPy.Bcast([h1e, MPIpy.DOUBLE], root=0)
     commPy.Bcast([g2e, MPIpy.DOUBLE], root=0)
     ecore = commPy.bcast(ecore, root = 0)
@@ -205,11 +205,11 @@ if hasMPI:
 
 #==== Initiate the Hamiltonian MPO ====#
 _print(f'Memory allocation = {inputs["memory"]} Bytes')
-obj = MYTDDMRG(mol, site_orb, scratch, inputs['memory'], omp_threads=n_threads, mpi=MPI)
+obj = MYTDDMRG(mol, inputs['nelCAS'], scratch, inputs['memory'],
+               omp_threads=n_threads, mpi=MPI)
 obj.verbose = inputs['verbose_lvl']
-obj.init_hamiltonian(pg, nsites, inputs['nelCAS'][0]+inputs['nelCAS'][1],
-                     inputs['nelCAS'][0]-inputs['nelCAS'][1], molpro_wsym, 
-                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, tol=1E-12, 
+obj.init_hamiltonian(pg, nsites, sum(inputs['nelCAS']), inputs['twos'], molpro_wsym, 
+                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
                      idx=re_idx, save_fcidump=None)
 
 

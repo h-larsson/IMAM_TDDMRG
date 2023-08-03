@@ -116,7 +116,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     else:
         mol.spin = dnel
     mol.build()
-    ovl = mol.intor('int1e_ovlp') 
+    ovl = mol.intor('int1e_ovlp')
 
     #==== Determine the number of core orbitals ====#
     nelcore = [None] * 2
@@ -142,6 +142,15 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
           (ncore, nelcore[0], nelcore[1]))
     print('No. of CAS orbitals / no. of CAS electrons = %d / (%d, %d)' %
           (nCAS, nelCAS[0], nelCAS[1]))
+    print('Frozen orbitals = ', end='')
+    if isinstance(frozen, int):
+        for i in range(0, frozen): print(' %d' % (i+1), end='')
+    elif isinstance(frozen, list):
+        for i in frozen: print(' %d' % frozen[i], end='')
+    elif frozen is None:
+        print('no orbitals frozen', end='')
+    print('')
+    
     mc = mcscf.CASSCF(mf, ncas=nCAS, nelecas=nelCAS, frozen=frozen)
     if ss is not None:
         if ss_shift is not None:
