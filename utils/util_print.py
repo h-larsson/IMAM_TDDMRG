@@ -93,25 +93,81 @@ def print_matrix(m, maxcol=10):
 
 
 ##########################################################################
+def print_orb_occupations(occs):
+
+    assert len(occs.shape) == 2
+    assert occs.shape[0] == 2
+
+    maxcol = 5
+    print_section('Molecular orbitals occupations (alpha, beta)', 2)
+    print_i4('', end='')
+    for i in range(0, occs.shape[1]):
+        _print('(%d: %8.6f, %8.6f)' % (i+1, occs[0,i], occs[1,i]), end='  ')
+        if (i+1)%maxcol == 0 and i < occs.shape[1]-1:
+            _print('')
+            print_i4('', end='')
+    _print('')
+
+##########################################################################
+
+
+##########################################################################
 def print_partial_charge(mol, qmul, qlow):
 
-    print_section('Mulliken populations', 2)
+    print_section('Atomic Mulliken populations', 2)
     print_i4('', end='')
     for i in range(0, mol.natm):
         atom = mol.atom_symbol(i) + str(i+1)
         _print('(%s: %.6f)' % (atom, qmul[i]), end='  ')
-        if (i+1)%10 and i < mol.natm-1 == 0:
+        if (i+1)%10 == 0 and i < mol.natm-1:
             _print('')
             print_i4('', end='')
     _print('')
 
-    print_section('Lowdin populations', 2)
+    print_section('Atomic Lowdin populations', 2)
     print_i4('', end='')
     for i in range(0, mol.natm):
         atom = mol.atom_symbol(i) + str(i+1)
         _print('(%s: %.6f)' % (atom, qlow[i]), end='  ')
-        if (i+1)%10 and i < mol.natm-1 == 0:
+        if (i+1)%10 == 0 and i < mol.natm-1:
             _print('')
             print_i4('', end='')
     _print('')
+##########################################################################
+
+
+##########################################################################
+def print_multipole(e_dpole, n_dpole, e_qpole, n_qpole):
+
+    assert e_dpole.shape == (3,)
+    assert n_dpole.shape == (3,)
+    assert e_qpole.shape == (3,3)
+    assert n_qpole.shape == (3,3)
+
+    print_section('Multipole moment components', 2)
+    mp_s = ['x', 'y', 'z', 'xx', 'yy', 'zz', 'xy', 'yz', 'xz']
+    print_i4('%10s' % '', end='  ')
+    for i in range(0, 3): _print('%11s' % (6*' '+mp_s[i]+4*' '), end=' ')
+    for i in range(3, 9): _print('%11s' % (6*' '+mp_s[i]+3*' '), end=' ')
+    _print('')
+
+    print_i4('%-10s' % 'Electronic', end='  ')
+    for i in range(0, 3): _print('%11.6f' % e_dpole[i], end=' ')
+    for i in range(0, 3): _print('%11.6f' % np.diag(e_qpole,0)[i], end=' ')
+    for i in range(0, 2): _print('%11.6f' % np.diag(e_qpole,1)[i], end=' ')
+    for i in range(0, 1): _print('%11.6f' % np.diag(e_qpole,2)[i])
+
+    print_i4('%-10s' % 'Nuclear', end='  ')
+    for i in range(0, 3): _print('%11.6f' % n_dpole[i], end=' ')
+    for i in range(0, 3): _print('%11.6f' % np.diag(n_qpole,0)[i], end=' ')
+    for i in range(0, 2): _print('%11.6f' % np.diag(n_qpole,1)[i], end=' ')
+    for i in range(0, 1): _print('%11.6f' % np.diag(n_qpole,2)[i])
+
+    print_i4('%-10s' % 'Total', end='  ')
+    dpole = e_dpole + n_dpole
+    qpole = e_qpole + n_qpole
+    for i in range(0, 3): _print('%11.6f' % dpole[i], end=' ')
+    for i in range(0, 3): _print('%11.6f' % np.diag(qpole,0)[i], end=' ')
+    for i in range(0, 2): _print('%11.6f' % np.diag(qpole,1)[i], end=' ')
+    for i in range(0, 1): _print('%11.6f' % np.diag(qpole,2)[i])
 ##########################################################################

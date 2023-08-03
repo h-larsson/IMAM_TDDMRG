@@ -46,7 +46,7 @@ SpinLabel = SU2
 
 if SpinLabel == SU2:
     from block2.su2 import HamiltonianQC, SimplifiedMPO, Rule, RuleQC, MPOQC
-    from block2.su2 import MPSInfo, MPS, MovingEnvironment, DMRG, Linear, IdentityMPO
+    from block2.su2 import MPSInfo, MPS, MovingEnvironment, DMRG, IdentityMPO
     from block2.su2 import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect, ComplexExpect
     from block2.su2 import VectorOpElement, LocalMPO, MultiMPS, TimeEvolution
     try:
@@ -56,7 +56,7 @@ if SpinLabel == SU2:
         hasMPI = False
 else:
     from block2.sz import HamiltonianQC, SimplifiedMPO, Rule, RuleQC, MPOQC
-    from block2.sz import MPSInfo, MPS, MovingEnvironment, DMRG, Linear, IdentityMPO
+    from block2.sz import MPSInfo, MPS, MovingEnvironment, DMRG, IdentityMPO
     from block2.sz import OpElement, SiteMPO, NoTransposeRule, PDM1MPOQC, Expect, ComplexExpect
     from block2.sz import VectorOpElement, LocalMPO, MultiMPS, TimeEvolution
     try:
@@ -68,8 +68,10 @@ else:
 import tools; tools.init(SpinLabel)
 from tools import saveMPStoDir, loadMPSfromDir, mkDir
 from gfdmrg import orbital_reorder
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_partial_charge
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_section
+from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_partial_charge, print_multipole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
+from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.observables import partial_charge, multipole
 
 if hasMPI:
@@ -86,197 +88,6 @@ print_i2 = getVerbosePrinter(r0, indent=2*' ', flush=True)
 print_i4 = getVerbosePrinter(r0, indent=4*' ', flush=True)
     
     
-    
-
-    
-#OLD #################################################
-#OLD def _print(*args, **kwargs):
-#OLD     if MPI.rank == 0:
-#OLD         print(*args, **kwargs)
-#OLD #################################################
-#OLD 
-#OLD 
-#OLD #################################################
-#OLD def printDummyFunction(*args, **kwargs):
-#OLD     """ Does nothing"""
-#OLD     pass
-#OLD #################################################
-#OLD 
-#OLD 
-#OLD #################################################
-#OLD def getVerbosePrinter(verbose,indent="",flush=False):
-#OLD     if verbose:
-#OLD         if flush:
-#OLD             def _print(*args, **kwargs):
-#OLD                 kwargs["flush"] = True
-#OLD                 print(indent,*args,**kwargs)
-#OLD         else:
-#OLD             def _print(*args, **kwargs):
-#OLD                 print(indent, *args, **kwargs)
-#OLD     else:
-#OLD         _print = printDummyFunction
-#OLD     return _print        
-#OLD #################################################
-
-
-#################################################
-def print_MPO_bond_dims(mpo, name=''):
-    mpo_bdims = [None] * len(mpo.left_operator_names)
-    for ix in range(len(mpo.left_operator_names)):
-        mpo.load_left_operators(ix)
-        x = mpo.left_operator_names[ix]
-        mpo_bdims[ix] = x.m * x.n
-        mpo.unload_left_operators(ix)
-    _print(name + ' MPO BOND DIMS = ', ''.join(["%6d" % x for x in mpo_bdims]))
-#################################################
-
-
-#################################################
-def MPS_fitting(fitket, mps, rmpo, fit_bond_dims, fit_nsteps, fit_noises, 
-                fit_conv_tol, decomp_type, cutoff, lmpo=None, fit_margin=None, 
-                noise_type='reduced_perturb', delay_contract=True, verbose_lvl=1):
-
-    #==== Construct the LHS and RHS Moving Environment objects ====#
-    if lmpo is None:
-        lme = None
-    else:
-        lme = MovingEnvironment(lmpo, fitket, fitket, "PERT")
-        lme.init_environments(False)
-        if delay_contract:
-            lme.delayed_contraction = OpNamesSet.normal_ops()
-    #fordebug rme = MovingEnvironment(lmpo, mps, mps, "RHS")
-    rme = MovingEnvironment(rmpo, fitket, mps, "RHS")
-    rme.init_environments(False)
-    if delay_contract:
-        rme.delayed_contraction = OpNamesSet.normal_ops()
-
-        
-    #==== Begin MPS fitting ====#
-    if fit_margin == None:
-        fit_margin = max(int(mps.info.bond_dim / 10.0), 100)
-    fit = Linear(lme, rme, VectorUBond(fit_bond_dims),
-                 VectorUBond([mps.info.bond_dim + fit_margin]), VectorDouble(fit_noises))
-    
-    if noise_type == 'reduced_perturb':
-        fit.noise_type = NoiseTypes.ReducedPerturbative
-    elif noise_type == 'reduced_perturb_lowmem':
-        fit.noise_type = NoiseTypes.ReducedPerturbativeCollectedLowMem
-    elif noise_type == 'density_mat':
-        fit.noise_type = NoiseTypes.DensityMatrix
-    else:
-        raise ValueError("The 'noise_type' parameter of 'MPS_fitting' does not" +
-                         "correspond to any available options, which are 'reduced_perturb', " +
-                         "'reduced_perturb_lowmem', or 'density_mat'.")
-    
-    if decomp_type == 'svd':
-        fit.decomp_type = DecompositionTypes.SVD
-    elif decomp_type == 'density_mat':
-        fit.decomp_type = DecompositionTypes.DensityMatrix
-    else:
-        raise ValueError("The 'decomp_type' parameter of 'MPS_fitting' does not" +
-                         "correspond to any available options, which are 'svd' or 'density_mat'.")
-
-    if lme is not None:
-        fit.eq_type = EquationTypes.PerturbativeCompression
-    fit.iprint = max(verbose_lvl, 0)
-    fit.cutoff = cutoff
-    fit.solve(fit_nsteps, mps.center == 0, fit_conv_tol)
-#################################################
-
-
-#################################################
-def calc_energy_MPS(hmpo, mps, bond_dim_margin=0):
-
-    me = MovingEnvironment(hmpo, mps, mps, "me_erg")
-    me.init_environments(False)
-    D = mps.info.bond_dim + bond_dim_margin
-    expect = Expect(me, D, D)
-    erg = expect.solve(False, mps.center == 0)
-
-    return erg
-#################################################
-
-
-#################################################
-def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
-    '''
-    Input parameters:
-       mol     : PYSCF Mole object that defines the system of interest.
-       nCore   : The number of core orbitals.
-       nCAS    : The number of CAS orbitals.
-       nelCAS  : The number of electrons in the CAS.
-       ocoeff  : Coefficients of all orbitals (core+CAS+virtual) in the AO basis 
-                 used in mol (Mole) object.
-       verbose : Verbose output when True.
-
-    Return parameters:
-       h1e         : The one-electron integral matrix in the CAS orbital basis, the size 
-                     is nCAS x nCAS.
-       g2e         : The two-electron integral array in the CAS orbital basis.
-       eCore       : The core energy, it contains the core electron energy and nuclear 
-                     repulsion energy.
-       molpro_oSym : The symmetry ID of the CAS orbitals in MOLPRO convention.
-       molpro_wSym : The symmetry ID of the wavefunction in MOLPRO convention.
-    '''
-
-    from pyscf import scf, mcscf, symm
-    from pyscf import tools as pyscf_tools
-    from pyscf.mcscf import casci_symm
-
-
-    if SpinLabel == SZ:
-        _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        _print('WARNING: SZ Spin label is chosen! The get_symCASCI_ints function was ' +
-               'designed with the SU2 spin label in mind. The use of SZ spin label in ' +
-               'this function has not been checked.')
-        _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
-    #forlater irname = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, ocoeff)
-    #forlater print('here ocoeff irname = ', irname)
-    
-    
-    #==== Setting up the CAS ====#
-    mf = scf.RHF(mol)
-    _mcCI = mcscf.CASCI(mf, ncas=nCAS, nelecas=nelCAS , ncore=nCore)  # IMAM: All orbitals are used?
-    _mcCI.mo_coeff = ocoeff          # IMAM : I am not sure if it is necessary.
-    _mcCI.mo_coeff = casci_symm.label_symmetry_(_mcCI, ocoeff)
-
-
-    #==== Get the CAS orbitals and wavefunction symmetries ====#
-    wSym = _mcCI.fcisolver.wfnsym
-    wSym = wSym if wSym is not None else 0
-    molpro_wSym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wSym]
-    oSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:nCore+nCAS]
-    #debug _print('here osym = ', oSym)
-    molpro_oSym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in oSym]
-    #debug _print('here molpro_osym = ', molpro_oSym)
-    #forlater irname = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, _mcCI.mo_coeff)
-    #forlater _print('here mo_coeff irname = ', irname)
-
-
-    #==== Get the 1e and 2e integrals ====#
-    h1e, eCore = _mcCI.get_h1cas()
-    g2e = _mcCI.get_h2cas()
-    g2e = np.require(g2e, dtype=np.float64)
-    h1e = np.require(h1e, dtype=np.float64)
-    #move_out    g2eShape = g2e.shape
-    #move_out    h1eShape = h1e.shape
-
-
-    #==== Some checks ====#
-    assert oSym.size == nCAS, f'nCAS={nCAS} vs. oSym.size={oSym.size}'
-    assert wSym == 0, "Want A1g state"      # IMAM: Why does it have to be A1g?
-    #OLD if verbose:
-    #OLD     _print("# oSym = ", oSym)
-    #OLD     _print("# oSym = ", [symm.irrep_id2name(mol.groupname,s) for s in oSym])
-    #OLD     _print("# wSym = ", wSym, symm.irrep_id2name(mol.groupname,wSym), flush=True)
-    
-    
-    del _mcCI, mf
-
-    return h1e, g2e, eCore, molpro_oSym, molpro_wSym
-#################################################
-
 
 
 #################################################
@@ -693,43 +504,6 @@ class MYTDDMRG:
     #################################################
 
 
-    #OLD #################################################
-    #OLD def expect_multipole(self, pdm):
-    #OLD     '''
-    #OLD     Calculates the expectation value of a spin-independent 1-electron operator 
-    #OLD     (whose first quantization form is O = o(1) + o(2) + ... + o(N) for an N-electron 
-    #OLD     system) using the 1pdm.
-    #OLD     '''
-    #OLD 
-    #OLD     #==== Inverse ordering of site_orb because the index ====#
-    #OLD     #====  of pdm corresponds to that before reordering  ====#
-    #OLD     if self.ridx is None:
-    #OLD         site_orbs = self.site_orbs
-    #OLD     else:
-    #OLD         site_orbs = self.site_orbs[:,:,self.ridx]
-    #OLD 
-    #OLD     
-    #OLD     #==== Dipole ====#
-    #OLD     n_dpole = np.zeros((3))
-    #OLD     for i in range(0,self.mol.natm):
-    #OLD         n_dpole += self.mol.atom_charge(i) * self.mol.atom_coord(i)
-    #OLD     dpole_mo = np.einsum('sji,xjk,skl -> xsil', site_orbs, self.dpole_ao, site_orbs)
-    #OLD     e_dpole = -np.einsum('xskj,sjk -> x', dpole_mo, pdm)
-    #OLD 
-    #OLD 
-    #OLD     #==== Quadrupole ====#
-    #OLD     n_qpole = np.zeros((3,3))
-    #OLD     for i in range(0,self.mol.natm):
-    #OLD         n_qpole += self.mol.atom_charge(i) * np.outer(self.mol.atom_coord(i),
-    #OLD                                                      self.mol.atom_coord(i))
-    #OLD     qpole_mo = np.einsum('sji,xyjk,skl -> xysil', site_orbs, self.qpole_ao, site_orbs)
-    #OLD     e_qpole = -np.einsum('xyskj,sjk -> xy', qpole_mo, pdm)
-    #OLD 
-    #OLD         
-    #OLD     return e_dpole, n_dpole, e_qpole, n_qpole
-    #OLD #################################################
-
-    
     #################################################
     def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
              occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
@@ -827,36 +601,36 @@ class MYTDDMRG:
 
         self.gs_energy = dmrg.energies[-1][0]
         self.bond_dim = bond_dims[-1]
-        dm0 = self.get_one_pdm(False, mps)
-        _print('Molecular orbitals occupation: ')
-        for i in range(0, self.n_sites):
-            _print('%13.8f' % dm0[0, i, i], end=('\n' if i==self.n_sites-1 else ''))
+        _print("Ground state energy = %20.15f" % self.gs_energy)
 
+
+        #==== MO occupations ====#
+        dm0 = self.get_one_pdm(False, mps)
+        dm0_full = make_full_dm(self.n_core, dm0)
+        occs0 = np.zeros((2, self.n_core+self.n_sites))
+        for i in range(0, 2): occs0[i,:] = np.diag(dm0_full[i,:,:]).copy()
+        print_orb_occupations(occs0)
+        
             
         #==== Partial charge ====#
         orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs(), self.virt_orbs),
                               axis=2)
         self.qmul0, self.qlow0 = \
-            partial_charge.calc(self.mol, make_full_dm(int(self.nel_core/2), dm0), orbs,
-                                self.ovl_ao)
+            partial_charge.calc(self.mol, dm0_full, orbs, self.ovl_ao)
         print_partial_charge(self.mol, self.qmul0, self.qlow0)
 
 
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
-            multipole.calc(self.mol, self.dpole_ao, self.qpole_ao,
-                           make_full_dm(int(self.nel_core/2), dm0), orbs)
-        #OLD e_dpole, n_dpole, e_qpole, n_qpole = self.expect_multipole(dm0)
-        _print('Electronic dipole moment = ', end='')
-        for i in range(0, 3): _print('%13.8f' % e_dpole[i], end=(' ' if i < 2 else '\n'))
-        _print('Nuclear dipole moment = ', end='')
-        for i in range(0, 3): _print('%13.8f' % n_dpole[i], end=(' ' if i < 2 else '\n'))
+            multipole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm0_full, orbs)
+        print_multipole(e_dpole, n_dpole, e_qpole, n_qpole)
 
         
         #==== Save the output MPS ====#
         #OLD mps.save_data()
         #OLD mps_info.save_data(self.scratch + "/GS_MPS_INFO")
         #OLD mps_info.deallocate()
+        _print('')
         _print('Saving the ground state MPS files under ' + outmps_dir)
         if outmps_dir != self.scratch:
             mkDir(outmps_dir)
@@ -867,6 +641,7 @@ class MYTDDMRG:
             np.save(outmps_dir + '/GS_1pdm', dm0)
 
 
+        #==== Statistics ====#
         if self.print_statistics:
             dmain, dseco, imain, iseco = Global.frame.peak_used_memory
             _print("GS PEAK MEM USAGE:",
@@ -875,8 +650,6 @@ class MYTDDMRG:
                    "IMEM = ", MYTDDMRG.fmt_size(imain + iseco),
                    "(%.0f%%)" % (imain * 100 / (imain + iseco)))
 
-        if self.verbose >= 1:
-            _print("Ground state energy = %20.15f" % self.gs_energy)
 
         if self.verbose >= 2:
             _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
@@ -1295,8 +1068,24 @@ class MYTDDMRG:
             else:
                 self.print_occupation_table(dm1, aorb[self.ridx])
 
+            
+        #==== Partial charge ====#
+        dm1_full = make_full_dm(self.n_core, dm1)
+        orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs(), self.virt_orbs),
+                              axis=2)
+        self.qmul1, self.qlow1 = \
+            partial_charge.calc(self.mol, dm1_full, orbs, self.ovl_ao)
+        print_partial_charge(self.mol, self.qmul1, self.qlow1)
+
+
+        #==== Multipole analysis ====#
+        e_dpole, n_dpole, e_qpole, n_qpole = \
+            multipole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm1_full, orbs)
+        print_multipole(e_dpole, n_dpole, e_qpole, n_qpole)
+
         
         #==== Save the output MPS ====#
+        _print('')
         if outmps_dir != self.scratch:
             mkDir(outmps_dir)
         rket_info.save_data(outmps_dir + "/" + outmps_name)

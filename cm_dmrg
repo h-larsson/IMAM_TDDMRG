@@ -8,7 +8,8 @@ from humanfriendly import format_timespan
 import block2
 from block2 import TETypes, PointGroup
 from pyscf import gto, scf, ao2mo, symm
-from i_tddmrg import MYTDDMRG, orbital_reorder, get_symCASCI_ints
+from i_tddmrg import MYTDDMRG, orbital_reorder
+from IMAM_TDDMRG.utils.util_qm import get_symCASCI_ints
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
 import defvals, cm_inputs
 yn_bools = ('No','Yes')
