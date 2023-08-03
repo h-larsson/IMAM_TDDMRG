@@ -1177,27 +1177,64 @@ class MYTDDMRG:
             inmps_dir = self.scratch
         else:
             inmps_dir = inmps_dir0
-        acorrfile = './' + prefix + '.ac'
-        acorr2tfile = './' + prefix + '.ac2t'
-        hline = ''.join(['-' for i in range(0, 73)])
-        with open(acorrfile, 'w') as acf:
-            acf.write('#' + hline + '\n')
-            acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
-                      ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
-            acf.write('#' + hline + '\n')
-        with open(acorr2tfile, 'w') as ac2tf:
-            ac2tf.write('#' + hline + '\n')
-            ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
-                        ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
-            ac2tf.write('#' + hline + '\n')
 
+        #==== Initiate autocorrelation file ====#
+        hline = ''.join(['-' for i in range(0, 73)])
+        ac_file = './' + prefix + '.ac'
+        if self.mpi is None or self.mpi.rank == 0:
+            with open(ac_file, 'w') as acf:
+                acf.write('#' + hline + '\n')
+                acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
+                          ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
+                acf.write('#' + hline + '\n')
+
+        #==== Initiate 2t autocorrelation file ====#
+        ac2t_f = './' + prefix + '.ac2t'
+        if self.mpi is None or self.mpi.rank == 0:
+            with open(ac2t_f, 'w') as ac2tf:
+                ac2tf.write('#' + hline + '\n')
+                ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
+                            ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
+                ac2tf.write('#' + hline + '\n')
+
+        #==== Initiate Lowdin partial charges file ====#
+        max_atom = 8
+        nparts = int(np.ceil(self.mol.natm/max_atom))
+        rem = self.mol.natm % max_atom
+        if self.mpi is None or self.mpi.rank == 0:
+            ia = 0
+            for i in range(0, nparts):
+                low_file = './' + prefix + '.' + str(i+1) + '.low'
+                ncol = max_atom
+                if i == nparts-1 and rem != 0: ncol = rem
+                hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*ncol)])
+                with open(low_file, 'w') as lowf:
+                    lowf.write('#' + hline + '\n')
+                    lowf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
+                    for j in range(0, ncol):
+                        lowf.write(' %14s' % (self.mol.atom_symbol(ia) + str(ia+1)))
+                        ia += 1
+                    lowf.write('\n')
+                    lowf.write('#' + hline + '\n')
+
+        #==== Initiate multipole components file ====#
+        mp_file = './' + prefix + '.mp'
+        if self.mpi is None or self.mpi.rank == 0:
+            hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*9)])
+            with open(mp_file, 'w') as mpf:
+                mpf.write('#' + hline + '\n')
+                mpf.write('#%9s %13s   %14s %14s %14s %14s %14s %14s %14s %14s %14s\n' %
+                          ('No.', 'Time (a.u.)', 'x', 'y', 'z', 'xx', 'yy', 'zz', 'xy',
+                           'yz', 'xz'))
+                mpf.write('#' + hline + '\n')
+
+        if self.mpi is not None: self.mpi.barrier()
                 
         #==== Identity operator ====#
         idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
         print_MPO_bond_dims(idMPO, 'Identity_2')
         if self.mpi is not None:
             idMPO = ParallelMPO(idMPO, self.identrule)
-
             
         #==== Prepare Hamiltonian MPO ====#
         if self.mpi is not None:
@@ -1211,7 +1248,6 @@ class MYTDDMRG:
         #need? mpo = IdentityAddedMPO(mpo) # hrl: alternative
         if self.mpi is not None:
             mpo = ParallelMPO(mpo, self.prule)
-
 
         #==== Load the initial MPS ====#
         inmps_path = inmps_dir + "/" + inmps_name
@@ -1348,29 +1384,32 @@ class MYTDDMRG:
             _print('Autocorrelation function = ' +
                    f'{acorr_t.real:11.8f} (Re), {acorr_t.imag:11.8f} (Im), ' +
                    f'{abs(acorr_t):11.8f} (Abs)')
-
             
             #==== Norm ====#
             if it == 0:
                 normsqs = abs(acorr_t)
             elif it > 0:
                 normsqs = te.normsqs[0]
-
                 
             #==== Print autocorrelation ====#
-            with open(acorrfile, 'a') as acf:
-                acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
-                          (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t), normsqs) )
-            #OLDif tt > tmax/2:
+            if self.mpi is None or self.mpi.rank == 0:
+                with open(ac_file, 'a') as acf:
+                    acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
+                              (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t), normsqs) )
+
+            #==== 2t autocorrelation ====#
             if cmps.wfns[0].data.size == 0:
                 loaded = True
                 cmps.load_tensor(cmps.center)
             vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
             acorr_2t = np.vdot(vec.conj(),vec)
-            with open(acorr2tfile, 'a') as ac2tf:
-                ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
-                            (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
 
+            #==== Print 2t autocorrelation ====#
+            if self.mpi is None or self.mpi.rank == 0:
+                with open(ac2t_f, 'a') as ac2tf:
+                    ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
+                                (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
+            if self.mpi is not None: self.mpi.barrier()
 
             #==== Stores MPS and/or PDM's at sampling times ====#
             if t_sample is not None and np.prod(issampled)==0:
@@ -1390,44 +1429,63 @@ class MYTDDMRG:
                     else:
                         mkDir(save_dir)
 
-            
                     #==== Saving MPS ====##
                     if save_mps:
                         saveMPStoDir(cmps, save_dir, self.mpi)
 
-                    #==== Saving 1PDM ====#
-                    dm = None
-                    if save_1pdm:
-                        #== Copy the current MPS because self.get_one_pdm ==#
-                        #==      convert the input MPS to a real MPS      ==#
-                        if self.mpi is not None: self.mpi.barrier()
-                        cmps_cp = cmps.deep_copy('cmps_cp')
-                        if self.mpi is not None: self.mpi.barrier()
-                        
-                        dm = self.get_one_pdm(True, cmps_cp)
-                        np.save(save_dir+'/1pdm', dm)
-                        cmps_cp.info.deallocate()
-                        ## cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
+                    #==== Calculate 1PDM ====#
+                    if self.mpi is not None: self.mpi.barrier()
+                    cmps_cp = cmps.deep_copy('cmps_cp')         # 1)
+                    if self.mpi is not None: self.mpi.barrier()
+                    dm = self.get_one_pdm(True, cmps_cp)
+                    cmps_cp.info.deallocate()
+                    dm_full = make_full_dm(self.n_core, dm)
+                    #OLD cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
+                    # NOTE:
+                    # 1) Copy the current MPS because self.get_one_pdm convert the input
+                    #    MPS to a real MPS.
 
+                    #==== Save 1PDM ====#
+                    if save_1pdm: np.save(save_dir+'/1pdm', dm)
                         
-                    #==== Inverse ordering of site_orb because the index ====#
-                    #====  of pdm corresponds to that before reordering  ====#
-                    if self.ridx is None:
-                        site_orbs = self.site_orbs
-                    else:
-                        site_orbs = self.site_orbs[:,:,self.ridx]
-
                     #==== Save time info ====#
-                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, 
-                                        normsqs, acorr_t, save_mps, save_1pdm, dm)
+                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, normsqs, 
+                                        acorr_t, save_mps, save_1pdm, dm)
 
                     #==== Partial charges ====#
+                    orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs(), 
+                                          self.virt_orbs), axis=2)
                     qmul, qlow = \
-                        partial_charge.calc(self.mol, int(self.nel_core/2), self.n_sites, 
-                                            dm, site_orbs, self.ovl_ao)
+                        partial_charge.calc(self.mol, dm_full, orbs, self.ovl_ao)
+                    if self.mpi is None or self.mpi.rank == 0:
+                        ia = 0
+                        for i in range(0, nparts):
+                            ncol = max_atom
+                            if i == nparts-1 and rem != 0: ncol = rem
+                            with open(low_file, 'a') as lowf:
+                                lowf.write(' %9d %13.8f  ' % (it, tt))
+                                for j in range(0, ncol):
+                                    lowf.write(' %14.6e' % (qlow[ia]))
+                                    ia += 1
+                                lowf.write('\n')
+                    if self.mpi is not None: self.mpi.barrier()
 
                     #==== Multipole components ====#
-                    dpole, qpole = multipole.calc()
+                    e_dpole, n_dpole, e_qpole, n_qpole = \
+                        multipole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm_full, orbs)
+                    dpole = e_dpole + n_dpole
+                    qpole = e_qpole + n_qpole
+                    if self.mpi is None or self.mpi.rank == 0:
+                        with open(mp_file, 'a') as mpf:
+                            mpf.write((' %9d %13.8f  ' +
+                                       ' %14.6e %14.6e %14.6e' +
+                                       ' %14.6e %14.6e %14.6e' +
+                                       ' %14.6e %14.6e %14.6e\n') %
+                                      (it, tt,
+                                       dpole[0], dpole[1], dpole[2],
+                                       qpole[0,0], qpole[1,1], qpole[2,2],
+                                       qpole[0,1], qpole[1,2], qpole[0,2]))
+                    if self.mpi is not None: self.mpi.barrier()
                     
                     issampled[i_sp] = True
                     i_sp += 1
