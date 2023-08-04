@@ -68,11 +68,12 @@ else:
 import tools; tools.init(SpinLabel)
 from tools import saveMPStoDir, loadMPSfromDir, mkDir
 from gfdmrg import orbital_reorder
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_section
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_section, print_describe_content
 from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_partial_charge, print_multipole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.observables import partial_charge, multipole
+from IMAM_TDDMRG.phys_const import au2fs
 
 if hasMPI:
     MPI = MPICommunicator()
@@ -1160,9 +1161,10 @@ class MYTDDMRG:
                        inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
-                       save_2pdm=False, sample_dir='samples', prefix='te', prefit=False, 
-                       prefit_bond_dims=None, prefit_nsteps=None, prefit_noises=None,
-                       prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
+                       save_2pdm=False, sample_dir='samples', prefix='te', save_txt=True,
+                       save_npy=False, prefit=False, prefit_bond_dims=None, 
+                       prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
+                       prefit_cutoff=None, verbosity=6):
         '''
         Coming soon
         '''
@@ -1183,6 +1185,8 @@ class MYTDDMRG:
         ac_file = './' + prefix + '.ac'
         if self.mpi is None or self.mpi.rank == 0:
             with open(ac_file, 'w') as acf:
+                print_describe_content('autocerrelation data', acf)
+                acf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
                 acf.write('#' + hline + '\n')
                 acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
                           ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
@@ -1192,6 +1196,8 @@ class MYTDDMRG:
         ac2t_f = './' + prefix + '.ac2t'
         if self.mpi is None or self.mpi.rank == 0:
             with open(ac2t_f, 'w') as ac2tf:
+                print_describe_content('2t-autocerrelation data', ac2tf)
+                ac2tf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
                 ac2tf.write('#' + hline + '\n')
                 ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
                             ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
@@ -1201,14 +1207,17 @@ class MYTDDMRG:
         max_atom = 8
         nparts = int(np.ceil(self.mol.natm/max_atom))
         rem = self.mol.natm % max_atom
+        low_file = []
         if self.mpi is None or self.mpi.rank == 0:
             ia = 0
             for i in range(0, nparts):
-                low_file = './' + prefix + '.' + str(i+1) + '.low'
+                low_file += ['./' + prefix + '.' + str(i+1) + '.low']
                 ncol = max_atom
                 if i == nparts-1 and rem != 0: ncol = rem
                 hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*ncol)])
-                with open(low_file, 'w') as lowf:
+                with open(low_file[i], 'w') as lowf:
+                    print_describe_content('Lowdin partial charge data', lowf)
+                    lowf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
                     lowf.write('#' + hline + '\n')
                     lowf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
                     for j in range(0, ncol):
@@ -1222,11 +1231,17 @@ class MYTDDMRG:
         if self.mpi is None or self.mpi.rank == 0:
             hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*9)])
             with open(mp_file, 'w') as mpf:
+                print_describe_content('multipole components data', mpf)
+                mpf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
                 mpf.write('#' + hline + '\n')
                 mpf.write('#%9s %13s   %14s %14s %14s %14s %14s %14s %14s %14s %14s\n' %
                           ('No.', 'Time (a.u.)', 'x', 'y', 'z', 'xx', 'yy', 'zz', 'xy',
                            'yz', 'xz'))
                 mpf.write('#' + hline + '\n')
+        dp_im_min = np.zeros((3))
+        dp_im_max = np.zeros((3))
+        qp_im_min = np.zeros((3,3))
+        qp_im_max = np.zeros((3,3))
 
         if self.mpi is not None: self.mpi.barrier()
                 
@@ -1254,6 +1269,7 @@ class MYTDDMRG:
         _print('Loading initial MPS info from ' + inmps_path)
         mps_info = MPSInfo(0)
         mps_info.load_data(inmps_path)
+        nel_t0 = mps_info.target.n
         #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
@@ -1330,6 +1346,8 @@ class MYTDDMRG:
         te.iprint = verbosity
         te.normalize_mps = normalize
         
+        
+        #==== Construct the time vector ====#
         #OLD n_steps = int(tmax/dt + 1)
         #OLD ts = np.linspace(0, tmax, n_steps)    # times
         if type(dt0) is not list:
@@ -1353,10 +1371,20 @@ class MYTDDMRG:
         n_steps = len(ts)
         _print('Time points (a.u.) = ', ts)
         
-        
         if t_sample is not None:
             issampled = [False] * len(t_sample)
-            
+
+
+        #==== Begin the time evolution ====#
+        acorr_t = np.zeros((len(ts)), dtype=np.complex128)
+        acorr_2t = np.zeros((len(ts)), dtype=np.complex128)
+        qmul = np.zeros((self.mol.natm, len(t_sample)), dtype=np.complex128)
+        qlow = np.zeros((self.mol.natm, len(t_sample)), dtype=np.complex128)
+        dpole = np.zeros((3, len(t_sample)), dtype=np.complex128)
+        qpole = np.zeros((6, len(t_sample)), dtype=np.complex128)
+        if save_npy:
+            np.save('./'+prefix+'.t', ts)
+            if t_sample is not None: np.save('./'+prefix+'.ts', t_sample)
         i_sp = 0
         for it, tt in enumerate(ts):
 
@@ -1377,38 +1405,40 @@ class MYTDDMRG:
                     te.n_sub_sweeps = 1                    
 
             
-            #==== Autocorrelation ====#
+            #==== Autocorrelation and norm ====#
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
             acorr = ComplexExpect(idME, max_bond_dim, max_bond_dim)
-            acorr_t = acorr.solve(False)  
-            _print('Autocorrelation function = ' +
-                   f'{acorr_t.real:11.8f} (Re), {acorr_t.imag:11.8f} (Im), ' +
-                   f'{abs(acorr_t):11.8f} (Abs)')
-            
-            #==== Norm ====#
+            acorr_t[it] = acorr.solve(False)
             if it == 0:
-                normsqs = abs(acorr_t)
+                normsqs = abs(acorr_t[it])
             elif it > 0:
                 normsqs = te.normsqs[0]
+            acorr_t[it] = acorr_t[it] / np.sqrt(normsqs)
                 
             #==== Print autocorrelation ====#
-            if self.mpi is None or self.mpi.rank == 0:
+            if save_txt and (self.mpi is None or self.mpi.rank == 0):
                 with open(ac_file, 'a') as acf:
                     acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
-                              (it, tt, acorr_t.real, acorr_t.imag, abs(acorr_t), normsqs) )
+                              (it, tt, acorr_t[it].real, acorr_t[it].imag, abs(acorr_t[it]),
+                               normsqs) )
+            if save_npy and (self.mpi is None or self.mpi.rank == 0):
+                np.save(ac_file, acorr_t[0:it+1])
 
             #==== 2t autocorrelation ====#
             if cmps.wfns[0].data.size == 0:
                 loaded = True
                 cmps.load_tensor(cmps.center)
             vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
-            acorr_2t = np.vdot(vec.conj(),vec)
+            acorr_2t[it] = np.vdot(vec.conj(),vec) / normsqs
 
             #==== Print 2t autocorrelation ====#
-            if self.mpi is None or self.mpi.rank == 0:
+            if save_txt and (self.mpi is None or self.mpi.rank == 0):
                 with open(ac2t_f, 'a') as ac2tf:
                     ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
-                                (it, 2*tt, acorr_2t.real, acorr_2t.imag, abs(acorr_2t)) )
+                                (it, 2*tt, acorr_2t[it].real, acorr_2t[it].imag,
+                                 abs(acorr_2t[it])) )
+            if save_npy and (self.mpi is None or self.mpi.rank == 0):
+                np.save(ac2t_f, acorr_2t[0:it+1])
             if self.mpi is not None: self.mpi.barrier()
 
             #==== Stores MPS and/or PDM's at sampling times ====#
@@ -1440,6 +1470,8 @@ class MYTDDMRG:
                     dm = self.get_one_pdm(True, cmps_cp)
                     cmps_cp.info.deallocate()
                     dm_full = make_full_dm(self.n_core, dm)
+                    dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
+                    dm_full = dm_full * nel_t0 / np.abs(dm_tr)      # fm_full is now normalized
                     #OLD cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
                     # NOTE:
                     # 1) Copy the current MPS because self.get_one_pdm convert the input
@@ -1450,45 +1482,91 @@ class MYTDDMRG:
                         
                     #==== Save time info ====#
                     self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, normsqs, 
-                                        acorr_t, save_mps, save_1pdm, dm)
+                                        acorr_t[it], save_mps, save_1pdm, dm)
 
                     #==== Partial charges ====#
                     orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs(), 
                                           self.virt_orbs), axis=2)
-                    qmul, qlow = \
+                    qmul[:,i_sp], qlow[:,i_sp] = \
                         partial_charge.calc(self.mol, dm_full, orbs, self.ovl_ao)
-                    if self.mpi is None or self.mpi.rank == 0:
+                    if save_txt and (self.mpi is None or self.mpi.rank == 0):
                         ia = 0
                         for i in range(0, nparts):
                             ncol = max_atom
                             if i == nparts-1 and rem != 0: ncol = rem
-                            with open(low_file, 'a') as lowf:
+                            with open(low_file[i], 'a') as lowf:
                                 lowf.write(' %9d %13.8f  ' % (it, tt))
                                 for j in range(0, ncol):
-                                    lowf.write(' %14.6e' % (qlow[ia]))
+                                    lowf.write(' %14.6e' % (qlow[ia,i_sp].real))
                                     ia += 1
                                 lowf.write('\n')
+                    if save_npy and (self.mpi is None or self.mpi.rank == 0):
+                        low_file0 = './' + prefix + '.low'
+                        np.save(low_file0, qlow[:, 0:i_sp+1])
                     if self.mpi is not None: self.mpi.barrier()
 
                     #==== Multipole components ====#
                     e_dpole, n_dpole, e_qpole, n_qpole = \
                         multipole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm_full, orbs)
-                    dpole = e_dpole + n_dpole
-                    qpole = e_qpole + n_qpole
-                    if self.mpi is None or self.mpi.rank == 0:
+                    dpole[:,i_sp] = e_dpole + n_dpole
+                    qpole_ = e_qpole + n_qpole
+                    qpole[:,i_sp] = np.hstack( (np.diag(qpole_,0), np.diag(qpole_,1),
+                                                np.diag(qpole_,2)) )
+                    if save_txt and (self.mpi is None or self.mpi.rank == 0):
                         with open(mp_file, 'a') as mpf:
                             mpf.write((' %9d %13.8f  ' +
                                        ' %14.6e %14.6e %14.6e' +
                                        ' %14.6e %14.6e %14.6e' +
                                        ' %14.6e %14.6e %14.6e\n') %
                                       (it, tt,
-                                       dpole[0], dpole[1], dpole[2],
-                                       qpole[0,0], qpole[1,1], qpole[2,2],
-                                       qpole[0,1], qpole[1,2], qpole[0,2]))
+                                       dpole[0,i_sp].real, dpole[1,i_sp].real, dpole[2,i_sp].real,
+                                       qpole[0,i_sp].real, qpole[1,i_sp].real, qpole[2,i_sp].real,
+                                       qpole[3,i_sp].real, qpole[4,i_sp].real, qpole[5,i_sp].real))
+                    if save_npy and (self.mpi is None or self.mpi.rank == 0):
+                        np.save(mp_file,
+                                np.vstack( (dpole[:, 0:i_sp+1], qpole[:, 0:i_sp+1]) ))
+
+                        
                     if self.mpi is not None: self.mpi.barrier()
                     
                     issampled[i_sp] = True
                     i_sp += 1
+
+        #==== Print max min imaginary parts (for debugging) ====#
+        if self.mpi is None or self.mpi.rank == 0:
+            q_im_max = np.max(qlow.imag, axis=1)
+            q_im_min = np.min(qlow.imag, axis=1)
+            ia = 0
+            for i in range(0, nparts):
+                with open(low_file[i], 'a') as lowf:
+                    lowf.write('\n')
+                    lowf.write('# Statistics of the imaginary parts (max,min): \n')
+                    ncol = max_atom
+                    if i == nparts-1 and rem != 0: ncol = rem
+                    for j in range(0, ncol):
+                        lowf.write('#  %s: %17.8e, %17.8e \n' %
+                                   (self.mol.atom_symbol(ia) + str(ia+1),
+                                    q_im_max[ia], q_im_min[ia]))
+                        ia += 1
+            
+        if self.mpi is None or self.mpi.rank == 0:
+            dp_im_max = np.max(dpole.imag, axis=1)
+            dp_im_min = np.min(dpole.imag, axis=1)
+            qp_im_max = np.max(qpole.imag, axis=1)
+            qp_im_min = np.min(qpole.imag, axis=1) 
+            with open(mp_file, 'a') as mpf:
+                mpf.write('\n')
+                mpf.write('# Statistics of the imaginary parts (max,min): \n')
+                mpf.write('#   x: %17.8e, %17.8e\n' % (dp_im_max[0], dp_im_min[0]))
+                mpf.write('#   y: %17.8e, %17.8e\n' % (dp_im_max[1], dp_im_min[1]))
+                mpf.write('#   z: %17.8e, %17.8e\n' % (dp_im_max[2], dp_im_min[2]))
+                mpf.write('#   xx: %17.8e, %17.8e\n' % (qp_im_max[0], qp_im_min[0]))
+                mpf.write('#   yy: %17.8e, %17.8e\n' % (qp_im_max[1], qp_im_min[1]))
+                mpf.write('#   zz: %17.8e, %17.8e\n' % (qp_im_max[2], qp_im_min[2]))
+                mpf.write('#   xy: %17.8e, %17.8e\n' % (qp_im_max[3], qp_im_min[3]))
+                mpf.write('#   yz: %17.8e, %17.8e\n' % (qp_im_max[4], qp_im_min[4]))
+                mpf.write('#   xz: %17.8e, %17.8e\n' % (qp_im_max[5], qp_im_min[5]))
+
     ##############################################################
     
 

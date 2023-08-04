@@ -269,6 +269,14 @@ def get_inputs(inp_file):
             inputs['te_save_2pdm'] = te_save_2pdm
         except NameError:
             inputs['te_save_2pdm'] = defvals.def_te_save_2pdm
+        try:
+            inputs['save_txt'] = save_txt
+        except NameError:
+            inputs['save_txt'] = defvals.def_save_txt
+        try:
+            inputs['save_npy'] = save_npy
+        except NameError:
+            inputs['save_npy'] = defvals.def_save_npy
 
     return inputs
 #######################################################

@@ -309,7 +309,8 @@ if inputs['do_timeevo']:
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
-                       inputs['te_save_2pdm'], sample_dir, inputs['prefix'])
+                       inputs['te_save_2pdm'], sample_dir, inputs['prefix'],
+                       inputs['save_txt'], inputs['save_npy'])
     _print('\n')
 
 
