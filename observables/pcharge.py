@@ -30,7 +30,7 @@ def get_atom_range(mol):
 def calc(mol, pdm, mo, ovl=None):
     '''
     mol = Mole object.
-    pdm = The one-particle-reduced density matrix in MO rep.
+    pdm = The complete (core+active) one-particle-reduced density matrix in MO rep.
     mo = The MOs in AO rep.
     ovl = The overlap matrix associated with the AO basis defined in mol.
     '''    

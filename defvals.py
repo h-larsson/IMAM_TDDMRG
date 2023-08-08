@@ -41,8 +41,8 @@ def_n_sub_sweeps = 2
 def_n_sub_sweeps_init = 4
 
 def_te_sample = None
-def_te_save_mps = True
-def_te_save_1pdm = True
+def_te_save_mps = False
+def_te_save_1pdm = False
 def_te_save_2pdm = False
 def_save_txt = True
 def_save_npy = False

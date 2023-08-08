@@ -1,0 +1,79 @@
+#! /usr/bin/env python
+
+import sys, os
+import numpy as np
+from pyscf import gto
+from IMAM_TDDMRG.utils.util_qm import make_full_dm
+from IMAM_TDDMRG.utils.util_print import print_td_pcharge
+from IMAM_TDDMRG.observables import pcharge, pcharge_inputs
+
+
+#==== Input file ====#
+inp_file = str(sys.argv[1])
+inputs = pcharge_inputs.get_inputs(inp_file)
+if inputs['dump_inputs']:
+    print('\nInput parameters:')
+    for kw in inputs:
+        print('  ', kw, ' = ', inputs[kw])
+    print(' ')
+
+
+#==== Sample directory from which the PDMs are loaded ====#
+if inputs['sample_dir'] == 'DEFINE_LATER':
+    inputs['sample_dir'] = './' + inputs['prefix'] + '.sample'    
+
+    
+#==== Setting up the system ====#
+mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=inputs['inp_ecp'],
+            symmetry=inputs['inp_symmetry'])
+na, nb = mol.nelec
+nocc = inputs['nCore'] + inputs['nCAS']
+print('No. of bases = ', mol.nao)
+print('No. of electrons (alpha, beta) = ', na, nb)
+print('No. of core orbitals = ', inputs['nCore'])
+print('No. of CAS orbitals = ', inputs['nCAS'])
+
+
+#==== Load and construct the orbitals ====#
+inp_orbs = np.load(inputs['orb_path'])
+assert inp_orbs.shape[0] == inp_orbs.shape[1]
+if len(inp_orbs.shape) == 2:
+    orbs = np.zeros((2, inp_orbs.shape[0], inp_orbs.shape[1]))
+    orbs[0,:,:] = orbs[1,:,:] = inp_orbs[0:nocc, 0:nocc]
+elif len(orbs.shape) == 3:
+    raise ValueError('At the moment, a 3D orbitals array as an input to pcharge_extract ' + \
+                     'is not supported because it is used for SZ symmetry, which is not ' + \
+                     'yet implemented.')
+
+
+#==== Initiate printing ====#
+dd = [x for x in os.listdir(inputs['sample_dir'])]
+n_sample = len(dd)
+atom_symbol = [mol.atom_symbol(i) for i in range(0, mol.natm)]
+q_print = print_td_pcharge(atom_symbol, inputs['prefix'], n_sample)
+q_print.header()
+
+
+#==== Print partial charge values ====#
+ovl = mol.intor('int1e_ovlp')
+print('\nCalculating and printing partial charges:')
+for i_sp in range(0, n_sample):
+    #== Construct the PDM ==#
+    pdm_dir = inputs['sample_dir'] + '/mps_sp-' + str(i_sp)
+    with open(pdm_dir + '/TIME_INFO', 'r') as t_info:
+        lines = t_info.read()
+        line0 = lines.split('\n')[0]
+        tt = float( line0.split()[5] )
+    pdm = np.load(pdm_dir + '/1pdm.npy')
+    pdm_full = make_full_dm(inputs['nCore'], pdm)
+    tr = np.sum( np.trace(pdm_full, axis1=1, axis2=2) )
+    pdm_full = pdm_full * inputs['nelec_t0'] / np.abs(tr)
+    print('Sample no. %d,  time = %.6f a.u.' % (i_sp, tt))
+
+    #== Calculate the partial charges ==#
+    qmul, qlow = pcharge.calc(mol, pdm_full, orbs, ovl)
+    q_print.print_pcharge(tt, qlow, inputs['save_txt'], inputs['save_npy'])
+
+    
+#==== Print footer (end) ====#
+q_print.footer()

@@ -10,7 +10,7 @@ from block2 import TETypes, PointGroup
 from pyscf import gto, scf, ao2mo, symm
 from i_tddmrg import MYTDDMRG, orbital_reorder
 from IMAM_TDDMRG.utils.util_qm import get_symCASCI_ints
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning
 import defvals, cm_inputs
 yn_bools = ('No','Yes')
 
@@ -290,7 +290,8 @@ if inputs['do_timeevo']:
     _print('-----------------------------------')
     _print('')
 
-    sample_dir = './' + inputs['prefix'] + '.sample'
+    if inputs['sample_dir'] == 'DEFINE_LATER':
+        inputs['sample_dir'] = './' + inputs['prefix'] + '.sample'
     if inputs['te_method'] == 'tdvp':
         method = TETypes.TangentSpace
     elif inputs['te_method'] == 'rk4':
@@ -304,12 +305,16 @@ if inputs['do_timeevo']:
         kw = 'te_inmps_dir'
         if inputs['dump_inputs']:
             _print('  ', kw, ' = ', inputs[kw])
+    if inputs['te_save_mps']:
+        print_warning('The option to save the instantaneous MPS at the sampling times ' +
+                      'has been turned on. Be warned that these MPSs might take up a ' +
+                      'lot of storage space.')
     obj.time_propagate(inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
                        inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['exp_tol'], 
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
-                       inputs['te_save_2pdm'], sample_dir, inputs['prefix'],
+                       inputs['te_save_2pdm'], inputs['sample_dir'], inputs['prefix'],
                        inputs['save_txt'], inputs['save_npy'])
     _print('\n')
 
