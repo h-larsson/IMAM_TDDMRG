@@ -74,6 +74,7 @@ from IMAM_TDDMRG.utils.util_print import print_td_pcharge, print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.observables import pcharge, mpole
+from IMAM_TDDMRG.phys_const import au2fs
 
 if hasMPI:
     MPI = MPICommunicator()
@@ -1238,7 +1239,7 @@ class MYTDDMRG:
         _print('Loading initial MPS info from ' + inmps_path)
         mps_info = MPSInfo(0)
         mps_info.load_data(inmps_path)
-        nel_t0 = mps_info.target.n
+        nel_t0 = mps_info.target.n + self.nel_core
         #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
         #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
