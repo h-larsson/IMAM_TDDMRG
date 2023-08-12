@@ -45,4 +45,4 @@ def_te_save_mps = False
 def_te_save_1pdm = False
 def_te_save_2pdm = False
 def_save_txt = True
-def_save_npy = False
+def_save_npy = True

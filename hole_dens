@@ -41,7 +41,7 @@ print('No. of bases = ', mol.nao)
 print('No. of electrons (alpha, beta) = ', na, nb)
 print('No. of core orbitals = ', nCore)
 print('No. of CAS orbitals = ', nCAS)
-mo_c = np.load(mocoeff_path)
+mo_c = np.load(orb_path)
 
             
 #==== Evaluate MO's at the above printing range ====#

@@ -50,7 +50,7 @@ elif len(orbs.shape) == 3:
 #==== Initiate printing ====#
 dd = [x for x in os.listdir(inputs['sample_dir'])]
 n_sample = len(dd)
-mp_print = print_td_mpole(inputs['prefix'], n_sample)
+mp_print = print_td_mpole(inputs['prefix'], n_sample, inputs['save_txt'], inputs['save_npy'])
 mp_print.header()
 
 
@@ -75,8 +75,7 @@ for i_sp in range(0, n_sample):
     #== Calculate multipole components ==#
     e_dpole, n_dpole, e_qpole, n_qpole = \
         mpole.calc(mol, dpole_ao, qpole_ao, pdm_full, orbs)
-    mp_print.print_mpole(tt, e_dpole, n_dpole, e_qpole, n_qpole, inputs['save_txt'],
-                         inputs['save_npy'])
+    mp_print.print_mpole(tt, e_dpole, n_dpole, e_qpole, n_qpole)
 
     
 #==== Print footer (end) ====#

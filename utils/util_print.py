@@ -197,17 +197,23 @@ def print_mpole(e_dpole, n_dpole, e_qpole, n_qpole):
 class print_td_pcharge:
 
     #############################################
-    def __init__(self, atom_symbol, prefix, n_t, max_atom=8):
+    def __init__(self, atom_symbol, prefix, n_t, max_atom=8, save_txt=True, save_npy=True):
         self.atom_symbol = atom_symbol
         self.natm = len(atom_symbol)
         self.prefix = prefix
         self.max_atom = max_atom
         self.nparts = int(np.ceil(self.natm / self.max_atom))
         self.rem = self.natm % self.max_atom
+        self.save_txt = save_txt
+        self.save_npy = save_npy
         self.low_file = []
         self.it = -1
         self.pchg = np.zeros((self.natm, n_t), dtype=np.complex128)
 
+        if not self.save_txt and not self.save_npy:
+            print_warning('An object of print_td_pcharge class is initiated but is set' +
+                          'to print nothing.')
+        
         self.header_stat = False
         self.print_stat = False
         self.footer_stat = False
@@ -216,64 +222,69 @@ class print_td_pcharge:
 
     #############################################
     def header(self):
-        assert self.header_stat == False, \
-            'Cannot double print the header of the TD partial charge files.'
-        assert self.print_stat == False, \
-            'Cannot print the header of the TD partial charge files while it is ' + \
-            'printing the partial charge values.'
-        assert self.footer_stat == False, \
-            'Cannot print the header of the TD partial charge files when the footer ' + \
-            'has been printed as this indicates the end of the TD partial charge ' + \
-            'printing.'
+        if self.save_txt:
+            assert self.header_stat == False, \
+                'Cannot double print the header of the TD partial charge files.'
+            assert self.print_stat == False, \
+                'Cannot print the header of the TD partial charge files while it is ' + \
+                'printing the partial charge values.'
+            assert self.footer_stat == False, \
+                'Cannot print the header of the TD partial charge files when the footer ' + \
+                'has been printed as this indicates the end of the TD partial charge ' + \
+                'printing.'
 
         
         #==== Loop over files ====#
-        ia = 0
-        for i in range(0, self.nparts):
-            #==== File names ====#
-            self.low_file += ['./' + self.prefix + '.' + str(i+1) + '.low']
-
-            #==== ncol = the no. of columns for the current file ====#
-            ncol = self.max_atom
-            if i == self.nparts-1 and self.rem != 0:
-                ncol = self.rem
-            hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*ncol)])
-
-            #==== Begin printing the colum title ====#
-            with open(self.low_file[i], 'w') as lowf:
-                print_describe_content('Lowdin partial charge data', lowf)
-                lowf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
-                lowf.write('#' + hline + '\n')
-                lowf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
-
-                #== Loop over atoms for the current file ==#
-                for j in range(0, ncol):
-                    lowf.write(' %14s' % (self.atom_symbol[ia] + str(ia+1)))
-                    ia += 1
-                lowf.write('\n')
-                lowf.write('#' + hline + '\n')
-
-        self.header_stat = True
+        if self.save_txt:
+            ia = 0
+            for i in range(0, self.nparts):
+                #==== File names ====#
+                self.low_file += ['./' + self.prefix + '.' + str(i+1) + '.low']
+            
+                #==== ncol = the no. of columns for the current file ====#
+                ncol = self.max_atom
+                if i == self.nparts-1 and self.rem != 0:
+                    ncol = self.rem
+                hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*ncol)])
+            
+                #==== Begin printing the colum title ====#
+                with open(self.low_file[i], 'w') as lowf:
+                    print_describe_content('Lowdin partial charge data', lowf)
+                    lowf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+                    lowf.write('#' + hline + '\n')
+                    lowf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
+            
+                    #== Loop over atoms for the current file ==#
+                    for j in range(0, ncol):
+                        lowf.write(' %14s' % (self.atom_symbol[ia] + str(ia+1)))
+                        ia += 1
+                    lowf.write('\n')
+                    lowf.write('#' + hline + '\n')
+            
+            self.header_stat = True
     #############################################
 
 
     #############################################
-    def print_pcharge(self, tt, pchg, save_txt=True, save_npy=True):
-        assert self.header_stat == True, \
-            'The header of the TD partial charge files must be printed first (by calling ' + \
-            'print_td_pcharge.header() before printing the partial charge values.'
-        assert self.footer_stat == False, \
-            'Cannot print the values the TD partial charge when the footer has been ' + \
-            'printed as this indicates the end of the TD partial charge printing.'
-        assert isinstance(pchg[0], (np.complex64, np.complex128))
-        assert len(pchg) == self.natm, \
-            f'len(pchg) = {len(pchg)} while self.natm = {self.natm}.'
+    def print_pcharge(self, tt, pchg):
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD partial charge files must be printed first (by ' + \
+                'calling print_td_pcharge.header() before printing the partial charge ' + \
+                'values.'
+            assert self.footer_stat == False, \
+                'Cannot print the values the TD partial charge when the footer has been ' + \
+                'printed as this indicates the end of the TD partial charge printing.'
+        if self.save_txt or self.save_npy:
+            assert isinstance(pchg[0], (np.complex64, np.complex128))
+            assert len(pchg) == self.natm, \
+                f'len(pchg) = {len(pchg)} while self.natm = {self.natm}.'
         
         self.it += 1
         self.pchg[:,self.it] = pchg
 
         #==== Printing into text files ====#
-        if save_txt:
+        if self.save_txt:
             ia = 0
 
             #==== Loop over files ====#
@@ -289,49 +300,51 @@ class print_td_pcharge:
                         lowf.write(' %14.6e' % (self.pchg[ia,self.it].real))
                         ia += 1
                     lowf.write('\n')
+                    
+            self.print_stat = True
 
                     
         #==== Printing into *.npy file ====#
-        if save_npy:
+        if self.save_npy:
             npy_file = './' + self.prefix + '.low'
             np.save(npy_file, self.pchg[:, 0:self.it+1])
-
-        self.print_stat = True
     #############################################
 
 
     #############################################
     def footer(self):
-        assert self.header_stat == True, \
-            'The header of the TD partial charge files must be printed first (by calling ' + \
-            'print_td_pcharge.header() before printing the footer.'
-        assert self.footer_stat == False, \
-            'Cannot double print the footer of the TD partial charge files.'
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD partial charge files must be printed first (by ' + \
+                'calling print_td_pcharge.header() before printing the footer.'
+            assert self.footer_stat == False, \
+                'Cannot double print the footer of the TD partial charge files.'
         
         im_max = np.max(self.pchg.imag, axis=1)
         im_min = np.min(self.pchg.imag, axis=1)
 
         #==== Loop over files ====#
-        ia = 0
-        for i in range(0, self.nparts):
-            with open(self.low_file[i], 'a') as lowf:
-                lowf.write('\n')
-                if self.print_stat == False:
-                    lowf.write('# WARNING: No partial charge values have been printed.\n')
-                    
-                lowf.write('# Statistics of the imaginary parts (max,min): \n')
-                ncol = self.max_atom
-                if i == self.nparts-1 and self.rem != 0:
-                    ncol = self.rem
-                    
-                #== Loop over the atoms for the current file ==#
-                for j in range(0, ncol):
-                    lowf.write('#  %s: %17.8e, %17.8e \n' %
-                               (self.atom_symbol[ia] + str(ia+1),
-                                im_max[ia], im_min[ia]))
-                    ia += 1
-
-        self.footer_stat = True
+        if self.save_txt:
+            ia = 0
+            for i in range(0, self.nparts):
+                with open(self.low_file[i], 'a') as lowf:
+                    lowf.write('\n')
+                    if self.print_stat == False:
+                        lowf.write('# WARNING: No partial charge values have been printed.\n')
+                        
+                    lowf.write('# Statistics of the imaginary parts (max,min): \n')
+                    ncol = self.max_atom
+                    if i == self.nparts-1 and self.rem != 0:
+                        ncol = self.rem
+                        
+                    #== Loop over the atoms for the current file ==#
+                    for j in range(0, ncol):
+                        lowf.write('#  %s: %17.8e, %17.8e \n' %
+                                   (self.atom_symbol[ia] + str(ia+1),
+                                    im_max[ia], im_min[ia]))
+                        ia += 1
+    
+            self.footer_stat = True
 ##########################################################################
 
 
@@ -339,13 +352,19 @@ class print_td_pcharge:
 class print_td_mpole:
 
     #############################################
-    def __init__(self, prefix, n_t):
+    def __init__(self, prefix, n_t, save_txt=True, save_npy=True):
         self.prefix = prefix
+        self.save_txt = save_txt
+        self.save_npy = save_npy
         self.mp_file = './' + self.prefix + '.mp'
         self.it = -1
         self.dp = np.zeros((3, n_t), dtype=np.complex128)    # Dipole moments
         self.qp = np.zeros((6, n_t), dtype=np.complex128)    # Quadrupole moments
 
+        if not self.save_txt and not self.save_npy:
+            print_warning('An object of print_td_mpole class is initiated but is set' +
+                          'to print nothing.')
+            
         self.header_stat = False
         self.print_stat = False
         self.footer_stat = False
@@ -354,52 +373,58 @@ class print_td_mpole:
 
     #############################################
     def header(self):
-        assert self.header_stat == False, \
-            'Cannot double print the header of the TD multipole files.'
-        assert self.print_stat == False, \
-            'Cannot print the header of the TD multipole files while it is ' + \
-            'printing the multipole values.'
-        assert self.footer_stat == False, \
-            'Cannot print the header of the TD multipole files when the footer ' + \
-            'has been printed as this indicates the end of the TD multipole ' + \
-            'printing.'
-        
-        hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*9)])
-        with open(self.mp_file, 'w') as mpf:
-            print_describe_content('multipole components data', mpf)
-            mpf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
-            mpf.write('#' + hline + '\n')
-            mpf.write('#%9s %13s   %14s %14s %14s %14s %14s %14s %14s %14s %14s\n' %
-                      ('No.', 'Time (a.u.)', 'x', 'y', 'z', 'xx', 'yy', 'zz', 'xy',
-                       'yz', 'xz'))
-            mpf.write('#' + hline + '\n')
+        if self.save_txt:
+            assert self.header_stat == False, \
+                'Cannot double print the header of the TD multipole files.'
+            assert self.print_stat == False, \
+                'Cannot print the header of the TD multipole files while it is ' + \
+                'printing the multipole values.'
+            assert self.footer_stat == False, \
+                'Cannot print the header of the TD multipole files when the footer ' + \
+                'has been printed as this indicates the end of the TD multipole ' + \
+                'printing.'
 
-        self.header_stat = True
+        if self.save_txt:
+            hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+14)*9)])
+            with open(self.mp_file, 'w') as mpf:
+                print_describe_content('multipole components data', mpf)
+                mpf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+                mpf.write('#' + hline + '\n')
+                mpf.write('#%9s %13s   %14s %14s %14s %14s %14s %14s %14s %14s %14s\n' %
+                          ('No.', 'Time (a.u.)', 'x', 'y', 'z', 'xx', 'yy', 'zz', 'xy',
+                           'yz', 'xz'))
+                mpf.write('#' + hline + '\n')
+    
+            self.header_stat = True
     #############################################
 
 
     #############################################
-    def print_mpole(self, tt, e_dp, n_dp, e_qp, n_qp, save_txt=True, save_npy=True):
-        assert self.header_stat == True, \
-            'The header of the TD multipole files must be printed first (by calling ' + \
-            'print_td_mpole.header() before printing the multipole values.'
-        assert self.footer_stat == False, \
-            'Cannot print the values the TD multipole when the footer has been ' + \
-            'printed as this indicates the end of the TD multipole printing.'
-        assert isinstance(e_dp[0], (np.complex64, np.complex128))
-        assert isinstance(e_qp[0,0], (np.complex64, np.complex128))
-        assert len(e_dp) == 3, f'len(e_dp) = {len(e_dp)} while it has to be 3.'
-        assert len(n_dp) == 3, f'len(n_dp) = {len(n_dp)} while it has to be 3.'
-        assert e_qp.shape == (3,3), f'e_qp.shape = {e_qp.shape} while it has to be (3,3).'
-        assert n_qp.shape == (3,3), f'n_qp.shape = {n_qp.shape} while it has to be (3,3).'
+    def print_mpole(self, tt, e_dp, n_dp, e_qp, n_qp):
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD multipole files must be printed first (by calling ' + \
+                'print_td_mpole.header() before printing the multipole values.'
+            assert self.footer_stat == False, \
+                'Cannot print the values the TD multipole when the footer has been ' + \
+                'printed as this indicates the end of the TD multipole printing.'
+        if self.save_txt or self.save_npy:
+            assert isinstance(e_dp[0], (np.complex64, np.complex128))
+            assert isinstance(e_qp[0,0], (np.complex64, np.complex128))
+            assert len(e_dp) == 3, f'len(e_dp) = {len(e_dp)} while it has to be 3.'
+            assert len(n_dp) == 3, f'len(n_dp) = {len(n_dp)} while it has to be 3.'
+            assert e_qp.shape == (3,3), \
+                f'e_qp.shape = {e_qp.shape} while it has to be (3,3).'
+            assert n_qp.shape == (3,3), \
+                f'n_qp.shape = {n_qp.shape} while it has to be (3,3).'
         
-
         self.it += 1
         self.dp[:,self.it] = e_dp + n_dp
         qp_ = e_qp + n_qp
         self.qp[:,self.it] = np.hstack( (np.diag(qp_,0), np.diag(qp_,1), np.diag(qp_,2)) )
-                                    
-        if save_txt:
+
+        #==== Printing into text files ====#
+        if self.save_txt:
             with open(self.mp_file, 'a') as mpf:
                 mpf.write((' %9d %13.8f  ' +
                            ' %14.6e %14.6e %14.6e' +
@@ -412,40 +437,44 @@ class print_td_mpole:
                            self.qp[2,self.it].real,
                            self.qp[3,self.it].real, self.qp[4,self.it].real,
                            self.qp[5,self.it].real))
+                
+            self.print_stat = True
 
-        if save_npy:
+        #==== Printing into *.npy file ====#
+        if self.save_npy:
             np.save(self.mp_file, np.vstack( (self.dp[:, 0:self.it+1],
                                               self.qp[:, 0:self.it+1]) ))
 
-        self.print_stat = True
     #############################################
 
 
     #############################################
     def footer(self):
-        assert self.header_stat == True, \
-            'The header of the TD multipole files must be printed first (by calling ' + \
-            'print_td_mpole.header() before printing the footer.'
-        assert self.footer_stat == False, \
-            'Cannot double print the footer of the TD multipole files.'
-
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD multipole files must be printed first (by calling ' + \
+                'print_td_mpole.header() before printing the footer.'
+            assert self.footer_stat == False, \
+                'Cannot double print the footer of the TD multipole files.'
         
         dp_im_max = np.max(self.dp.imag, axis=1)
         dp_im_min = np.min(self.dp.imag, axis=1)
         qp_im_max = np.max(self.qp.imag, axis=1)
-        qp_im_min = np.min(self.qp.imag, axis=1) 
-        with open(self.mp_file, 'a') as mpf:
-            mpf.write('\n')
-            mpf.write('# Statistics of the imaginary parts (max,min): \n')
-            mpf.write('#   x: %17.8e, %17.8e\n' % (dp_im_max[0], dp_im_min[0]))
-            mpf.write('#   y: %17.8e, %17.8e\n' % (dp_im_max[1], dp_im_min[1]))
-            mpf.write('#   z: %17.8e, %17.8e\n' % (dp_im_max[2], dp_im_min[2]))
-            mpf.write('#   xx: %17.8e, %17.8e\n' % (qp_im_max[0], qp_im_min[0]))
-            mpf.write('#   yy: %17.8e, %17.8e\n' % (qp_im_max[1], qp_im_min[1]))
-            mpf.write('#   zz: %17.8e, %17.8e\n' % (qp_im_max[2], qp_im_min[2]))
-            mpf.write('#   xy: %17.8e, %17.8e\n' % (qp_im_max[3], qp_im_min[3]))
-            mpf.write('#   yz: %17.8e, %17.8e\n' % (qp_im_max[4], qp_im_min[4]))
-            mpf.write('#   xz: %17.8e, %17.8e\n' % (qp_im_max[5], qp_im_min[5]))
+        qp_im_min = np.min(self.qp.imag, axis=1)
 
-        self.footer_stat = True
+        if self.save_txt:
+            with open(self.mp_file, 'a') as mpf:
+                mpf.write('\n')
+                mpf.write('# Statistics of the imaginary parts (max,min): \n')
+                mpf.write('#   x: %17.8e, %17.8e\n' % (dp_im_max[0], dp_im_min[0]))
+                mpf.write('#   y: %17.8e, %17.8e\n' % (dp_im_max[1], dp_im_min[1]))
+                mpf.write('#   z: %17.8e, %17.8e\n' % (dp_im_max[2], dp_im_min[2]))
+                mpf.write('#   xx: %17.8e, %17.8e\n' % (qp_im_max[0], qp_im_min[0]))
+                mpf.write('#   yy: %17.8e, %17.8e\n' % (qp_im_max[1], qp_im_min[1]))
+                mpf.write('#   zz: %17.8e, %17.8e\n' % (qp_im_max[2], qp_im_min[2]))
+                mpf.write('#   xy: %17.8e, %17.8e\n' % (qp_im_max[3], qp_im_min[3]))
+                mpf.write('#   yz: %17.8e, %17.8e\n' % (qp_im_max[4], qp_im_min[4]))
+                mpf.write('#   xz: %17.8e, %17.8e\n' % (qp_im_max[5], qp_im_min[5]))
+    
+            self.footer_stat = True
 ##########################################################################

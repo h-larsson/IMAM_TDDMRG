@@ -1205,13 +1205,14 @@ class MYTDDMRG:
         #==== Initiate Lowdin partial charges file ====#
         if t_sample is not None:
             atom_symbol = [self.mol.atom_symbol(i) for i in range(0, self.mol.natm)]
-            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample))
+            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample), 8, save_txt,
+                                       save_npy)
             if self.mpi is None or self.mpi.rank == 0: q_print.header()
             if self.mpi is not None: self.mpi.barrier()
 
         #==== Initiate multipole components file ====#
         if t_sample is not None:
-            mp_print = print_td_mpole(prefix, len(t_sample))
+            mp_print = print_td_mpole(prefix, len(t_sample), save_txt, save_npy)
             if self.mpi is None or self.mpi.rank == 0: mp_print.header()
             if self.mpi is not None: self.mpi.barrier()
                 
@@ -1455,15 +1456,14 @@ class MYTDDMRG:
                                           axis=2)
                     qmul, qlow = pcharge.calc(self.mol, dm_full, orbs, self.ovl_ao)
                     if self.mpi is None or self.mpi.rank == 0:
-                        q_print.print_pcharge(tt, qlow, save_txt, save_npy)
+                        q_print.print_pcharge(tt, qlow)
                     if self.mpi is not None: self.mpi.barrier()
 
                     #==== Multipole components ====#
                     e_dpole, n_dpole, e_qpole, n_qpole = \
                         mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm_full, orbs)
                     if self.mpi is None or self.mpi.rank == 0:
-                        mp_print.print_mpole(tt, e_dpole, n_dpole, e_qpole, n_qpole,
-                                             save_txt, save_npy)
+                        mp_print.print_mpole(tt, e_dpole, n_dpole, e_qpole, n_qpole)
                     if self.mpi is not None: self.mpi.barrier()
 
 
