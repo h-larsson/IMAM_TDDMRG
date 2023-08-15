@@ -1,6 +1,8 @@
 import numpy as np
-from scipy.special import erfc
 from scipy.fft import rfft
+from IMAM_TDDMRG.phys_const import au2fs
+from IMAM_TDDMRG.observables.fourier.fft_util import mask as fft_mask
+
 
 
 ######################################
@@ -15,13 +17,12 @@ fft_dir = '.'
 ac_path = './Acetylene-chloro.ac'
 pad_t = True
 factor = 5
-smh_end = True
-smh_t0 = 0.15
-smh_dt = 10.0
+smh_end = 'cos'
+smh_par1 = 10.0
 
 
 fft_ac.fft(ac_path, fft_dir, prefix, 0.05, pad_t=pad_t, pad_factor=factor,
-           smh_end=smh_end, smh_t0=smh_t0, smh_dt=smh_dt)
+           smh_end=smh_end, smh_par1=smh_par1)
 '''
 ######################################
 
@@ -34,7 +35,7 @@ fft_ac.fft(ac_path, fft_dir, prefix, 0.05, pad_t=pad_t, pad_factor=factor,
 
 ######################################################
 def fft(ac_path, fft_dir='.', prefix='', dt=None, dt_tol=1.0E-12, pad_t=False, pad_factor=3,
-        smh_end=False, smh_dt=1.0, smh_t0=0.0, header_lines=7):
+        smh_end=None, smh_par1=1.0, smh_par2=0.0, header_lines=7, print_t=False):
     '''
     DESCRIPTION:
        This function calculates the Fourier transform of the time-dependent autocorrelation
@@ -74,23 +75,24 @@ def fft(ac_path, fft_dir='.', prefix='', dt=None, dt_tol=1.0E-12, pad_t=False, p
        where nt is the length of the unpadded autocorrelation data.       
     
     smh_end:
-       If True, then the time domain data will be masked with an error-type function.
-       The purpose of this masking is to smoothen the data at the final sampling time,
-       which otherwise would probably have an abrupt drop to zero. The mask function 
-       takes the form of 
-          0.5 * erfc((t-t0)/smh_dt)
+       The type of the mask function which will be used to smoothen the data at the 
+       final sampling time, which would otherwise probably have an abrupt drop to zero.
+       The available choice is 'cos', 'erfc', and None (default, means no masking). 
+       For 'erfc', the mask function takes the form of 
+          0.5 * erfc((t-t0)/smh_par1)
        where 
-          t0 = delta_t * (1 - smh_t0)
+          t0 = delta_t * (1 - smh_par2)
           delta_t = the length of the unpadded sampling time, i.e. the difference
                     between the first and last element of the sampling time array.
+       For 'cos', it is 
+          (cos(pi*t/2/delta_t))^smh_par1 * Theta(1-|t|/delta_t)
+       where Theta is the Heaviside function.
     
-    smh_dt:
-       The length of the transition region of the smoothening function. See the 
-       equation in the description of 'smooth_end' argument.
+    smh_par1:
+       See the description of smh_end above.
     
-    smh_t0:
-       The center of the smoothening error function. See the equation in the 
-       description of 'smooth_end' argument.
+    smh_par2:
+       See the description of smh_end above. It is not used when smh_end='cos'.
 
     header_lines: 
        The number of header lines, that is, the number of lines before the actual 
@@ -121,20 +123,14 @@ def fft(ac_path, fft_dir='.', prefix='', dt=None, dt_tol=1.0E-12, pad_t=False, p
     #==== Apply the smoothening mask function ====#
     t = np.array(t)
     at = np.array(at)
-    if smh_end:
-        assert smh_t0 >= 0.0 and smh_t0 <= 1.0
-        t0 = (t[-1] - t[0]) * (1-smh_t0)
-        mask = np.array(0.5 * erfc((t - t0)/smh_dt))
-        print('max. mask = %.4f,   min. mask = %.4f' % (max(mask), min(mask)))
-    else:
-        mask = 1.0
+    mask = fft_mask(smh_end, t, smh_par1, smh_par2, True)
     at = (at - at[-1]) * mask
 
     #==== Determine the time interval and length ====#
     nt = len(t)
     dt = t[1] - t[0]
     print('The number of time points = %d' % nt)
-    print('Time interval = %.6e a.u. of time' % dt)
+    print('Time interval = %.6e a.u. = %.6e fs' % (dt, dt*au2fs))
 
     #==== Apply padding ====#
     if pad_t:
@@ -142,15 +138,31 @@ def fft(ac_path, fft_dir='.', prefix='', dt=None, dt_tol=1.0E-12, pad_t=False, p
         nt = nt + npad
         print('The number of padded time points = %d' % nt)
         at = np.hstack( (at, at[-1]*np.ones(npad)) )
+        t = np.hstack( (t, np.linspace(t[-1]+dt, t[-1]+npad*dt, num=npad)) )
+
+    #==== Print the padded/smoothened autcorrelation ====#
+    if print_t:
+        t_file = fft_dir + '/' + prefix + '.t.ac' 
+        with open(t_file, 'w') as awt:
+            awt.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+            for i in range(0, nt):
+                awt.write('%1s %5d  %11.6f  %14.6e' % ('', i, t[i], at[i]))
+                if i < len(mask):
+                    awt.write('  %14.6e\n' % mask[i])
+                else:
+                    awt.write('\n')
+
 
     #==== Determine the frequency domain interval and length ====#
     au2ev = 27.2113860200
-    nw = int((nt/2)+1) if nt%2==0 else int((nt+1)/2)     # Based on the 'Returns' section of the scipy.fft.rfft? page.
-    dw = 2*np.pi / (dt*nt) * au2ev
+    nt_ = nt
+    nw = int((nt_/2)+1) if nt_%2==0 else int((nt_+1)/2)     # Based on the 'Returns' section of the scipy.fft.rfft? page.
+    dw = 2*np.pi / (dt*nt_) * au2ev
     w = np.linspace(0, (nw-1)*dw, num=nw)
     print('The number of omega points = %d' % nw)
     print('Omega interval = %.6e eV' % dw)
     aw = rfft(at)
+        
 
     #==== Print the Fourier spectra ====#
     fft_file = fft_dir + '/' + prefix + '.fft_ac' 

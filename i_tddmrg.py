@@ -1155,6 +1155,12 @@ class MYTDDMRG:
     #################################################
 
 
+    #################################################
+    def time_evolution_init_obs(self):
+        pass
+    #################################################
+
+
     ##################################################################
     def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
                        inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
@@ -1279,14 +1285,6 @@ class MYTDDMRG:
 
         #==== Initial setups for autocorrelation ====#
         idME = MovingEnvironment(idMPO, cmps_t0, cmps, "acorr")
-
-
-        #==== 1PDM IMAM
-        ## pmpo = PDM1MPOQC(self.hamil)
-        ## pmpo = SimplifiedMPO(pmpo, RuleQC())
-        ## if self.mpi is not None:
-        ##     pmpo = ParallelMPO(pmpo, self.pdmrule)
-        ## pme = MovingEnvironment(pmpo, cmps, cmps, "1PDM")
             
         
         #==== Initial setups for time evolution ====#
@@ -1492,6 +1490,12 @@ class MYTDDMRG:
 
 ##############################################################
 
+
+
+
+# 1) Does the input ket have to be complex or real?
+# 2) Is bond_dims just a list of one element?
+# 3) Why is hermitian False by default?
 
 
 
