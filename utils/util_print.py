@@ -194,6 +194,95 @@ def print_mpole(e_dpole, n_dpole, e_qpole, n_qpole):
 
 
 ##########################################################################
+class print_autocorrelation:
+
+    #################################################
+    def __init__(self, prefix, n_t, save_txt=True, save_npy=True):
+        self.it = -1
+        self.prefix = prefix
+        self.ac_f = './' + self.prefix + '.ac'
+        self.ac2t_f = './' + self.prefix + '.ac2t'
+        self.ac = np.zeros(n_t, dtype=np.complex128)
+        self.ac2t = np.zeros(n_t, dtype=np.complex128)
+        self.save_txt = save_txt
+        self.save_npy = save_npy
+
+        if not self.save_txt and not self.save_npy:
+            print_warning('An object of print_autocorrelation class is initiated but is ' +
+                          'set to print nothing.')
+        
+        self.header_stat = False
+        self.print_stat = False
+    #################################################
+
+
+    #################################################
+    def header(self):
+        if self.save_txt:
+            assert self.header_stat == False, \
+                'Cannot double print the header of the autocorrelation files.'
+            assert self.print_stat == False, \
+                'Cannot print the header of the autocorrelation files while it is ' + \
+                'printing the autocorrelation values.'
+
+        hline = ''.join(['-' for i in range(0, 73)])
+        
+        #==== Initiate autocorrelation file ====#
+        with open(self.ac_f, 'w') as acf:
+            print_describe_content('autocerrelation data', acf)
+            acf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+            acf.write('#' + hline + '\n')
+            acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
+                      ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
+            acf.write('#' + hline + '\n')
+
+        #==== Initiate 2t autocorrelation file ====#
+        with open(self.ac2t_f, 'w') as ac2tf:
+            print_describe_content('2t-autocerrelation data', ac2tf)
+            ac2tf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+            ac2tf.write('#' + hline + '\n')
+            ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
+                        ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
+            ac2tf.write('#' + hline + '\n')
+
+        self.header_stat = True
+    #################################################
+
+
+    #################################################
+    def print_ac(self, tt, ac, ac2t, normsqs):
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the autocorrelation files must be printed first (by ' + \
+                'calling print_autocorrelation.header() before printing the ' + \
+                'autocorrelation values.'
+        if self.save_txt or self.save_npy:
+            assert isinstance(ac, (complex, np.complex64, np.complex128))
+            assert isinstance(ac2t, (complex, np.complex64, np.complex128))
+            
+        self.it += 1
+        self.ac[self.it] = ac
+        self.ac2t[self.it] = ac2t
+        
+        if self.save_txt:
+            with open(self.ac_f, 'a') as acf:
+                acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
+                          (self.it, tt, self.ac[self.it].real, self.ac[self.it].imag, 
+                           np.abs(self.ac[self.it]), normsqs) )
+            with open(self.ac2t_f, 'a') as ac2tf:
+                ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
+                            (self.it, 2*tt, self.ac2t[self.it].real, self.ac2t[self.it].imag,
+                             np.abs(self.ac2t[self.it])) )
+            self.print_stat = True
+
+        if self.save_npy:
+            np.save(self.ac_f, self.ac[0:self.it+1])
+            np.save(self.ac2t_f, self.ac2t[0:self.it+1])
+
+##########################################################################
+
+
+##########################################################################
 class print_td_pcharge:
 
     #############################################
@@ -273,8 +362,8 @@ class print_td_pcharge:
                 'calling print_td_pcharge.header() before printing the partial charge ' + \
                 'values.'
             assert self.footer_stat == False, \
-                'Cannot print the values the TD partial charge when the footer has been ' + \
-                'printed as this indicates the end of the TD partial charge printing.'
+                'Cannot print the values of the TD partial charge when the footer has ' + \
+                'been printed as this indicates the end of the TD partial charge printing.'
         if self.save_txt or self.save_npy:
             assert isinstance(pchg[0], (np.complex64, np.complex128))
             assert len(pchg) == self.natm, \
@@ -406,7 +495,7 @@ class print_td_mpole:
                 'The header of the TD multipole files must be printed first (by calling ' + \
                 'print_td_mpole.header() before printing the multipole values.'
             assert self.footer_stat == False, \
-                'Cannot print the values the TD multipole when the footer has been ' + \
+                'Cannot print the values of the TD multipole when the footer has been ' + \
                 'printed as this indicates the end of the TD multipole printing.'
         if self.save_txt or self.save_npy:
             assert isinstance(e_dp[0], (np.complex64, np.complex128))

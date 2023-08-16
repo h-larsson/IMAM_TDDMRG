@@ -1,5 +1,6 @@
 import numpy as np
 from block2 import SU2, SZ
+from IMAM_TDDMRG.utils.util_print import _print
 
 # Set spin-adapted or non-spin-adapted here
 SpinLabel = SU2
@@ -102,4 +103,109 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     del _mcCI, mf
 
     return h1e, g2e, eCore, molpro_oSym, molpro_wSym
+#################################################
+
+
+#################################################
+def get_one_pdm(iscomp, spin_symm, n_sites, hamil, mps=None, mps_path=None, dmargin=0, 
+                ridx=None, mpi=None, verbose=2):
+
+    import time
+    import block2
+    
+    if iscomp:
+        bx = block2.cpx
+        bc = bx
+    else:
+        bx = block2
+        bc = None    #OLD block2.cpx if has_cpx else None
+
+    if spin_symm == 'su2':
+        bs = bx.su2
+        brs = block2.su2
+        SX = block2.SU2
+    elif spin_symm == 'sz':
+        bs = bx.sz
+        brs = block2.sz
+        SX = block2.SZ
+
+    #from bs import SimplifiedMPO, RuleQC, PDM1MPOQC, Expect, ComplexExpect, MovingEnvironment
+    #if mpi is not None:
+    #    from bs import ParallelMPO
+    #from brs import MPSInfo
+
+            
+    if mps is None and mps_path is None:
+        raise ValueError("The 'mps' and 'mps_path' parameters of "
+                         + "get_one_pdm cannot be both None.")
+    
+    if verbose >= 2:
+        _print('>>> START one-pdm <<<')
+    t = time.perf_counter()
+
+    if mpi is not None:
+        mpi.barrier()
+
+    if mps is None:   # mps takes priority over mps_path, the latter will only be used if the former is None.
+        mps_info = brs.MPSInfo(0)
+        mps_info.load_data(mps_path)
+        mps = MPS(mps_info)
+        mps.load_data()
+        mps.info.load_mutable()
+        
+    max_bdim = max([x.n_states_total for x in mps.info.left_dims])
+    if mps.info.bond_dim < max_bdim:
+        mps.info.bond_dim = max_bdim
+    max_bdim = max([x.n_states_total for x in mps.info.right_dims])
+    if mps.info.bond_dim < max_bdim:
+        mps.info.bond_dim = max_bdim
+
+                    
+    # 1PDM MPO
+    print('mpi = ', mpi)
+    pmpo = bs.PDM1MPOQC(hamil)
+    pmpo = bs.SimplifiedMPO(pmpo, bs.RuleQC())
+    if mpi is not None:
+        if pdmrule is None:
+            pdmrule_ = ParallelRuleNPDMQC(mpi)
+            pmpo = bs.ParallelMPO(pmpo, pdmrule_)
+        else:
+            pmpo = bs.ParallelMPO(pmpo, pdmrule)
+
+        
+    # 1PDM
+    pme = bs.MovingEnvironment(pmpo, mps, mps, "1PDM")
+    pme.init_environments(False)
+    if iscomp:
+        expect = bs.ComplexExpect(pme, mps.info.bond_dim+dmargin, mps.info.bond_dim+dmargin)   #NOTE
+    else:
+        expect = bs.Expect(pme, mps.info.bond_dim+dmargin, mps.info.bond_dim+dmargin)   #NOTE
+    expect.iprint = max(verbose - 1, 0)
+    expect.solve(True, mps.center == 0)
+    if spin_symm == 'su2':
+        dmr = expect.get_1pdm_spatial(n_sites)
+        dm = np.array(dmr).copy()
+    elif spin_symm == 'sz':
+        dmr = expect.get_1pdm(n_sites)
+        dm = np.array(dmr).copy()
+        dm = dm.reshape((n_sites, 2, n_sites, 2))
+        dm = np.transpose(dm, (0, 2, 1, 3))
+
+    if ridx is not None:
+        dm[:, :] = dm[ridx, :][:, ridx]
+
+    mps.save_data()
+    if mps is None:
+        mps_info.deallocate()
+    dmr.deallocate()
+    pmpo.deallocate()
+
+    if verbose >= 2:
+        _print('>>> COMPLETE one-pdm | Time = %.2f <<<' %
+               (time.perf_counter() - t))
+
+    if spin_symm == 'su2':
+        return np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
+    elif spin_symm == 'sz':
+        return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
 #################################################

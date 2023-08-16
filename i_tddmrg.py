@@ -70,8 +70,8 @@ from tools import saveMPStoDir, loadMPSfromDir, mkDir
 from gfdmrg import orbital_reorder
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_section, print_describe_content
 from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole
-from IMAM_TDDMRG.utils.util_print import print_td_pcharge, print_td_mpole
-from IMAM_TDDMRG.utils.util_qm import make_full_dm
+from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
+from IMAM_TDDMRG.utils.util_qm import make_full_dm, get_one_pdm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.observables import pcharge, mpole
 from IMAM_TDDMRG.phys_const import au2fs
@@ -1156,8 +1156,29 @@ class MYTDDMRG:
 
 
     #################################################
-    def time_evolution_init_obs(self):
-        pass
+    def get_te_times(self, dt0, tmax):
+
+        #OLD n_steps = int(tmax/dt + 1)
+        #OLD ts = np.linspace(0, tmax, n_steps)    # times
+        if type(dt0) is not list:
+            dt = [dt0]
+        else:
+            dt = dt0
+        ts = [0.0]
+        i = 1
+        while ts[-1] < tmax:
+            if i <= len(dt):
+                ts = ts + [sum(dt[0:i])]
+            else:
+                ts = ts + [ts[-1] + dt[-1]]
+            i += 1
+        if ts[-1] > tmax:
+            ts[-1] = tmax
+            if abs(ts[-1]-ts[-2]) < 1E-3:
+                ts.pop()
+                ts[-1] = tmax
+        ts = np.array(ts)
+        return ts
     #################################################
 
 
@@ -1185,49 +1206,33 @@ class MYTDDMRG:
         else:
             inmps_dir = inmps_dir0
 
-        #==== Initiate autocorrelation file ====#
-        hline = ''.join(['-' for i in range(0, 73)])
-        ac_file = './' + prefix + '.ac'
+            
+        #==== Construct the time vector ====#
+        ts = self.get_te_times(dt0, tmax)
+        n_steps = len(ts)
+        _print('Time points (a.u.) = ', ts)
+            
+        #==== Initiate the computations and printings of observables ====#
+        ac_print = print_autocorrelation(prefix, len(ts), save_txt, save_npy)
         if self.mpi is None or self.mpi.rank == 0:
-            with open(ac_file, 'w') as acf:
-                print_describe_content('autocerrelation data', acf)
-                acf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
-                acf.write('#' + hline + '\n')
-                acf.write('#%9s %13s   %11s %11s %11s %11s\n' %
-                          ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs', 'Norm'))
-                acf.write('#' + hline + '\n')
-
-        #==== Initiate 2t autocorrelation file ====#
-        ac2t_f = './' + prefix + '.ac2t'
-        if self.mpi is None or self.mpi.rank == 0:
-            with open(ac2t_f, 'w') as ac2tf:
-                print_describe_content('2t-autocerrelation data', ac2tf)
-                ac2tf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
-                ac2tf.write('#' + hline + '\n')
-                ac2tf.write('#%9s %13s   %11s %11s %11s\n' %
-                            ('No.', 'Time (a.u.)', 'Real part', 'Imag. part', 'Abs'))
-                ac2tf.write('#' + hline + '\n')
-
+            ac_print.header()
+        
         #==== Initiate Lowdin partial charges file ====#
         if t_sample is not None:
             atom_symbol = [self.mol.atom_symbol(i) for i in range(0, self.mol.natm)]
-            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample), 8, save_txt,
-                                       save_npy)
-            if self.mpi is None or self.mpi.rank == 0: q_print.header()
+            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample), 8, 
+                                            save_txt, save_npy)
+            if self.mpi is None or self.mpi.rank == 0:
+                q_print.header()
             if self.mpi is not None: self.mpi.barrier()
 
         #==== Initiate multipole components file ====#
         if t_sample is not None:
             mp_print = print_td_mpole(prefix, len(t_sample), save_txt, save_npy)
-            if self.mpi is None or self.mpi.rank == 0: mp_print.header()
+            if self.mpi is None or self.mpi.rank == 0:
+                mp_print.header()
             if self.mpi is not None: self.mpi.barrier()
                 
-        #==== Identity operator ====#
-        idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
-        print_MPO_bond_dims(idMPO, 'Identity_2')
-        if self.mpi is not None:
-            idMPO = ParallelMPO(idMPO, self.identrule)
-            
         #==== Prepare Hamiltonian MPO ====#
         if self.mpi is not None:
             self.mpi.barrier()
@@ -1252,12 +1257,16 @@ class MYTDDMRG:
         #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
         mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
 
+        #==== Initial norm ====#
+        idMPO = SimplifiedMPO(IdentityMPO(self.hamil), RuleQC(), True, True)
+        print_MPO_bond_dims(idMPO, 'Identity_2')
+        if self.mpi is not None:
+            idMPO = ParallelMPO(idMPO, self.identrule)
         idN = MovingEnvironment(idMPO, mps, mps, "norm_in")
         idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
         nrm = Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
         nrm_ = nrm.solve(False)
         _print(f'Initial MPS norm = {nrm_:11.8f}')
-               
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
         if prefit:
@@ -1315,40 +1324,12 @@ class MYTDDMRG:
         te.iprint = verbosity
         te.normalize_mps = normalize
         
-        
-        #==== Construct the time vector ====#
-        #OLD n_steps = int(tmax/dt + 1)
-        #OLD ts = np.linspace(0, tmax, n_steps)    # times
-        if type(dt0) is not list:
-            dt = [dt0]
-        else:
-            dt = dt0
-        ts = [0.0]
-        i = 1
-        while ts[-1] < tmax:
-            if i <= len(dt):
-                ts = ts + [sum(dt[0:i])]
-            else:
-                ts = ts + [ts[-1] + dt[-1]]
-            i += 1
-        if ts[-1] > tmax:
-            ts[-1] = tmax
-            if abs(ts[-1]-ts[-2]) < 1E-3:
-                ts.pop()
-                ts[-1] = tmax
-        ts = np.array(ts)
-        n_steps = len(ts)
-        _print('Time points (a.u.) = ', ts)
-        
-        if t_sample is not None:
-            issampled = [False] * len(t_sample)
-
 
         #==== Begin the time evolution ====#
-        acorr_t = np.zeros((len(ts)), dtype=np.complex128)
-        acorr_2t = np.zeros((len(ts)), dtype=np.complex128)
+        if t_sample is not None:
+            issampled = [False] * len(t_sample)
         if save_npy:
-            np.save('./'+prefix+'.t', ts)
+            np.save('./' + prefix + '.t', ts)
             if t_sample is not None: np.save('./'+prefix+'.ts', t_sample)
         i_sp = 0
         for it, tt in enumerate(ts):
@@ -1373,39 +1354,28 @@ class MYTDDMRG:
             #==== Autocorrelation and norm ====#
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
             acorr = ComplexExpect(idME, max_bond_dim, max_bond_dim)
-            acorr_t[it] = acorr.solve(False)
+            acorr_t = acorr.solve(False)
             if it == 0:
-                normsqs = abs(acorr_t[it])
+                normsqs = abs(acorr_t)
             elif it > 0:
                 normsqs = te.normsqs[0]
-            acorr_t[it] = acorr_t[it] / np.sqrt(normsqs)
-                
-            #==== Print autocorrelation ====#
-            if save_txt and (self.mpi is None or self.mpi.rank == 0):
-                with open(ac_file, 'a') as acf:
-                    acf.write(' %9d %13.8f   %11.8f %11.8f %11.8f %11.8f\n' %
-                              (it, tt, acorr_t[it].real, acorr_t[it].imag, abs(acorr_t[it]),
-                               normsqs) )
-            if save_npy and (self.mpi is None or self.mpi.rank == 0):
-                np.save(ac_file, acorr_t[0:it+1])
-
+            acorr_t = acorr_t / np.sqrt(normsqs)
+                            
             #==== 2t autocorrelation ====#
             if cmps.wfns[0].data.size == 0:
                 loaded = True
                 cmps.load_tensor(cmps.center)
             vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
-            acorr_2t[it] = np.vdot(vec.conj(),vec) / normsqs
+            acorr_2t = np.vdot(vec.conj(),vec) / normsqs
 
-            #==== Print 2t autocorrelation ====#
-            if save_txt and (self.mpi is None or self.mpi.rank == 0):
-                with open(ac2t_f, 'a') as ac2tf:
-                    ac2tf.write(' %9d %13.8f   %11.8f %11.8f %11.8f\n' %
-                                (it, 2*tt, acorr_2t[it].real, acorr_2t[it].imag,
-                                 abs(acorr_2t[it])) )
-            if save_npy and (self.mpi is None or self.mpi.rank == 0):
-                np.save(ac2t_f, acorr_2t[0:it+1])
+            #==== Print autocorrelation ====#
+            if self.mpi is None or self.mpi.rank == 0:
+                print('abc ', type(acorr_t), type(acorr_2t))
+                ac_print.print_ac(tt, acorr_t, acorr_2t, normsqs)
+
             if self.mpi is not None: self.mpi.barrier()
 
+            
             #==== Stores MPS and/or PDM's at sampling times ====#
             if t_sample is not None and np.prod(issampled)==0:
                 if it < n_steps-1:
@@ -1432,7 +1402,10 @@ class MYTDDMRG:
                     if self.mpi is not None: self.mpi.barrier()
                     cmps_cp = cmps.deep_copy('cmps_cp')         # 1)
                     if self.mpi is not None: self.mpi.barrier()
-                    dm = self.get_one_pdm(True, cmps_cp)
+                    #dm = self.get_one_pdm(True, cmps_cp)
+                    print('mpi__ = ', self.mpi)
+                    dm = get_one_pdm(True, 'su2', self.n_sites, self.hamil, cmps_cp,
+                                     ridx=self.ridx, mpi=self.mpi)
                     cmps_cp.info.deallocate()
                     dm_full = make_full_dm(self.n_core, dm)
                     dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
