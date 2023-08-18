@@ -212,6 +212,7 @@ obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, sum(inputs['nelCAS']), inputs['twos'], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
                      idx=re_idx, save_fcidump=None)
+quit()
 
 
 #==== Print symmetries ====#

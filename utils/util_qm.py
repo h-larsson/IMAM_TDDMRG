@@ -174,6 +174,7 @@ def get_one_pdm(iscomp, spin_symm, n_sites, hamil, mps=None, mps_path=None, dmar
 
         
     # 1PDM
+    _print(type(pmpo), type(mps))
     pme = bs.MovingEnvironment(pmpo, mps, mps, "1PDM")
     pme.init_environments(False)
     if iscomp:
