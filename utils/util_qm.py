@@ -79,6 +79,7 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
 
     #==== Get the CAS orbitals and wavefunction symmetries ====#
     wSym = _mcCI.fcisolver.wfnsym
+    _print('wsym__ = ', wSym)
     wSym = wSym if wSym is not None else 0
     molpro_wSym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wSym]
     oSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:nCore+nCAS]

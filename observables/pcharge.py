@@ -1,7 +1,7 @@
 
 import numpy as np
 from scipy.linalg import eigh
-
+from IMAM_TDDMRG.utils.util_print import _print
 
 ##########################################################
 def get_atom_range(mol):
@@ -45,7 +45,7 @@ def calc(mol, pdm, mo, ovl=None):
 
     
     #==== Setting up the system ====#
-    n_mo = mo.shape[2]
+    nao = mol.nao
     atom_ao_range = get_atom_range(mol)
 
     
@@ -57,7 +57,7 @@ def calc(mol, pdm, mo, ovl=None):
     
     
     #==== Calculate the partial charge ====#
-    P = np.zeros((n_mo, n_mo), dtype=dtype)
+    P = np.zeros((nao, nao), dtype=dtype)
     for i in range(0,2):
         P = P + mo[i,:,:] @ (pdm[i,:,:] @ mo[i,:,:].T)
     

@@ -57,6 +57,11 @@ def get_inputs(inp_file):
     #==== General parameters ====#
     inputs['inp_coordinates'] = inp_coordinates
     inputs['inp_basis'] = inp_basis
+
+    try:
+        inputs['complex_MPS_type'] = complex_MPS_type
+    except NameError:
+        inputs['complex_MPS_type'] = defvals.def_complex_MPS_type
     try:
         inputs['dump_inputs'] = dump_inputs
     except NameError:

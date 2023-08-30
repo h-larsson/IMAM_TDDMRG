@@ -1,17 +1,30 @@
 #! /usr/bin/env python
 
 
-import os, time, socket
+import os, sys, time, socket
 import numpy as np
 from scipy.linalg import eigvalsh
 from humanfriendly import format_timespan
 import block2
 from block2 import TETypes, PointGroup
 from pyscf import gto, scf, ao2mo, symm
-from i_tddmrg import MYTDDMRG, orbital_reorder
+
+######################
+#vvvv Input File vvvv#
+######################
+from IMAM_TDDMRG import defvals, cm_inputs
+inp_file = str(sys.argv[1])
+inputs = cm_inputs.get_inputs(inp_file)
+######################
+#^^^^ Input File ^^^^#
+######################
+
+
+from IMAM_TDDMRG.utils import util_complex_type
+util_complex_type.init(inputs['complex_MPS_type'])
+from IMAM_TDDMRG.i_tddmrg import MYTDDMRG, orbital_reorder
 from IMAM_TDDMRG.utils.util_qm import get_symCASCI_ints
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning
-import defvals, cm_inputs
 yn_bools = ('No','Yes')
 
 
@@ -30,7 +43,6 @@ except ImportError:
 if hasMPI:
     from mpi4py import MPI as MPIpy
     commPy = MPIpy.COMM_WORLD
-    #print(MPI.rank,"rank",flush=True)
     assert commPy.Get_rank() == MPI.rank, f"{commPy.Get_rank()} vs {MPI.rank}"
     assert commPy.Get_size() == MPI.size, f"{commPy.Get_size()} vs {MPI.size}"
     MAIN_PROCESS = MPI.rank == 0
@@ -58,22 +70,14 @@ if hasMPI:
               flush=True)
     MPI.barrier()
 
-
-######################
-#vvvv Input File vvvv#
-######################
-import sys
-inp_file = str(sys.argv[1])
-inputs = cm_inputs.get_inputs(inp_file)
+    
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
         _print('  ', kw, ' = ', inputs[kw])
     print(' ')
-######################
-#^^^^ Input File ^^^^#
-######################
 
+    
 
 #==== Print process-related status ====#
 _print('block2 build = ', block2.__file__)
@@ -87,6 +91,7 @@ _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 def_scratch = './' + inputs['prefix'] + '.tmp'
 scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
 _print('Scratch directory = ', scratch)
+_print('Complex MPS type = ', inputs['complex_MPS_type'])
 
     
 #==== Setting up the system ====#
@@ -212,7 +217,6 @@ obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, sum(inputs['nelCAS']), inputs['twos'], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
                      idx=re_idx, save_fcidump=None)
-quit()
 
 
 #==== Print symmetries ====#

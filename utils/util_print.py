@@ -13,7 +13,7 @@ else:
     MPI = _MPI()
 
 from IMAM_TDDMRG.phys_const import au2fs
-    
+from IMAM_TDDMRG.utils.util_complex_type import get_complex_type
 
 
 #################################################
@@ -134,6 +134,11 @@ def print_orb_occupations(occs):
 ##########################################################################
 def print_pcharge(mol, qmul, qlow):
 
+    comp = get_complex_type()
+    if comp == 'full':
+        qmul = [qmul[i].real for i in range(0,len(qmul))]
+        qlow = [qlow[i].real for i in range(0,len(qlow))]
+
     print_section('Atomic Mulliken populations', 2)
     print_i4('', end='')
     for i in range(0, mol.natm):
@@ -159,6 +164,11 @@ def print_pcharge(mol, qmul, qlow):
 ##########################################################################
 def print_mpole(e_dpole, n_dpole, e_qpole, n_qpole):
 
+    comp = get_complex_type()
+    if comp == 'full':
+        e_dpole = e_dpole.real
+        e_qpole = e_qpole.real
+    
     assert e_dpole.shape == (3,)
     assert n_dpole.shape == (3,)
     assert e_qpole.shape == (3,3)
