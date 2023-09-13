@@ -155,7 +155,35 @@ def calc_energy_MPS(hmpo, mps, bond_dim_margin=0):
 
 
 #################################################
-def loadMPSfromDir(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicator=None) -> bs.MPS:
+#################################################
+def copyItRev(fnam: str, mpsSaveDir:str, MPI:MPICommunicator=None):
+    
+    if MPI is not None and MPI.rank != 0:
+        # ATTENTION: For multi node  calcs, I assume that all nodes have one global scratch dir
+        return
+    lastName = os.path.split(fnam)[-1]
+    fst = f"cp -p {mpsSaveDir}/{lastName} {fnam}"
+    try:
+        subprocess.call(fst.split())
+    except: # May problem due to allocate memory, but why??? 
+        print(f"# ATTENTION: loadMPSfromDir with command'{fst}' failed!")
+        print(f"# Error message: {sys.exc_info()[0]}")
+        print(f"# Error message: {sys.exc_info()[1]}")
+        print(f"# Try again with shutil")
+        try:
+            # vv does not copy metadata -.-
+            shutil.copyfile(mpsSaveDir+"/"+lastName, fnam)
+        except:
+            print(f"\t# ATTENTION: loadMPSfromDir with shutil also failed")
+            print(f"\t# Error message: {sys.exc_info()[0]}")
+            print(f"\t# Error message: {sys.exc_info()[1]}")
+            print(f"\t# Try again with syscal")
+            os.system(fst)
+#################################################
+
+
+#################################################
+def loadMPSfromDir_OLD(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicator=None) -> bs.MPS:
     """  Load MPS from directory
     :param mps_info: If None, MPSInfo will be read from mpsSaveDir/mps_info.bin
     :param mpsSaveDir: Directory where the MPS has been saved
@@ -169,42 +197,22 @@ def loadMPSfromDir(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicator=N
         # TODO: It would be good to check if mps_info.bin is available
         #       and then compare it again mps_info input to see any mismatch
         pass 
-    def copyItRev(fnam: str):
-        if MPI is not None and MPI.rank != 0:
-            # ATTENTION: For multi node  calcs, I assume that all nodes have one global scratch dir
-            return
-        lastName = os.path.split(fnam)[-1]
-        fst = f"cp -p {mpsSaveDir}/{lastName} {fnam}"
-        try:
-            subprocess.call(fst.split())
-        except: # May problem due to allocate memory, but why??? 
-            print(f"# ATTENTION: loadMPSfromDir with command'{fst}' failed!")
-            print(f"# Error message: {sys.exc_info()[0]}")
-            print(f"# Error message: {sys.exc_info()[1]}")
-            print(f"# Try again with shutil")
-            try:
-                # vv does not copy metadata -.-
-                shutil.copyfile(mpsSaveDir+"/"+lastName, fnam)
-            except:
-                print(f"\t# ATTENTION: loadMPSfromDir with shutil also failed")
-                print(f"\t# Error message: {sys.exc_info()[0]}")
-                print(f"\t# Error message: {sys.exc_info()[1]}")
-                print(f"\t# Try again with syscal")
-                os.system(fst)
+
+    
     for iSite in range(mps_info.n_sites + 1):
         fnam = mps_info.get_filename(False, iSite)
-        copyItRev(fnam)
+        copyItRev(fnam, mpsSaveDir, MPI)
         if MPI is not None:
             MPI.barrier()
         fnam = mps_info.get_filename(True, iSite)
-        copyItRev(fnam)
+        copyItRev(fnam, mpsSaveDir, MPI)
         if MPI is not None:
             MPI.barrier()
     mps_info.load_mutable()
     mps = bs.MPS(mps_info)
     for iSite in range(-1, mps_info.n_sites):  # -1 is data
         fnam = mps.get_filename(iSite)
-        copyItRev(fnam)
+        copyItRev(fnam, mpsSaveDir, MPI)
         if MPI is not None:
             MPI.barrier()
     mps.load_data()
@@ -213,4 +221,126 @@ def loadMPSfromDir(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicator=N
         MPI.barrier()
     mps_info.bond_dim = mps.info.get_max_bond_dimension() # is not initalized
     return mps
+#################################################
+
+
+#################################################
+#################################################
+def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo, 
+                   ref_center=0, cached_contraction:bool=True, MPI:MPICommunicator=None, 
+                   prule=None) -> bs.MPS:
+
+    if MPI is not None:
+        assert prule is not None, 'prule is required when the MPI input is not None.'
+
+    #==== Construct the MPS information found in <mpsSaveDir>/<mpstag> ====#
+    inmps_path = mpsSaveDir + "/" + mpstag
+    mps_info = brs.MPSInfo(0)
+    mps_info.load_data(inmps_path)
+
+    
+    #==== Duplicate MPS info files in mpsSaveDir to the ====#
+    #====   scratch obtained from the MPSInfo object    ====#
+    for iSite in range(mps_info.n_sites + 1):
+        fnam = mps_info.get_filename(False, iSite)
+        copyItRev(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+        fnam = mps_info.get_filename(True, iSite)
+        copyItRev(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+
+            
+    #==== Duplicate MPS files in mpsSaveDir to the ====#
+    #==== scratch obtained from the MPSInfo object ====#
+    mps = bs.MPS(mps_info)          # 1)
+    for iSite in range(-1, mps_info.n_sites):  # -1 is data
+        fnam = mps.get_filename(iSite)
+        copyItRev(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+    # NOTES:
+    # 1) At this point, mps is just a dummy MPS object used to get
+    #    the path to the scratch folder.
+
+    
+    #==== Construct the actual MPS object ====#
+    mps = bs.MPS(mps_info).deep_copy(mps_info.tag)
+    if MPI is not None:
+        MPI.barrier()
+    mps_info = mps.info
+    mps_info.load_mutable()
+
+    
+    #==== Take care of and adjust the max bond dimension ====#
+    max_bdim = max([x.n_states_total for x in mps_info.left_dims])
+    if mps_info.bond_dim < max_bdim:
+        mps_info.bond_dim = max_bdim
+    max_bdim = max([x.n_states_total for x in mps_info.right_dims])
+    if mps_info.bond_dim < max_bdim:
+        mps_info.bond_dim = max_bdim
+    mps.load_data()
+    if MPI is not None:
+        MPI.barrier()
+
+        
+    #==== Change canonical form for hybrid complex MPS ====#
+    if mps.center == mps.n_sites - 1:
+        if complex_mps and comp == 'hybrid':
+            _print('\n\nChange canonical form - hybrid complex ...')
+            cf = str(mps.canonical_form)
+            mps.dot = 1
+            ime = bs.MovingEnvironment(impo, mps, mps, "IEX")
+            ime.delayed_contraction = b2.OpNamesSet.normal_ops()
+            ime.cached_contraction = cached_contraction
+            ime.init_environments(False)
+            expect = brs.ComplexExpect(ime, mps.info.bond_dim, mps.info.bond_dim)
+            #expect.iprint = max(min(outputlevel, 3), 0)
+            expect.solve(True, mps.center == 0)
+            if MPI is not None:
+                MPI.barrier()
+            mps.dot = 2
+            mps.save_data()
+            if MPI is not None:
+                MPI.barrier()
+            if mps.canonical_form[mps.center] in "ST":
+                mps.flip_fused_form(
+                    mps.center, brs.CG(), prule if MPI is not None else None)
+            mps.save_data()
+            if MPI is not None:
+                MPI.barrier()
+            _print(cf + ' -> ' + mps.canonical_form)
+
+            
+    #==== Further change canonical form (???) ====#
+    if (mps.center == 0) != (ref_center == 0):      # 2)
+        _print('\n\nChange canonical form ...')
+        cf = str(mps.canonical_form)
+        ime = bs.MovingEnvironment(impo, mps, mps, "IEX")
+        ime.delayed_contraction = b2.OpNamesSet.normal_ops()
+        ime.cached_contraction = cached_contraction
+        ime.init_environments(False)
+        if complex_mps and comp == 'hybrid':
+            expect = brs.ComplexExpect(ime, mps.info.bond_dim, mps.info.bond_dim)
+        else:
+            expect = bs.Expect(ime, mps.info.bond_dim, mps.info.bond_dim)
+        #expect.iprint = max(min(outputlevel, 3), 0)
+        expect.solve(True, mps.center == 0)
+        if MPI is not None:
+            MPI.barrier()
+        mps.save_data()
+        if MPI is not None:
+            MPI.barrier()
+        _print(cf + ' -> ' + mps.canonical_form)
+    # NOTES:
+    # 2) This conditional will be executed if the MPS center (which can actually only
+    #    be either 0 or n_sites-2 (2-site mode)) is not equal to reference center. Hence
+    #    this conditional block works to enforce the position of the MPS center according
+    #    to the value of reference center.
+
+        
+    forward = mps.center == 0
+    return mps, mps.info, forward
+
 #################################################

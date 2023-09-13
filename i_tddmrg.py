@@ -99,7 +99,7 @@ from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, p
 from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
-from IMAM_TDDMRG.utils.util_mps import loadMPSfromDir
+from IMAM_TDDMRG.utils.util_mps import loadMPSfromDir_OLD, loadMPSfromDir
 from IMAM_TDDMRG.observables import pcharge, mpole
 from IMAM_TDDMRG.phys_const import au2fs
 
@@ -287,8 +287,7 @@ class MYTDDMRG:
 
         #==== Construct the Hamiltonian MPO ====#
         vacuum = SX(0)
-        self.target = SX(self.fcidump.n_elec, self.fcidump.twos,
-                                swap_pg(self.fcidump.isym))
+        self.target = SX(self.fcidump.n_elec, self.fcidump.twos, swap_pg(self.fcidump.isym))
         self.n_sites = self.fcidump.n_sites
         self.hamil = bs.HamiltonianQC(
             vacuum, self.n_sites, self.orb_sym, self.fcidump)
@@ -419,6 +418,30 @@ class MYTDDMRG:
             if self.mpi is not None:
                 self.mpi.barrier()
 
+
+                
+        #==== New interface ====#
+        from pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
+        if spin_symmetry == 'su2': symm_type = [SymmetryTypes.SU2]
+        elif spin_symmetry == 'sz': symm_type = [SymmetryTypes.SZ]
+        if comp == 'full': symm_type += [SymmetryTypes.CPX]
+        new_driver = DMRGDriver(scratch=self.scratch, symm_type=symm_type, stack_mem=4 << 30, 
+                                n_threads=56, mpi=self.mpi)
+        swap_pg = getattr(b2.PointGroup, "swap_" + pg)
+        new_driver.initialize_system(n_sites=self.n_sites, n_elec=n_elec, spin=twos, 
+                                     singlet_embedding=False, pg_irrep=self.wfn_sym,
+                                     orb_sym=b2.VectorUInt8(map(swap_pg, orb_sym)))
+        self.te_mpo = new_driver.get_qc_mpo(h1e=h1e, g2e=g2e, ecore=e_core, reorder=idx,
+                                            iprint=1)
+        #self.te_mpo = new_driver.get_conventional_qc_mpo(self.fcidump,
+        #                                                 MPOAlgorithmTypes.Conventional)
+        _print('TE_MPO algo type = ', MPOAlgorithmTypes.Conventional)
+        
+        if self.mpi is not None:
+            self.te_mpo = bs.ParallelMPO(self.te_mpo, self.prule)
+
+
+            
         if self.mpi is not None:
             self.mpi.barrier()
     #################################################
@@ -835,24 +858,10 @@ class MYTDDMRG:
                                  f'is {nat_id:d}.')
             use_natorb = True
 
-
-        #cpx bw.bs.SimplifiedMPO
-        #cpx bw.bs.RuleQC
-        #cpx bw.bs.IdentityMPO
-        #cpx bw.bs.ParallelMPO
-        #cpx consider DMRGDriver.get_identity_mpo
+            
         idMPO_ = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
         if self.mpi is not None:
             idMPO_ = bs.ParallelMPO(idMPO_, self.identrule)
-
-        
-
-        #cpx bw.bs.ParallelMPO
-        #OLD_CPX if self.mpi is not None:
-        #OLD_CPX     if SpinLabel == SU2:
-        #OLD_CPX         from block2.su2 import ParallelMPO
-        #OLD_CPX     else:
-        #OLD_CPX         from block2.sz import ParallelMPO
 
                 
         #==== Build Hamiltonian MPO (to provide noise ====#
@@ -862,22 +871,18 @@ class MYTDDMRG:
             mpo = bs.SimplifiedMPO(mpo, bs.RuleQC(), True, True,
                                    b2.OpNamesSet((b2.OpNames.R, b2.OpNames.RD)))
             self.mpo_orig = mpo
-
-        mpo = 1.0 * self.mpo_orig
-        print_MPO_bond_dims(mpo, 'Hamiltonian')
+        else:
+            mpo = self.mpo_orig
         if self.mpi is not None:
             mpo = bs.ParallelMPO(mpo, self.prule)
+        print_MPO_bond_dims(mpo, 'Hamiltonian')
 
 
         #==== Load the input MPS ====#
-        inmps_path = inmps_dir + "/" + inmps_name
-        _print('Loading input MPS info from ' + inmps_path)
-        mps_info = brs.MPSInfo(0)
-        mps_info.load_data(inmps_path)
-        #OLD mps_info.load_data(self.scratch + "/GS_MPS_INFO")
-        #OLD mps = MPS(mps_info)
-        #OLD mps.load_data()
-        mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
+        mps, mps_info, _ = \
+                loadMPSfromDir(inmps_dir, inmps_name, comp=='full', idMPO_,
+                               cached_contraction=True, MPI=self.mpi, 
+                               prule=self.prule if self.mpi is not None else None)
         _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
 
 
@@ -1289,33 +1294,50 @@ class MYTDDMRG:
             mpo = bs.SimplifiedMPO(mpo, bs.RuleQC(), True, True,
                                    b2.OpNamesSet((b2.OpNames.R, b2.OpNames.RD)))
             self.mpo_orig = mpo
-        mpo = 1.0 * self.mpo_orig
-        print_MPO_bond_dims(mpo, 'Hamiltonian')
+        else:
+            mpo = self.mpo_orig
         #need? mpo = IdentityAddedMPO(mpo) # hrl: alternative
         if self.mpi is not None:
             mpo = bs.ParallelMPO(mpo, self.prule)
+        print_MPO_bond_dims(mpo, 'Hamiltonian')
 
+        
         #==== Load the initial MPS ====#
-        inmps_path = inmps_dir + "/" + inmps_name
-        _print('Loading initial MPS info from ' + inmps_path)
-        mps_info = brs.MPSInfo(0)
-        mps_info.load_data(inmps_path)
+        _print('Loading initial MPS info from ' + inmps_dir + "/" + inmps_name)
+        loadv2 = True
+        if loadv2:
+            idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
+            if self.mpi is not None:
+                idMPO = bs.ParallelMPO(idMPO, self.identrule)
+            mps, mps_info, _ = \
+                loadMPSfromDir(inmps_dir, inmps_name, comp=='full', idMPO,
+                               cached_contraction=True, MPI=self.mpi, 
+                               prule=self.prule if self.mpi is not None else None)
+            #ipsh('After loading mps')
+        else:
+            inmps_path = inmps_dir + "/" + inmps_name
+            mps_info = brs.MPSInfo(0)
+            mps_info.load_data(inmps_path)
+            mps = loadMPSfromDir_OLD(mps_info, inmps_dir, self.mpi)
         nel_t0 = mps_info.target.n + self.nel_core
-        #OLD mps = MPS(mps_info)       # This MPS-loading way does not allow loading from directories other than scratch.
-        #OLD mps.load_data()           # This MPS-loading way does not allow loading from directories other than scratch.
-        #OLD mps.info.load_mutable()   # This MPS-loading way does not allow loading from directories other than scratch.
-        mps = loadMPSfromDir(mps_info, inmps_dir, self.mpi)
+        
 
         #==== Initial norm ====#
         idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
         print_MPO_bond_dims(idMPO, 'Identity_2')
         if self.mpi is not None:
             idMPO = bs.ParallelMPO(idMPO, self.identrule)
+        #ipsh('Init norm')
         idN = bs.MovingEnvironment(idMPO, mps, mps, "norm_in")
+        #ipsh('Init norm')
         idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
+        #ipsh('Init norm')
         nrm = bs.Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
-        nrm_ = nrm.solve(False)
-        _print(f'Initial MPS norm = {nrm_.real:11.8f}, {nrm_.imag:11.8f}')
+        #ipsh('Init norm')
+        #nrm_ = nrm.solve(False)
+        #ipsh('Init norm')
+        #_print(f'Initial MPS norm = {nrm_.real:11.8f}, {nrm_.imag:11.8f}')
+
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
         if prefit:
@@ -1329,12 +1351,13 @@ class MYTDDMRG:
 
         #==== Make the initial MPS complex when using hybrid complex ====#
         if comp == 'full':
-            _print('fullcpx')
             cmps = mps.deep_copy('mps_t')
             cmps_t0 = mps.deep_copy('mps_t0')
+            #ipsh('init cmps')
         elif comp == 'hybrid':
             cmps = bs.MultiMPS.make_complex(mps, "mps_t")
             cmps_t0 = bs.MultiMPS.make_complex(mps, "mps_t0")
+        _print('Initial canonical form = ', cmps.canonical_form)
         if mps.dot != 1: # change to 2dot      #NOTE: Is it for converting to two-site DMRG?
             cmps.load_data()
             cmps_t0.load_data()
@@ -1345,6 +1368,11 @@ class MYTDDMRG:
             cmps_t0.dot = 2
             cmps.save_data()
             cmps_t0.save_data()
+            #ipsh('After checking dot')
+        if cmps.dot == 2:
+            _print('Algorithm type = 2-site')
+        elif cmps.dot == 1:
+            _print('Algorithm type = 1-site')
 
 
         #==== Initial setups for autocorrelation ====#
@@ -1352,12 +1380,16 @@ class MYTDDMRG:
             
         
         #==== Initial setups for time evolution ====#
-        me = bs.MovingEnvironment(mpo, cmps, cmps, "TE")
+        #ipsh()
+        #me = bs.MovingEnvironment(mpo, cmps, cmps, "TE")
+        me = bs.MovingEnvironment(self.te_mpo, cmps, cmps, "TE")
+        #ipsh()
         self.delayed_contraction = True
         if self.delayed_contraction:
             me.delayed_contraction = b2.OpNamesSet.normal_ops()
         me.cached_contraction = True
-        me.init_environments()
+        me.save_partition_info = True
+        me.init_environments(self.verbose >= 2)
 
 
         #==== Time evolution ====#
@@ -1389,23 +1421,24 @@ class MYTDDMRG:
             np.save('./' + prefix + '.t', ts)
             if t_sample is not None: np.save('./'+prefix+'.ts', t_sample)
         i_sp = 0
+        #ipsh()
         for it, tt in enumerate(ts):
 
             if self.verbose >= 2:
                 _print('\n')
-                _print(' Step : ', it)
+                _print(' Time point : ', it)
                 _print('>>> TD-PROPAGATION TIME = %10.5f <<<' %tt)
             t = time.perf_counter()
 
-            if it == 2:
-                _print('TIME = ', tt)
-                ipsh()
-                _print('Quitting here at step = ', it)
-                quit()
+            #if it == 2:
+            #if it >= 0:
+                #_print('ipsh at it = ', it)
+                #ipsh('IPython invoked before it=2')
+                #quit()
 
             if it != 0: # time zero: no propagation
                 dt_ = ts[it] - ts[it-1]
-                _print('    DELTA T = %10.5f <<<' % dt_)
+                _print('    DELTA_T stepped from the previous time point = %10.5f <<<' % dt_)
                 if method == b2.TETypes.RK4:
                     te.solve(1, +1j * dt_, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = n_sub_sweeps
@@ -1413,6 +1446,17 @@ class MYTDDMRG:
                     te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1
 
+                #if it == 1:
+                #    ipsh()
+
+                if comp == 'full':
+                    _print(("T = %10.5f <E> = (%20.15f, %20.15f) <Norm^2> = %20.15f") %
+                           (tt, te.energies[-1].real, te.energies[-1].imag, te.normsqs[-1]))
+                else:
+                    _print(("T = %10.5f <E> = %20.15f <Norm^2> = %20.15f") %
+                           (tt, te.energies[-1], te.normsqs[-1]))
+            else:
+                _print('This is the starting time point, nothing happened yet.')
                         
             #==== Autocorrelation and norm ====#
             idME.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
@@ -1420,6 +1464,8 @@ class MYTDDMRG:
                 acorr = brs.ComplexExpect(idME, max_bond_dim, max_bond_dim)
             elif comp == 'full':
                 acorr = bs.Expect(idME, max_bond_dim, max_bond_dim)
+
+            #acorr_t = 1.0
             acorr_t = acorr.solve(False)
             if it == 0:
                 normsqs = abs(acorr_t)
@@ -1434,12 +1480,11 @@ class MYTDDMRG:
                     cmps.load_tensor(cmps.center)
                 vec = cmps.wfns[0].data + 1j * cmps.wfns[1].data
                 acorr_2t = np.vdot(vec.conj(),vec) / normsqs
-            else:
+            elif comp == 'full':
                 acorr_2t = complex(0.0, 0.0)
 
             #==== Print autocorrelation ====#
             if self.mpi is None or self.mpi.rank == 0:
-                print('abc ', type(acorr_t), type(acorr_2t))
                 ac_print.print_ac(tt, acorr_t, acorr_2t, normsqs)
 
             if self.mpi is not None: self.mpi.barrier()
@@ -1512,11 +1557,13 @@ class MYTDDMRG:
                     i_sp += 1
 
         #==== Print max min imaginary parts (for debugging) ====#
-        if self.mpi is None or self.mpi.rank == 0:
-            q_print.footer()
+        if t_sample is not None:
+            if self.mpi is None or self.mpi.rank == 0:
+                q_print.footer()
 
-        if self.mpi is None or self.mpi.rank == 0:
-            mp_print.footer()
+        if t_sample is not None:
+            if self.mpi is None or self.mpi.rank == 0:
+                mp_print.footer()
             
     ##############################################################
     
