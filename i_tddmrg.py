@@ -209,10 +209,10 @@ class MYTDDMRG:
 
         #==== Some persistent quantities ====#
         self.mol = mol
-        assert isinstance(nel_site, tuple), 'init: The argument nel_site must be a tuple.'
+        #OLDassert isinstance(nel_site, tuple), 'init: The argument nel_site must be a tuple.'
         self.nel = sum(mol.nelec)
         self.nel_site = nel_site
-        self.nel_core = self.nel - sum(nel_site)
+        self.nel_core = self.nel - nel_site
         assert self.nel_core%2 == 0, \
             f'The number of core electrons (currently {self.nel_core}) must be an even ' + \
             'number.'
@@ -266,9 +266,9 @@ class MYTDDMRG:
         self.fcidump = bx.FCIDUMP()
         self.fcidump.read(filename)
         self.groupname = pg
-        assert self.fcidump.n_elec == sum(self.nel_site), \
+        assert self.fcidump.n_elec == self.nel_site, \
             f'init_hamiltonian_fcidump: self.fcidump.n_elec ({self.fcidump.n_elec}) must ' + \
-            'be identical to sum(self.nel_site) (%d).' % sum(self.nel_site)
+            'be identical to self.nel_site (%d).' % self.nel_site
 
         #==== Reordering indices ====#
         if idx is not None:
@@ -320,9 +320,9 @@ class MYTDDMRG:
         assert self.fcidump is None
         self.fcidump = bx.FCIDUMP()
         self.groupname = pg
-        assert n_elec == sum(self.nel_site), \
+        assert n_elec == self.nel_site, \
             f'init_hamiltonian: The argument n_elec ({n_elec}) must be identical to ' + \
-            'sum(self.nel_site) (%d).' % sum(self.nel_site)
+            'self.nel_site (%d).' % self.nel_site
 
         #==== Rearrange the 1e and 2e integrals, and initialize FCIDUMP ====#
         if not isinstance(h1e, tuple):
@@ -348,11 +348,11 @@ class MYTDDMRG:
                 n_sites, n_elec, twos, isym, e_core, mh1e, mg2e)
         else:
             assert spin_symmetry == 'sz'
-            assert twos == 2*(self.nel_site[0]-self.nel_site[1]), \
-                'init_hamiltonian: When SZ symmetry is enabled, the argument twos must be ' + \
-                'equal to twice the difference between alpha and beta electrons. ' + \
-                f'Currently, their values are twos = {twos} and 2*(n_alpha - n_beta) = ' + \
-                f'{2*(self.nel_site[0]-self.nel_site[1])}.'
+            #OLDassert twos == 2*(self.nel_site[0]-self.nel_site[1]), \
+            #OLD    'init_hamiltonian: When SZ symmetry is enabled, the argument twos must be ' + \
+            #OLD    'equal to twice the difference between alpha and beta electrons. ' + \
+            #OLD    f'Currently, their values are twos = {twos} and 2*(n_alpha - n_beta) = ' + \
+            #OLD    f'{2*(self.nel_site[0]-self.nel_site[1])}.'
             assert isinstance(h1e, tuple) and len(h1e) == 2
             assert isinstance(g2e, tuple) and len(g2e) == 3
             mh1e_a = np.zeros((n_sites * (n_sites + 1) // 2))
@@ -420,6 +420,7 @@ class MYTDDMRG:
 
 
                 
+
         #==== New interface ====#
         from pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
         if spin_symmetry == 'su2': symm_type = [SymmetryTypes.SU2]
@@ -440,6 +441,8 @@ class MYTDDMRG:
         if self.mpi is not None:
             self.te_mpo = bs.ParallelMPO(self.te_mpo, self.prule)
 
+
+            
 
             
         if self.mpi is not None:
@@ -940,7 +943,7 @@ class MYTDDMRG:
                     _print(f'   The first detected nonzero element has a symmetry ID of {aorb_sym:d}, ', end='')
                     _print(f'but the symmetry ID of another nonzero element (the {i:d}-th element) ', end='')
                     _print(f'is {self.orb_sym[j]:d}.')
-                    raise ValueError('The orbitals making the linear combination in ' +
+                    raise ValueError('The orbitals making up the linear combination in ' +
                                      'aorb must all have the same symmetry.')
             # NOTES:
             # 1) j instead of i is used as the index for self.orb_sym because the
@@ -1000,7 +1003,7 @@ class MYTDDMRG:
             ion_target = self.target + ops.q_label
         elif isinstance(aorb, np.ndarray):
             ion_sym = self.wfn_sym ^ aorb_sym
-            ion_target = SX(sum(self.nel_site)-1, 1, ion_sym)
+            ion_target = SX(self.nel_site-1, 1, ion_sym)
         rket_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, ion_target,
                                 self.hamil.basis)
         

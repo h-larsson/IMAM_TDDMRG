@@ -97,30 +97,32 @@ _print('Complex MPS type = ', inputs['complex_MPS_type'])
 #==== Setting up the system ====#
 mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
             ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'])
-na, nb = mol.nelec
-assert na == nb, 'For the moment cm_dmrg can only be used with closed shell system. ' + \
-    'n_alpha = {na} vs. n_beta = {nb}.'
+nelCore = 2 * inputs['nCore']
+mol.charge = mol.nelectron - nelCore - inputs['nelCAS']   # At this point, mol.nelectron is still equal to the total charge of the nuclei.
+mol.spin = inputs['twos']
+# NOTE:
+# mol.spin has no effect on the actual DMRG calculations, thus its value is taken just so
+# that it is consistent with the number of electrons (even/odd).
+mol.build()
 n_mo = mol.nao
 pg = mol.groupname.lower()
 _print('Atomic coordinates (in angstrom) = ', inputs['inp_coordinates'])
 _print('Point group = ', pg)
-_print('Number of electrons (alpha, beta) = ', mol.nelec)
+_print('Total number of electrons = ', sum(mol.nelec))
 _print('AO basis set = ', inputs['inp_basis'])
 _print('Number of AO bases = ', mol.nao)
 _print('Number of MO bases = ', n_mo)
 
 
 #==== Specification of the CAS ====#
-nelCore = (inputs['nCore'], inputs['nCore'])
 nvir = n_mo - (inputs['nCore'] + inputs['nCAS'])
 nsites = inputs['nCAS']
 if MAIN_PROCESS:
-    assert nelCore[0] + inputs['nelCAS'][0] == mol.nelec[0]
-    assert nelCore[1] + inputs['nelCAS'][1] == mol.nelec[1]
+    assert nelCore + inputs['nelCAS'] == sum(mol.nelec)
     assert inputs['nCore'] + inputs['nCAS'] <= n_mo
 _print('Number of core orbitals = ', inputs['nCore'])
-_print('Number of CAS orbitals (CAS electrons) = %d (%d, %d)' %
-       (inputs['nCAS'], inputs['nelCAS'][0], inputs['nelCAS'][1]))
+_print('Number of CAS orbitals (CAS electrons) = %d (%d)' %
+       (inputs['nCAS'], inputs['nelCAS']))
 _print('Number of virtual orbitals = ', nvir)
 
 
@@ -214,7 +216,7 @@ _print(f'Memory allocation = {inputs["memory"]} Bytes')
 obj = MYTDDMRG(mol, inputs['nelCAS'], scratch, inputs['memory'],
                omp_threads=n_threads, mpi=MPI)
 obj.verbose = inputs['verbose_lvl']
-obj.init_hamiltonian(pg, nsites, sum(inputs['nelCAS']), inputs['twos'], molpro_wsym, 
+obj.init_hamiltonian(pg, nsites, inputs['nelCAS'], inputs['twos'], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
                      idx=re_idx, save_fcidump=None)
 
