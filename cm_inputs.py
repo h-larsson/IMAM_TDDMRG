@@ -57,6 +57,7 @@ def get_inputs(inp_file):
     #==== General parameters ====#
     inputs['inp_coordinates'] = inp_coordinates
     inputs['inp_basis'] = inp_basis
+    inputs['wfn_sym'] = wfn_sym
 
     try:
         inputs['complex_MPS_type'] = complex_MPS_type
@@ -148,6 +149,10 @@ def get_inputs(inp_file):
             inputs['save_gs_1pdm'] = save_gs_1pdm
         except NameError:
             inputs['save_gs_1pdm'] = defvals.def_save_gs_1pdm
+        try:
+            inputs['flip_spectrum'] = flip_spectrum
+        except NameError:
+            inputs['flip_spectrum'] = defvals.def_flip_spectrum
     
     #==== Annihilation operation parameters ====#
     inputs['do_annihilate'] = do_annihilate

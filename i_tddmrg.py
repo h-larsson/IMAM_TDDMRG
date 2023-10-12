@@ -564,7 +564,7 @@ class MYTDDMRG:
     #################################################
     def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
              occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
-             save_1pdm=False):
+             save_1pdm=False, flip_spect=False):
         """Ground-State DMRG."""
 
         if self.verbose >= 2:
@@ -615,6 +615,11 @@ class MYTDDMRG:
         mpo = bs.SimplifiedMPO(mpo, bs.RuleQC(), True, True,
                                b2.OpNamesSet((b2.OpNames.R, b2.OpNames.RD)))
         self.mpo_orig = mpo
+
+        #==== Flip spectrum if requested ====#
+        if flip_spect:
+            _print('Hamiltonian spectrum will be flipped')
+            mpo = -1 * mpo
 
         if self.mpi is not None:
             #OLD_CPX if SpinLabel == SU2:
@@ -887,6 +892,9 @@ class MYTDDMRG:
                                cached_contraction=True, MPI=self.mpi, 
                                prule=self.prule if self.mpi is not None else None)
         _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
+        assert mps_info.target.n == self.nel_site, \
+            'The number of active space electrons from the quantum number label does ' + \
+            'not mathc the one specified in the input file.'
 
 
         #==== Compute the requested natural orbital ====#
@@ -1322,6 +1330,9 @@ class MYTDDMRG:
             mps_info = brs.MPSInfo(0)
             mps_info.load_data(inmps_path)
             mps = loadMPSfromDir_OLD(mps_info, inmps_dir, self.mpi)
+        assert mps_info.target.n == self.nel_site, \
+            'The number of active space electrons from the quantum number label does ' + \
+            'not mathc the one specified in the input file.'
         nel_t0 = mps_info.target.n + self.nel_core
         
 

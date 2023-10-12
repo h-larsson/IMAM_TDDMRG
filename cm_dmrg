@@ -23,7 +23,7 @@ inputs = cm_inputs.get_inputs(inp_file)
 from IMAM_TDDMRG.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG, orbital_reorder
-from IMAM_TDDMRG.utils.util_qm import get_symCASCI_ints
+from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning
 yn_bools = ('No','Yes')
 
@@ -154,12 +154,15 @@ if MAIN_PROCESS:
 
 
     #==== Get the integrals ====#
-    h1e, g2e, ecore, molpro_osym, molpro_wsym = \
-         get_symCASCI_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], orbs,
-                           True)
+    h1e, g2e, ecore = \
+         get_CAS_ints(mol, inputs['nCore'], inputs['nCAS'], inputs['nelCAS'], orbs, True)
     g2e = ao2mo.restore('s8', g2e, inputs['nCAS'])   # For some reason 's4' for the first parameter results in an error later on inside FCIDUMP.initialize_su2.
     h1eshape = h1e.shape
     g2eshape = g2e.shape
+
+    #==== Get the symmetries ====#
+    molpro_osym, molpro_wsym = \
+        get_syms(mol, inputs['wfn_sym'], inputs['nCore'], inputs['nCAS'], orbs)
 else:
     orbs = h1e = g2e = None
     orbs_shape = h1eshape = g2eshape = None
@@ -252,7 +255,7 @@ if inputs['do_groundstate']:
     obj.dmrg(inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
              inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
              inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
-             inputs['gs_outmps_fname'], inputs['save_gs_1pdm'])
+             inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'])
     _print('\n')
 
 

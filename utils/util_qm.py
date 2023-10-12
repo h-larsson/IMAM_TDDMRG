@@ -33,7 +33,7 @@ def make_full_dm(ncore, dm):
 
 
 #################################################
-def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
+def get_CAS_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     '''
     Input parameters:
        mol     : PYSCF Mole object that defines the system of interest.
@@ -61,7 +61,7 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
 
     if SpinLabel == SZ:
         _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        _print('WARNING: SZ Spin label is chosen! The get_symCASCI_ints function was ' +
+        _print('WARNING: SZ Spin label is chosen! The get_CAS_ints function was ' +
                'designed with the SU2 spin label in mind. The use of SZ spin label in ' +
                'this function has not been checked.')
         _print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
@@ -75,20 +75,7 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     _mcCI = mcscf.CASCI(mf, ncas=nCAS, nelecas=nelCAS , ncore=nCore)  # IMAM: All orbitals are used?
     _mcCI.mo_coeff = ocoeff          # IMAM : I am not sure if it is necessary.
     _mcCI.mo_coeff = casci_symm.label_symmetry_(_mcCI, ocoeff)
-
-
-    #==== Get the CAS orbitals and wavefunction symmetries ====#
-    wSym = _mcCI.fcisolver.wfnsym
-    _print('wsym__ = ', wSym)
-    wSym = wSym if wSym is not None else 0
-    molpro_wSym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wSym]
-    oSym = np.array(_mcCI.mo_coeff.orbsym)[nCore:nCore+nCAS]
-    #debug _print('here osym = ', oSym)
-    molpro_oSym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in oSym]
-    #debug _print('here molpro_osym = ', molpro_oSym)
-    #forlater irname = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, _mcCI.mo_coeff)
-    #forlater _print('here mo_coeff irname = ', irname)
-
+    
 
     #==== Get the 1e and 2e integrals ====#
     h1e, eCore = _mcCI.get_h1cas()
@@ -96,14 +83,45 @@ def get_symCASCI_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
     g2e = np.require(g2e, dtype=np.float64)
     h1e = np.require(h1e, dtype=np.float64)
 
-
-    #==== Some checks ====#
-    assert oSym.size == nCAS, f'nCAS={nCAS} vs. oSym.size={oSym.size}'
-    assert wSym == 0, "Want A1g state"      # IMAM: Why does it have to be A1g?
-    
     del _mcCI, mf
 
-    return h1e, g2e, eCore, molpro_oSym, molpro_wSym
+    return h1e, g2e, eCore  #, molpro_oSym, molpro_wSym
+#################################################
+
+
+#################################################
+def get_syms(mol, wsym, nCore, nCAS, ocoeff):
+    '''
+    Input parameters:
+       wsym   : The symmetry name or ID (in pyscf convention) of the total wavefunction.
+       ocoeff : Coefficients of all orbitals (core+CAS+virtual) in the AO basis used in mol
+                (Mole) object.
+    Return parameters:
+       molpro_oSym : The symmetry ID of the CAS orbitals in MOLPRO convention.
+       molpro_wSym : The symmetry ID of the total wavefunction in MOLPRO convention.
+    '''
+    from pyscf import symm
+    from pyscf import tools as pyscf_tools
+    
+
+    #==== Wavefunction symmetry ====#
+    if isinstance(wsym, str):
+        wsym_ = symm.irrep_name2id(mol.groupname, wsym)
+    elif isinstance(wsym, int):
+        wsym_ = wsym
+    else:
+        raise ValueError('The argument wsym of get_syms must be either an integer or a string.')
+    molpro_wsym = pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][wsym_]
+
+    
+    #==== Orbitals symmetry ====#
+    osym_l = list(symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, ocoeff))
+    osym = [symm.irrep_name2id(mol.groupname, s) for s in osym_l]
+    osym = np.array(osym)[nCore:nCore+nCAS]
+    molpro_osym = [pyscf_tools.fcidump.ORBSYM_MAP[mol.groupname][i] for i in osym]
+    
+    
+    return molpro_osym, molpro_wsym
 #################################################
 
 
