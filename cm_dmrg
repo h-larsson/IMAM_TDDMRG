@@ -23,7 +23,7 @@ inputs = cm_inputs.get_inputs(inp_file)
 from IMAM_TDDMRG.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG, orbital_reorder
-from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms
+from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder_dip
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning
 yn_bools = ('No','Yes')
 
@@ -190,6 +190,13 @@ if MAIN_PROCESS:
     if inputs['orb_order'] == 'DEFINE_LATER':
         _print('Orbital ordering will be computed by the program.')
         re_idx = orbital_reorder(h1e, g2e)
+    elif isinstance(inputs['orb_order'], list):
+        assert inputs['orb_order'][0] == 'dipole'
+        assert len(inputs['orb_order']) == 4
+        uv = inputs['orb_order'][1:4]
+        i1 = inputs['nCore']
+        i2 = inputs['nCore'] + inputs['nCAS']
+        re_idx = orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
     elif type(inputs['orb_order']) == list:
         re_idx = np.array(inputs['orb_order'])
     else:
@@ -284,9 +291,10 @@ if inputs['do_annihilate']:
     obj.annihilate(
         inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], 
         inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], 
-        inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'], 
+        inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'],
         inputs['ann_sp'], inputs['ann_fit_cutoff'], inputs['ann_fit_occs'], 
-        inputs['ann_fit_bias'], inputs['normalize_annout'], inputs['save_ann_1pdm'])
+        inputs['ann_fit_bias'], inputs['normalize_annout'], inputs['save_ann_1pdm'],
+        inputs['ann_out_singlet_embed'])
     _print('\n')
     
 
@@ -325,7 +333,8 @@ if inputs['do_timeevo']:
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
                        inputs['te_save_2pdm'], inputs['sample_dir'], inputs['prefix'],
-                       inputs['save_txt'], inputs['save_npy'])
+                       inputs['save_txt'], inputs['save_npy'], inputs['te_in_singlet_embed'][0],
+                       inputs['te_in_singlet_embed'][1])
     _print('\n')
 
 

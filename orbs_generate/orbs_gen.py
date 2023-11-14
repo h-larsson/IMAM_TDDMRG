@@ -70,15 +70,20 @@ def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False):
 
 ##########################################################################
 def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
-                    sz=None, wfnsym=None, natorb=False, save_rdm=True, verbose=2,
-                    fcisolver=None, maxM=None, sweep_tol=1.0E-7, dmrg_nthreads=1):
+                    sz=None, wfnsym=None, natorb=False, init_basis=None, sort_out=None, 
+                    save_rdm=True, verbose=2, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
+                    dmrg_nthreads=1):
     '''
     Input parameters:
     ----------------
 
     mol = Mole object of the molecule.
     nCAS = The number of active space orbitals.
-    nelCAS = The number of electrons in the active space.
+    nelCAS = The number of electrons in the active space. The numbers of electrons in CAS
+             and in the frozen orbitals (see frozen below) do not have to add up to the total
+             number of electrons. The difference will be treated as the core electrons. That
+             means there will be ncore/2 orbitals that are doubly occupied throughout the 
+             SCF iteration, where ncore is the number of core electrons.
     frozen = Orbitals to be frozen, i.e. not optimized. If given an integer, it is used 
              as the number of the lowest orbitals to be frozen. If it is given a list of
              integers, it must contain the base-1 indices of the orbitals to be frozen.
@@ -180,7 +185,14 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
             pass
     
     #==== Run CASSCF ====#
-    mc.kernel(init_mo)
+    if init_basis is not None:
+        mol0 = mol.copy()
+        mol0.basis = init_basis
+        mol0.build()
+        init_mo0 = mcscf.project_init_guess(mc, init_mo, prev_mol=mol0)
+    else:
+        init_mo0 = init_mo.copy()
+    mc.kernel(init_mo0)
     orbs = mc.mo_coeff
     ergs = mc.mo_energy
     if fcisolver is None:
@@ -204,16 +216,26 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         occs = natocc
 
         #== Transform back from symm_orb rep. to AO rep. ==#
+        #WARNING: Check if the line below is correct!
         orbs = orbs @ natorb
         ergs = None
 
-        orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
+        if sort_out is not None:
+            assert sort_out[0] == 'occ', \
+                'At the moment sorting using energies when orbital source is ' + \
+                'CASSCF is not supported.'
+            orbs, occs, ergs = sort_orbs(orbs, occs, ergs, sort_out[0], sort_out[1])
+        else:
+            orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
         rdm_mo = np.diag(occs)
         # 2) rdm_mo needs to be in an orthonormal basis rep. to be an input to symm.eigh(),
         #    in this case the MO is chosen as the orthonormal basis.
     else:
         occs = np.diag(rdm_mo).copy()
-        orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
+        if sort_out is not None:
+            orbs, occs, ergs = sort_orbs(orbs, occs, ergs, sort_out[0], sort_out[1])
+        else:
+            orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
         rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))     # Take into account the reordering of the columns of orbs.
 
 
@@ -223,7 +245,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     print('*** Analysis of the CASSCF result ***')
     print('=====================================')
     print('')
-    cc = np.einsum('im, mn, nj -> ij', init_mo.T, ovl, orbs)
+    cc = np.einsum('im, mn, nj -> ij', init_mo0.T, ovl, orbs)
     print('Overlap between the final and initial (guess) orbitals ' +
           '(row -> initial, column -> final):')
     print_matrix(cc)

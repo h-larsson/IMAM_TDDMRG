@@ -99,7 +99,7 @@ from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, p
 from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
-from IMAM_TDDMRG.utils.util_mps import loadMPSfromDir_OLD, loadMPSfromDir
+from IMAM_TDDMRG.utils.util_mps import loadMPSfromDir_OLD, loadMPSfromDir, trans_to_singlet_embed
 from IMAM_TDDMRG.observables import pcharge, mpole
 from IMAM_TDDMRG.phys_const import au2fs
 
@@ -426,15 +426,15 @@ class MYTDDMRG:
         if spin_symmetry == 'su2': symm_type = [SymmetryTypes.SU2]
         elif spin_symmetry == 'sz': symm_type = [SymmetryTypes.SZ]
         if comp == 'full': symm_type += [SymmetryTypes.CPX]
-        new_driver = DMRGDriver(scratch=self.scratch, symm_type=symm_type, stack_mem=4 << 30, 
+        self.b2driver = DMRGDriver(scratch=self.scratch, symm_type=symm_type, stack_mem=4 << 30, 
                                 n_threads=56, mpi=self.mpi)
         swap_pg = getattr(b2.PointGroup, "swap_" + pg)
-        new_driver.initialize_system(n_sites=self.n_sites, n_elec=n_elec, spin=twos, 
+        self.b2driver.initialize_system(n_sites=self.n_sites, n_elec=n_elec, spin=twos, 
                                      singlet_embedding=False, pg_irrep=self.wfn_sym,
                                      orb_sym=b2.VectorUInt8(map(swap_pg, orb_sym)))
-        self.te_mpo = new_driver.get_qc_mpo(h1e=h1e, g2e=g2e, ecore=e_core, reorder=idx,
+        self.te_mpo = self.b2driver.get_qc_mpo(h1e=h1e, g2e=g2e, ecore=e_core, reorder=idx,
                                             iprint=1)
-        #self.te_mpo = new_driver.get_conventional_qc_mpo(self.fcidump,
+        #self.te_mpo = self.b2driver.get_conventional_qc_mpo(self.fcidump,
         #                                                 MPOAlgorithmTypes.Conventional)
         _print('TE_MPO algo type = ', MPOAlgorithmTypes.Conventional)
         
@@ -816,7 +816,8 @@ class MYTDDMRG:
     def annihilate(self, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, pg,
                    inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
                    outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
-                   cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False):
+                   cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False,
+                   out_singlet_embed=False):
         """
         aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
         """
@@ -1084,7 +1085,7 @@ class MYTDDMRG:
                     verbose_lvl=self.verbose-1)
         _print('Output MPS max. bond dimension = ', rkets.info.bond_dim)
 
-
+            
         #==== Normalize the output MPS if requested ====#
         if outmps_normal:
             _print('Normalizing the output MPS')
@@ -1103,7 +1104,7 @@ class MYTDDMRG:
             rkets.unload_tensor(icent)
             # rket_info.save_data(self.scratch + "/" + outmps_name)
 
-            
+
         #==== Check the norm ====#
         idMPO_ = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
         if self.mpi is not None:
@@ -1122,7 +1123,8 @@ class MYTDDMRG:
         _print('Output MPS energy = ',
                '(%12.8f, %12.8fj) Hartree' % (energy.real, energy.imag) if comp=='full' else
                '%12.8f Hartree' % energy)
-        _print('Canonical form of the annihilation output = ', rkets.canonical_form)
+        _print('Canonical form of the annihilation output (ortho. center) = ' +
+               f'{rkets.canonical_form} ({rkets.center})')
         dm1 = self.get_one_pdm(comp=='full', rkets)
         _print('Occupations after annihilation:')
         if isinstance(aorb, int):
@@ -1133,7 +1135,7 @@ class MYTDDMRG:
             else:
                 self.print_occupation_table(dm1, aorb[self.ridx])
 
-            
+           
         #==== Partial charge ====#
         dm1_full = make_full_dm(self.n_core, dm1)
         orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs()), axis=2)
@@ -1147,12 +1149,32 @@ class MYTDDMRG:
             mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm1_full, orbs)
         print_mpole(e_dpole, n_dpole, e_qpole, n_qpole)
 
-        
+
+        #==== Singlet embedding ====#
+        if out_singlet_embed:
+            init_target, init_multip = rkets.info.target, rkets.info.target.multiplicity
+            init_form, init_center = rkets.canonical_form, rkets.center
+            rkets = trans_to_singlet_embed(rkets, rkets.info.tag, self.prule)
+            rkets.save_data()
+            rkets.info.save_data(self.scratch + "/" + outmps_name)
+            _print('')
+            _print('The output MPS is transformed to a singlet embedded MPS.')
+            _print('Quantum number information with singlet embedding:')
+            _print(' - Input MPS = ', init_target)
+            _print(' - Input MPS multiplicity = ', init_multip)
+            _print(' - Input canonical form (ortho. center) = ' +
+               f'{init_form} ({init_center})')
+            _print(' - Output MPS = ', rkets.info.target)
+            _print(' - Output MPS multiplicity = ', rkets.info.target.multiplicity)
+            _print(' - Output canonical form (ortho. center) = ' +
+               f'{rkets.canonical_form} ({rkets.center})')
+            
+            
         #==== Save the output MPS ====#
         _print('')
         if outmps_dir != self.scratch:
             mkDir(outmps_dir)
-        rket_info.save_data(outmps_dir + "/" + outmps_name)
+        rkets.info.save_data(outmps_dir + "/" + outmps_name)
         _print('Saving output MPS files under ' + outmps_dir)
         saveMPStoDir(rkets, outmps_dir, self.mpi)
         if save_1pdm:
@@ -1252,9 +1274,10 @@ class MYTDDMRG:
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
                        save_2pdm=False, sample_dir='samples', prefix='te', save_txt=True,
-                       save_npy=False, prefit=False, prefit_bond_dims=None, 
-                       prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
-                       prefit_cutoff=None, verbosity=6):
+                       save_npy=False, in_singlet_embed=False, si_nel_site=None, 
+                       prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
+                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None,
+                       verbosity=6):
         '''
         Coming soon
         '''
@@ -1330,12 +1353,20 @@ class MYTDDMRG:
             mps_info = brs.MPSInfo(0)
             mps_info.load_data(inmps_path)
             mps = loadMPSfromDir_OLD(mps_info, inmps_dir, self.mpi)
-        assert mps_info.target.n == self.nel_site, \
-            'The number of active space electrons from the quantum number label does ' + \
-            'not mathc the one specified in the input file.'
-        nel_t0 = mps_info.target.n + self.nel_core
+        if in_singlet_embed:
+            _print('The input MPS is a singlet embedded MPS.')
+            nel_t0 = si_nel_site + self.nel_core
+        else:
+            assert mps_info.target.n == self.nel_site, \
+            f'The number of active space electrons from the quantum number label ' + \
+            f'({mps_info.target.n}) does not match the one specified in the input file ' + \
+            f'({self.nel_site}).'
+            nel_t0 = self.nel_site + self.nel_core
+        _print('Quantum number information:')
+        _print(' - Initial MPS = ', mps_info.target)
+        _print(' - Initial MPS multiplicity = ', mps_info.target.multiplicity)
         
-
+        
         #==== Initial norm ====#
         idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
         print_MPO_bond_dims(idMPO, 'Identity_2')
@@ -1371,7 +1402,8 @@ class MYTDDMRG:
         elif comp == 'hybrid':
             cmps = bs.MultiMPS.make_complex(mps, "mps_t")
             cmps_t0 = bs.MultiMPS.make_complex(mps, "mps_t0")
-        _print('Initial canonical form = ', cmps.canonical_form)
+        _print('Initial canonical form (ortho. center) = ' +
+               f'{cmps.canonical_form} ({cmps.center})')
         if mps.dot != 1: # change to 2dot      #NOTE: Is it for converting to two-site DMRG?
             cmps.load_data()
             cmps_t0.load_data()
@@ -1538,7 +1570,7 @@ class MYTDDMRG:
                     cmps_cp.info.deallocate()
                     dm_full = make_full_dm(self.n_core, dm)
                     dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
-                    dm_full = dm_full * nel_t0 / np.abs(dm_tr)      # fm_full is now normalized
+                    dm_full = dm_full * nel_t0 / np.abs(dm_tr)      # dm_full is now normalized
                     #OLD cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
                     # NOTE:
                     # 1) Copy the current MPS because self.get_one_pdm convert the input

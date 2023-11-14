@@ -229,3 +229,40 @@ def get_one_pdm(iscomp, spin_symm, n_sites, hamil, mps=None, mps_path=None, dmar
     elif spin_symm == 'sz':
         return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
 #################################################
+
+
+#################################################
+def orbital_reorder_dip(mol, orbs, uv, verb=4):
+    '''
+    uv = The vector that defines the direction of component of the dipole 
+         moment used for the sorting. It does not have to be of unit length
+         because normalization will be done by this function.
+    '''
+    
+    assert len(orbs.shape) == 2, 'The input orbitals to the orbital_reorder_dip ' + \
+           'function must be a two-dimensional array (a matrix).'
+    assert orbs.shape[0] == mol.nao
+    norbs = orbs.shape[1]
+    uv = np.array(uv)
+    uv = uv / np.sqrt(np.dot(uv,uv))
+    
+    #==== The multipole operator matrices in AO rep. ====#
+    dip_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
+
+    #==== Dipole lengths ====#
+    dip_l = np.zeros(norbs)
+    if verb > 2: _print('Dipole moment of orbitals:')
+    for i in range(0, norbs):
+        dip = np.einsum('j, xjk, k -> x', orbs[:,i], dip_ao, orbs[:,i])
+        dip_l[i] = np.dot(uv, dip)
+        if verb >= 2:
+            _print('%d' % (i+1), end='')
+            for j in range(0,3):
+                _print('%11.6f' % dip[j], end='')
+            _print('%11.6f' % dip_l[i])
+
+    #==== Ordering ====#
+    order_id = np.argsort(dip_l)
+        
+    return order_id
+#################################################

@@ -1,5 +1,5 @@
 
-def_source = 'rhf'
+def_source = None
 def_dump_inputs = False
 def_inp_ecp = None
 def_inp_symmetry = 'c1'
@@ -16,3 +16,7 @@ def_update_loc_rdm = False
 def_fcisolver = None
 def_max_bond_dim = -1
 def_sweep_tol = 1.0E-7
+def_orbs_for_loc = None
+def_rdm_for_loc = None
+def_init_basis = None
+def_sort_out = None

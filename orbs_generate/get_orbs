@@ -41,6 +41,7 @@ print('Point group = ', mol.groupname)
 print('Number of electrons (alpha, beta) = ', mol.nelec)
 print('Number of AO bases = ', mol.nao)
 print('Number of MO bases = ', n_mo)
+save_prefix = inputs['save_dir'] + '/' + inputs['prefix']
 
 
 #==== Generate orbitals based on the chosen method ====#
@@ -66,8 +67,8 @@ elif inputs['source'] == 'casscf':
     outs = get_casscf_orbs(
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
         inputs['ss'], inputs['ss_shift'], inputs['sz'], inputs['wfnsym'], inputs['natorb'], 
-        True, 2, inputs['fcisolver'], inputs['max_bond_dim'], inputs['sweep_tol'],
-        dmrg_nthreads)
+        inputs['init_basis'], inputs['sort_out'], True, 2, inputs['fcisolver'], 
+        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads)
     orbs = outs['orbs']
     occs = outs['occs']
     try:
@@ -107,17 +108,22 @@ if inputs['localize']:
     # inputs['loc_subs'] is a list of lists of integers. These integers define the base-1 ID
     # of the localized orbitals for each subspace.
 
-    
+    # Below, the localization algorithm will prioritize loading the input orbitals from
+    # the input keyword 'orbs_for_loc'. Meaning that if there is also computation of
+    # orbitals from a source above, these orbitals will be ignored and overwritten.
     #== Try to assign orbitals to be localized ==#
     try:
-        orbs_loc = np.load(inputs['orbs_for_loc'])
+        orbs = np.load(inputs['orbs_for_loc'])
+        orbs_loc = orbs.copy()
+        orbs_res = orbs_loc.copy()
     except (FileNotFoundError, KeyError):
         try:      # 1)
-            orbs_loc = orbs
+            orbs_loc = orbs.copy()
+            orbs_res = orbs_loc.copy()
         except NameError:
             raise RuntimeError('get_orbs: There is no input orbitals found to be localized.')
     # 1) Successful if a previous SCF calculations in the same run outputs orbitals.
-
+    
     
     #== Try to assign RDM needed for the occupations of localized orbs ==#
     has_rdm_loc = True
@@ -156,7 +162,11 @@ if inputs['localize']:
     if inputs['update_loc_rdm']:
         ovl = mol.intor('int1e_ovlp')
         rdm = reduce(np.dot, (orbs.T, ovl, orbs_loc, rdm_loc, orbs_loc.T, ovl, orbs))
-                     
+
+        
+    #==== Save the expansion coefficients of the localized ====#
+    #====    orbitals in terms of the initial orbitals     ====#
+    np.save(save_prefix + '.loc', orbs_res.T @ ovl @ orbs)
 
            
 #==== Analyze the final orbitals ====#
@@ -168,9 +178,7 @@ print('\n\nOrbital atomic populations:')
 analyze_population(mol, orbs, 'low')
 
 
-save_prefix = inputs['save_dir'] + '/' + inputs['prefix']
-
-
+#==== Save final orbitals ====#
 np.save(save_prefix + '.orb', orbs)
 
 

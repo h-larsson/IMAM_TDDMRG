@@ -216,6 +216,10 @@ def get_inputs(inp_file):
             inputs['save_ann_1pdm'] = save_ann_1pdm
         except NameError:
             inputs['save_ann_1pdm'] = defvals.def_save_ann_1pdm
+        try:
+            inputs['ann_out_singlet_embed'] = ann_out_singlet_embed
+        except NameError:
+            inputs['ann_out_singlet_embed'] = defvals.def_ann_out_singlet_embed
 
     #==== Time evolution parameters ====#
     inputs['do_timeevo'] = do_timeevo
@@ -291,6 +295,10 @@ def get_inputs(inp_file):
             inputs['save_npy'] = save_npy
         except NameError:
             inputs['save_npy'] = defvals.def_save_npy
+        try:
+            inputs['te_in_singlet_embed'] = te_in_singlet_embed
+        except NameError:
+            inputs['te_in_singlet_embed'] = defvals.def_te_in_singlet_embed
 
     return inputs
 #######################################################

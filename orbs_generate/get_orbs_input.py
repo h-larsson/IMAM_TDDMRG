@@ -78,6 +78,14 @@ def get_inputs(inp_file):
             inputs['fcisolver'] = fcisolver
         except NameError:
             inputs['fcisolver'] = defvals.def_fcisolver
+        try:
+            inputs['init_basis'] = init_basis
+        except NameError:
+            inputs['init_basis'] = defvals.def_init_basis
+        try:
+            inputs['sort_out'] = sort_out
+        except NameError:
+            inputs['sort_out'] = defvals.def_sort_out
 
         #==== DMRGSCF ====#
         try:
@@ -100,7 +108,15 @@ def get_inputs(inp_file):
         
     if inputs['localize']:
         inputs['loc_subs'] = loc_subs
-            
+
+        try:
+            inputs['orbs_for_loc'] = orbs_for_loc
+        except NameError:
+            inputs['orbs_for_loc'] = defvals.def_orbs_for_loc
+        try:
+            inputs['rdm_for_loc'] = rdm_for_loc
+        except NameError:
+            inputs['rdm_for_loc'] = defvals.def_rdm_for_loc
         try:
             inputs['loc_type'] = loc_type
         except NameError:

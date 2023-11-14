@@ -10,8 +10,8 @@ def_inp_symmetry = 'c1'
 
 def_gs_steps = 50
 def_gs_noise = [1E-3]*4 + [1E-4]*4 + [0.0]
-def_gs_dav_tols = [1E-3]*4 + [1E-6]*4 + [1E-8]
-def_gs_conv_tol = 1E-7
+def_gs_dav_tols = [1E-2]*2 + [1E-3]*2 + [1E-6]*500
+def_gs_conv_tol = 1E-6
 def_gs_cutoff = 1E-14
 def_gs_occs = None
 def_gs_bias = 1.0
@@ -31,6 +31,7 @@ def_ann_fit_occs = None
 def_ann_fit_bias = 1.0
 def_normalize_annout = True
 def_save_ann_1pdm = False
+def_ann_out_singlet_embed = False
 
 def_te_inmps_fname = 'ANN_KET'
 def_te_method = 'tdvp'
@@ -49,3 +50,4 @@ def_te_save_1pdm = False
 def_te_save_2pdm = False
 def_save_txt = True
 def_save_npy = True
+def_te_in_singlet_embed = (False, None)

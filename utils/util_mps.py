@@ -23,7 +23,7 @@
 #OLD_CPX     except ImportError:
 #OLD_CPX         hasMPI = False
 
-
+from ipsh import ipsh
 import numpy as np
 import subprocess, shutil, os
 from IMAM_TDDMRG.utils.util_complex_type import get_complex_type
@@ -343,4 +343,28 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo,
     forward = mps.center == 0
     return mps, mps.info, forward
 
+#################################################
+
+
+#################################################
+def trans_to_singlet_embed(mps_i, tag, prule):
+    '''
+    DESCRIPTION:
+    Transforms the input MPS to a singlet embedded MPS. 
+    '''
+    mps_o = mps_i.deep_copy(tag)
+    if mps_o.canonical_form[0] == 'C' and mps_o.canonical_form[1] == 'R':
+        mps_o.canonical_form = 'K' + mps_o.canonical_form[1:]
+        mps_o.center = 0
+    elif mps_o.canonical_form[-1] == 'C' and mps_o.canonical_form[-2] == 'L':
+        mps_o.canonical_form = mps_o.canonical_form[:-1] + 'S'
+        mps_o.center = mps_o.n_sites - 1
+    elif mps_o.center == mps_o.n_sites - 2 and mps_o.canonical_form[-2] == 'L':
+        mps_o.center = mps_o.n_sites - 1
+    #OLDmps_o = self.b2driver.mps_change_to_singlet_embedding(mps, rket_info.tag)
+    while mps_o.center > 0:
+        mps_o.move_left(brs.CG(), prule)
+    mps_o.to_singlet_embedding_wfn(brs.CG(), SX.invalid, prule)
+
+    return mps_o
 #################################################
