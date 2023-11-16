@@ -125,14 +125,6 @@ def get_inputs(inp_file):
             inputs['loc_irrep'] = loc_irrep
         except NameError:
             inputs['loc_irrep'] = [True] * len(inputs['loc_subs'])
-        
-        try:
-            inputs['update_loc_occs'] = update_loc_occs
-        except NameError:
-            inputs['update_loc_occs'] = defvals.def_update_loc_occs
-        try:
-            inputs['update_loc_rdm'] = update_loc_rdm
-        except NameError:
-            inputs['update_loc_rdm'] = defvals.def_update_loc_rdm
-        
+
+            
     return inputs

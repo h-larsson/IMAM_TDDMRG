@@ -10,6 +10,7 @@ from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
+from util_orbs import sort_orbs
 
 
 t_start = time.time()
@@ -37,6 +38,7 @@ mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=input
 na, nb = mol.nelec
 pg = mol.groupname.lower()
 n_mo = mol.nao
+ovl = mol.intor('int1e_ovlp')
 print('Point group = ', mol.groupname)
 print('Number of electrons (alpha, beta) = ', mol.nelec)
 print('Number of AO bases = ', mol.nao)
@@ -115,59 +117,59 @@ if inputs['localize']:
     try:
         orbs = np.load(inputs['orbs_for_loc'])
         orbs_loc = orbs.copy()
-        orbs_res = orbs_loc.copy()
     except (FileNotFoundError, KeyError):
         try:      # 1)
             orbs_loc = orbs.copy()
-            orbs_res = orbs_loc.copy()
         except NameError:
             raise RuntimeError('get_orbs: There is no input orbitals found to be localized.')
     # 1) Successful if a previous SCF calculations in the same run outputs orbitals.
     
     
     #== Try to assign RDM needed for the occupations of localized orbs ==#
-    has_rdm_loc = True
+    has_rdm_init = True
     try:
-        rdm_loc = np.load(inputs['rdm_for_loc'])
+        rdm_init = np.load(inputs['rdm_for_loc'])
     except (FileNotFoundError, KeyError):
         try:
-            rdm_loc = rdm
+            rdm_init = rdm
         except NameError:
-            has_rdm_loc = False
-
-    if inputs['update_loc_rdm']:
-        assert has_rdm_loc, 'An RDM must be available for localization if update_loc_rdm ' + \
-            'is True.'
-            
-    if inputs['update_loc_occs']:
-        assert has_rdm_loc, 'An RDM must be available for localization if update_loc_occs ' + \
-            'is True.'
-        occs = np.diag(rdm_loc).copy()
+            has_rdm_init = False
             
             
     #== Do localization ==#
     for i in range(0, len(inputs['loc_subs'])):
-        iloc0 = inputs['loc_subs'][i]       # iloc0 is the 1-based indices of the current localization space.
-        iloc = [iloc0[j]-1 for j in range(0,len(iloc0))] # iloc is the 0-based indices of the current localization space.
-        if inputs['update_loc_occs']:
-            orbs[:,iloc], occs[iloc] = \
-                localize(orbs_loc[:,iloc], mol, inputs['loc_type'][i], 
-                         inputs['loc_irrep'][i], rdm_loc[np.ix_(iloc, iloc)])
-        else:
-            orbs[:,iloc] = localize(orbs_loc[:,iloc], mol, inputs['loc_type'][i],
-                                    inputs['loc_irrep'][i])
-            occs[iloc] = None
+        # iloc0 is the 1-based indices of the current localization space.
+        # iloc is the 0-based indices of the current localization space.
+        iloc0 = inputs['loc_subs'][i]
+        iloc = [iloc0[j]-1 for j in range(0,len(iloc0))]
+        orbs[:,iloc] = localize(orbs_loc[:,iloc], mol, inputs['loc_type'][i], 
+                       inputs['loc_irrep'][i])
 
+    #== Transformation matrix between initial and localized orbitals ==#
+    trans_loc = orbs_loc.T @ ovl @ orbs
+
+    #== Sort orbitals and occupations based on occupations if initial RDM is available ==#
+    if has_rdm_init:
+        occs = np.zeros(orbs.shape[1])
+        for i in range(0, orbs.shape[1]):
+            occs[i] = np.einsum('j, jk, k', trans_loc[:,i], rdm_init, trans_loc[:,i])
+        orbs, occs, ergs = sort_orbs(orbs, occs, None, 'occ', 'de')
+        trans_loc = orbs_loc.T @ ovl @ orbs
+        rdm = trans_loc.T @ rdm_init @ trans_loc    # rdm is the 1RDM in the localized orbitals basis.
+    else:
+        occs = None
+        rdm = None
+        
+        
+    #== Orbitals energy is not calculated when localizing orbitals ==#
     ergs = None
-    ovl = mol.intor('int1e_ovlp')
-    if inputs['update_loc_rdm']:
-        rdm = reduce(np.dot, (orbs.T, ovl, orbs_loc, rdm_loc, orbs_loc.T, ovl, orbs))
-
         
     #==== Save the expansion coefficients of the localized ====#
     #====    orbitals in terms of the initial orbitals     ====#
-    np.save(save_prefix + '.loc', orbs_res.T @ ovl @ orbs)
+    np.save(save_prefix + '.loc', trans_loc)
 
+
+    
 
 #==== Ensure that the output orbitals are orthonormal ====#
 itest = orbs.T @ ovl @ orbs
@@ -192,23 +194,20 @@ analyze_population(mol, orbs, 'low')
 np.save(save_prefix + '.orb', orbs)
 
 
-occs_msg = '   No occupation vector to be saved. **BE WARNED** that if an occupation ' + \
-           'vector file is pre-existing in the same diractory, its occupation\n' + \
-           '   values may not correspond to the same parameters used in the current ' + \
-           'simulation.'
+#==== Save final occupations ====#
 if occs is not None:
-    if not inputs['localize'] or (inputs['localize'] and inputs['update_loc_occs']):
-        np.save(save_prefix + '.occ', occs)
-        print('\n *** INFO***')
-        print('   Occupation vector has been saved to ' + save_prefix + '.occ.npy')
-    else:
-        print('\n >>> ATTENTION <<<')
-        print(occs_msg)
+    np.save(save_prefix + '.occ', occs)
+    print('\n *** INFO***')
+    print('   Occupation vector has been saved to ' + save_prefix + '.occ.npy')
 else:
     print('\n >>> ATTENTION <<<')
-    print(occs_msg)
+    print('   No occupation vector to be saved. **BE WARNED** that if an occupation ' + \
+          'vector file is pre-existing in the same diractory, its occupation\n' + \
+          '   values may not correspond to the same parameters used in the current ' + \
+          'simulation.')
 
-    
+
+#==== Save final energies ====#
 if ergs is not None:
     np.save(save_prefix + '.erg', ergs)
     print('\n *** INFO***')
@@ -220,23 +219,17 @@ else:
           '   values may not correspond to the same parameters used in the current ' + \
           'simulation.')
 
-
-rdm_msg = '   No RDM array to be saved. **BE WARNED** that if an RDM ' + \
-          'array file is pre-existing in the same diractory, its RDM\n' + \
-          '   values may not correspond to the same parameters used in the current ' + \
-          'simulation.'
+    
+#==== Save final RDM ====#
 if rdm is not None:
-    if not inputs['localize'] or (inputs['localize'] and inputs['update_loc_rdm']):
-        np.save(save_prefix + '.rdm', rdm)
-        print('\n *** INFO***')
-        print('   RDM array in MO basis has been saved to ' + save_prefix + '.rdm.npy')
-    else:
-        print('\n >>> ATTENTION <<<')
-        print(rdm_msg)
+    np.save(save_prefix + '.rdm', rdm)
+    print('\n *** INFO***')
+    print('   RDM array in MO basis has been saved to ' + save_prefix + '.rdm.npy')
 else:
     print('\n >>> ATTENTION <<<')
-    print(rdm_msg)
-                    
+    print('   No RDM array to be saved. **BE WARNED** that if an RDM array file ' + \
+          'is pre-existing in the same diractory, its RDM values may not correspond \n' + \
+          '   to the same parameters used in the current simulation.')
 
 
 print('')

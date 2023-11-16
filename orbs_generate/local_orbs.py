@@ -1,8 +1,5 @@
 import numpy as np
 from pyscf import gto, lo, symm
-from functools import reduce
-from util_orbs import sort_orbs
-
 
 
 loc_type_err = 'localize: The value of the argument \'loc_type\' is undefined, ' + \
@@ -10,10 +7,8 @@ loc_type_err = 'localize: The value of the argument \'loc_type\' is undefined, '
                'array.'
 
 ##########################################################################
-def localize(orbs, mol, loc_type='PM', loc_irrep=True, rdm_mo=None):
+def localize(orbs, mol, loc_type='PM', loc_irrep=True):
     '''
-    The occupations of the output localized orbitals (occs_) will be returned only if
-    rdm_mo is not None.
     loc_type = Orbital localization type, the supported values are 'PM' (Pipek-Mezey, the
                default), 'ER' (Edmiston-Ruedenberg), and 'B' (Boys). Only meaningful when 
                loc_orb = True.
@@ -35,23 +30,10 @@ def localize(orbs, mol, loc_type='PM', loc_irrep=True, rdm_mo=None):
     else:
         raise ValueError(loc_type_err)
     print('Localization type = %s' % loc_type_)
-
-    if rdm_mo is not None:
-        ovl = mol.intor('int1e_ovlp')
-        rdm_ao = reduce(np.dot, (ovl, orbs, rdm_mo, orbs.T, ovl))    # rdm_ao is in AO rep.
         
     orbs_ = localize_sub(orbs, mol, loc_type, loc_irrep)
 
-    #==== Calculate occupations of the loc. orbitals if rdm_mo is not None ====#
-    if rdm_mo is not None:
-        occs_ = np.zeros(orbs.shape[1])
-        for i in range(0, orbs.shape[1]):
-            occs_[i] = np.einsum('j, jk, k', orbs_[:,i], rdm_ao, orbs_[:,i])
-
-        orbs_, occs_, ergs_ = sort_orbs(orbs_, occs_, None, 'occ', 'de')
-        return orbs_, occs_
-    else:
-        return orbs_
+    return orbs_
 
 ##########################################################################
 
