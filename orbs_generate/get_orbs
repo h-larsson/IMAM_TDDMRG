@@ -147,8 +147,8 @@ if inputs['localize']:
             
     #== Do localization ==#
     for i in range(0, len(inputs['loc_subs'])):
-        iloc0 = inputs['loc_subs'][i]
-        iloc = [iloc0[j]-1 for j in range(0,len(iloc0))]
+        iloc0 = inputs['loc_subs'][i]       # iloc0 is the 1-based indices of the current localization space.
+        iloc = [iloc0[j]-1 for j in range(0,len(iloc0))] # iloc is the 0-based indices of the current localization space.
         if inputs['update_loc_occs']:
             orbs[:,iloc], occs[iloc] = \
                 localize(orbs_loc[:,iloc], mol, inputs['loc_type'][i], 
@@ -159,8 +159,8 @@ if inputs['localize']:
             occs[iloc] = None
 
     ergs = None
+    ovl = mol.intor('int1e_ovlp')
     if inputs['update_loc_rdm']:
-        ovl = mol.intor('int1e_ovlp')
         rdm = reduce(np.dot, (orbs.T, ovl, orbs_loc, rdm_loc, orbs_loc.T, ovl, orbs))
 
         
@@ -168,6 +168,16 @@ if inputs['localize']:
     #====    orbitals in terms of the initial orbitals     ====#
     np.save(save_prefix + '.loc', orbs_res.T @ ovl @ orbs)
 
+
+#==== Ensure that the output orbitals are orthonormal ====#
+itest = orbs.T @ ovl @ orbs
+nn = orbs.shape[0]
+dg = np.diag(itest).copy()    # Extract the diagonal element of itest.
+sum_diag = np.sum(dg)
+sum_ndiag = np.sum(itest-np.diag(dg)) / (nn*(nn-1))
+#fordebug print('ortho', sum_diag, sum_ndiag)
+assert abs(sum_diag - nn) < 1.0E-12 and abs(sum_ndiag) < 1.0E-12, \
+    'ERROR: Output orbitals are not orthonormal.'
            
 #==== Analyze the final orbitals ====#
 print('\n\nOrbital occupations, energies, and symmetries:')
@@ -219,7 +229,7 @@ if rdm is not None:
     if not inputs['localize'] or (inputs['localize'] and inputs['update_loc_rdm']):
         np.save(save_prefix + '.rdm', rdm)
         print('\n *** INFO***')
-        print('   RDM array has been saved to ' + save_prefix + '.rdm.npy')
+        print('   RDM array in MO basis has been saved to ' + save_prefix + '.rdm.npy')
     else:
         print('\n >>> ATTENTION <<<')
         print(rdm_msg)
