@@ -10,7 +10,6 @@ from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
-from util_orbs import sort_orbs
 
 
 t_start = time.time()
@@ -116,58 +115,44 @@ if inputs['localize']:
     #== Try to assign orbitals to be localized ==#
     try:
         orbs = np.load(inputs['orbs_for_loc'])
-        orbs_loc = orbs.copy()
+        orbs_init = orbs.copy()
     except (FileNotFoundError, KeyError):
         try:      # 1)
-            orbs_loc = orbs.copy()
+            orbs_init = orbs.copy()
         except NameError:
             raise RuntimeError('get_orbs: There is no input orbitals found to be localized.')
     # 1) Successful if a previous SCF calculations in the same run outputs orbitals.
     
-    
     #== Try to assign RDM needed for the occupations of localized orbs ==#
-    has_rdm_init = True
     try:
         rdm_init = np.load(inputs['rdm_for_loc'])
     except (FileNotFoundError, KeyError):
         try:
             rdm_init = rdm
         except NameError:
-            has_rdm_init = False
+            rdm_init = None
             
-            
-    #== Do localization ==#
-    for i in range(0, len(inputs['loc_subs'])):
-        # iloc0 is the 1-based indices of the current localization space.
-        # iloc is the 0-based indices of the current localization space.
-        iloc0 = inputs['loc_subs'][i]
-        iloc = [iloc0[j]-1 for j in range(0,len(iloc0))]
-        orbs[:,iloc] = localize(orbs_loc[:,iloc], mol, inputs['loc_type'][i], 
-                       inputs['loc_irrep'][i])
+    #== If occupations-based localization subspace is requested ==#
+    if inputs['loc_type'] == 'DEFINE_LATER':
+        inputs['loc_type'] = None
+    if inputs['loc_irrep'] == 'DEFINE_LATER':
+        inputs['loc_irrep'] = None
+    outs = localize(mol, orbs_init, rdm_init, ovl, inputs['loc_subs'],
+                    inputs['loc_occs'], inputs['loc_type'], inputs['loc_irrep'],
+                    inputs['loc_exclude'])
 
-    #== Transformation matrix between initial and localized orbitals ==#
-    trans_loc = orbs_loc.T @ ovl @ orbs
-
-    #== Sort orbitals and occupations based on occupations if initial RDM is available ==#
-    if has_rdm_init:
-        occs = np.zeros(orbs.shape[1])
-        for i in range(0, orbs.shape[1]):
-            occs[i] = np.einsum('j, jk, k', trans_loc[:,i], rdm_init, trans_loc[:,i])
-        orbs, occs, ergs = sort_orbs(orbs, occs, None, 'occ', 'de')
-        trans_loc = orbs_loc.T @ ovl @ orbs
-        rdm = trans_loc.T @ rdm_init @ trans_loc    # rdm is the 1RDM in the localized orbitals basis.
-    else:
-        occs = None
-        rdm = None
-        
-        
-    #== Orbitals energy is not calculated when localizing orbitals ==#
+    #== Outputs ==#
+    orbs = outs['orbs']
+    occs = outs['occs']
     ergs = None
-        
-    #==== Save the expansion coefficients of the localized ====#
-    #====    orbitals in terms of the initial orbitals     ====#
+    trans_loc = outs['coef']
     np.save(save_prefix + '.loc', trans_loc)
-
+    if rdm_init is not None:
+        rdm = outs['rdm']
+    else:
+        rdm = None
+        print(' >>> ATTENTION <<<')
+        print('   The RDM from orbitals localization will not be saved.')
 
     
 

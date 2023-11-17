@@ -107,8 +107,27 @@ def get_inputs(inp_file):
         inputs['localize'] = defvals.def_localize
         
     if inputs['localize']:
-        inputs['loc_subs'] = loc_subs
+        # loc_subs:
+        #   A list of lists where each list element contains the 1-base orbital indices
+        #   to be localized in the localization subspace represented by this list element.
+        #   That is, the lists in loc_subs represent the localization subspaces.
+        try:
+            inputs['loc_subs'] = loc_subs
+        except NameError:
+            inputs['loc_subs'] = defvals.def_loc_subs
+            
+        # loc_occs:
+        #   The occupation thresholds that define the localization subspaces.
+        #   If there are more than two subspaces, it must be a list with
+        #   monotonically increasing elements ranging between but does not
+        #   include 0.0 and 2.0.
+        try:
+            inputs['loc_occs'] = loc_occs
+        except NameError:
+            inputs['loc_occs'] = defvals.def_loc_occs
 
+        # orbs_for_loc
+        #   Input orbitals to be localized.
         try:
             inputs['orbs_for_loc'] = orbs_for_loc
         except NameError:
@@ -120,11 +139,15 @@ def get_inputs(inp_file):
         try:
             inputs['loc_type'] = loc_type
         except NameError:
-            inputs['loc_type'] = ['PM'] * len(inputs['loc_subs'])
+            inputs['loc_type'] = 'DEFINE_LATER' #OLD ['PM'] * len(inputs['loc_subs'])
         try:
             inputs['loc_irrep'] = loc_irrep
         except NameError:
-            inputs['loc_irrep'] = [True] * len(inputs['loc_subs'])
+            inputs['loc_irrep'] = 'DEFINE_LATER' #OLD [True] * len(inputs['loc_subs'])
 
+        try:
+            inputs['loc_exclude'] = loc_exclude
+        except NameError:
+            inputs['loc_exclude'] = defvals.def_loc_exclude
             
     return inputs
