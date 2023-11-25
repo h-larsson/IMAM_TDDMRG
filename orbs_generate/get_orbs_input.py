@@ -9,6 +9,8 @@ def get_inputs(inp_file):
     #==== General parameters ====#
     inputs['inp_coordinates'] = inp_coordinates
     inputs['inp_basis'] = inp_basis
+    inputs['charge'] = charge
+    inputs['twosz'] = twosz
 
     try:
         inputs['dump_inputs'] = dump_inputs
@@ -34,10 +36,6 @@ def get_inputs(inp_file):
     except NameError:
         inputs['save_dir'] = defvals.def_save_dir
 
-    try:
-        inputs['sz'] = sz
-    except NameError:
-        inputs['sz'] = defvals.def_sz
     try:
         inputs['natorb'] = natorb
     except NameError:
@@ -82,6 +80,14 @@ def get_inputs(inp_file):
             inputs['init_basis'] = init_basis
         except NameError:
             inputs['init_basis'] = defvals.def_init_basis
+        try:
+            inputs['state_average'] = state_average
+        except NameError:
+            inputs['state_average'] = defvals.def_state_average
+        try:
+            inputs['sa_weights'] = sa_weights
+        except NameError:
+            inputs['sa_weights'] = defvals.def_sa_weights            
         try:
             inputs['sort_out'] = sort_out
         except NameError:

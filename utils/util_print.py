@@ -99,7 +99,7 @@ def print_matrix(m, maxcol=10):
         _print('%5s   ' % '', end='')
         _print(hline)
 
-        #== Population values ==#
+        #== Matrix element values ==#
         for i in range(0, nrow):
             _print('%5d  |' % (i+1), end='')
             for j in range(j1, j2+1):

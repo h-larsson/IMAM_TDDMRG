@@ -20,5 +20,7 @@ def_loc_occs = None
 def_orbs_for_loc = None
 def_rdm_for_loc = None
 def_init_basis = None
+def_state_average = False
+def_sa_weights = None
 def_sort_out = None
 def_loc_exclude = []

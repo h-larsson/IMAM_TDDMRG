@@ -7,13 +7,12 @@ from util_orbs import sort_orbs
 
 
 ##########################################################################
-def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False): 
+def get_rhf_orbs(mol, save_rdm=True, natorb=False): 
     '''
     Input parameters:
     ----------------
 
     mol = Mole object.
-    sz = The z-projection of the total spin operator (S).
 
     Outputs:
     -------
@@ -26,17 +25,6 @@ def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False):
         print('Natural orbitals are specified for get_rhf_orbs which does not have any ' + \
               'effect because in Hartree-Fock method, the natural orbitals are the ' + \
               'same as the canonical orbitals.')
-    
-    #==== Set up system (mol) ====#
-    dnel = mol.nelec[0] - mol.nelec[1]
-    if sz is not None:
-        mol.spin = int(2 * sz)
-        assert mol.spin == dnel, 'get_rhf_orbs:' + \
-            f'The chosen value of sz ({sz}) is inconsistent with the difference ' + \
-            f'between the number of alpha and beta electrons ({dnel}).'
-    else:
-        mol.spin = dnel
-    mol.build()
     
     #==== Run HF ====#
     print('\n\n')
@@ -70,8 +58,9 @@ def get_rhf_orbs(mol, sz=None, save_rdm=True, natorb=False):
 
 ##########################################################################
 def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
-                    sz=None, wfnsym=None, natorb=False, init_basis=None, sort_out=None, 
-                    save_rdm=True, verbose=2, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
+                    twosz=None, wfnsym=None, natorb=False, init_basis=None,
+                    state_average=False, sa_weights=None, sort_out=None, save_rdm=True,
+                    verbose=2, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
                     dmrg_nthreads=1):
     '''
     Input parameters:
@@ -93,7 +82,8 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
          procedure. Adjust ss_shift if the final <S^2> is not equal to the value of ss.
     ss_shift = A parameter to control the energy shift of the CASSCF solution when ss is
                not None.
-    sz = The z-projection of the total spin operator (S).
+    twosz = The z-projection of the total spin operator (S). Required if state_average is True
+            and ss is not None.
     wfnsym = The irreducible representation of the desired multi-electron state.
     natorb = If True, the natural orbitals will be returned, otherwise, the 
              canonical orbitals will be returned.
@@ -111,24 +101,16 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
 
     
     #==== Set up system (mol) ====#
-    assert isinstance(nelCAS, tuple)
-    dnel = nelCAS[0] - nelCAS[1]
-    if sz is not None:
-        mol.spin = int(2 * sz)
-        assert mol.spin == dnel, \
-            f'The chosen value of sz ({sz}) is inconsistent with the difference ' + \
-            f'between the number of alpha and beta electrons ({dnel}).'
-    else:
-        mol.spin = dnel
-    mol.build()
+    assert isinstance(nelCAS, tuple) or isinstance(nelCAS, int)
     ovl = mol.intor('int1e_ovlp')
 
     #==== Determine the number of core orbitals ====#
-    nelcore = [None] * 2
-    for i in range (0,2): nelcore[i] = mol.nelec[i] - nelCAS[i]
-    assert nelcore[0] == nelcore[1], 'The numbers of core alpha and beta electrons ' + \
-        f'do not match. n_core[alpha] = {nelcore[0]} vs. n_core[beta] = {nelcore[1]}.'
-    ncore = nelcore[0]
+    if isinstance(nelCAS, int):
+        nelcore = mol.nelectron - nelCAS
+    elif isinstance(nelCAS, tuple):
+        nelcore = mol.nelectron - (nelCAS[0]+nelCAS[1])
+    assert nelcore%2 == 0
+    ncore = round(nelcore/2)
     
     #==== Run HF because it is needed by CASSCF ====#
     mf = scf.RHF(mol)
@@ -143,13 +125,17 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     print('')
     print('No. of MO / no. of electrons = %d / (%d, %d)' % 
           (mol.nao, mol.nelec[0], mol.nelec[1]))
-    print('No. of core orbitals / no. of core electrons = %d / (%d, %d)' %
-          (ncore, nelcore[0], nelcore[1]))
-    print('No. of CAS orbitals / no. of CAS electrons = %d / (%d, %d)' %
-          (nCAS, nelCAS[0], nelCAS[1]))
+    print('No. of core orbitals / no. of core electrons = %d / %d' %
+          (ncore, nelcore))
+    if isinstance(nelCAS, int):
+        print('No. of CAS orbitals / no. of CAS electrons = %d / %d' %
+              (nCAS, nelCAS))
+    elif isinstance(nelCAS, tuple):
+        print('No. of CAS orbitals / no. of CAS electrons = %d / (%d, %d)' %
+              (nCAS, nelCAS[0], nelCAS[1]))
     print('Frozen orbitals = ', end='')
     if isinstance(frozen, int):
-        for i in range(0, frozen): print(' %d' % (i+1), end='')
+        for i in range(0, frozen): print(' %d orbitals' % (i+1), end='')
     elif isinstance(frozen, list):
         for i in frozen: print(' %d' % frozen[i], end='')
     elif frozen is None:
@@ -176,6 +162,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         #==== quantities from inside the iterative solver ====#
         mc.callback = mc.fcisolver.restart_scheduler_()
 
+    #==== Wavefunction symmetry ====#
     if wfnsym is not None:
         mc.fcisolver.wfnsym = wfnsym
     else:
@@ -184,28 +171,64 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         else:
             pass
     
-    #==== Run CASSCF ====#
+    #==== Project initial guess to current basis ====#
     if init_basis is not None:
+        print('The guess orbitals are spanned by a different basis, therefore ' +
+              'projection of the guess orbitals to the current basis will be ' +
+              'performed.')
         mol0 = mol.copy()
         mol0.basis = init_basis
         mol0.build()
         init_mo0 = mcscf.project_init_guess(mc, init_mo, prev_mol=mol0)
     else:
         init_mo0 = init_mo.copy()
+
+    #==== State average ====#
+    if state_average:
+        nesm = len(sa_weights)
+        print(f'State averaging CASSCF will be performed over {nesm} states.')
+        assert sa_weights is not None
+        mc = mc.state_average_(sa_weights)
+        if ss is not None:
+            assert twosz is not None
+            mc.fcisolver.spin = round(twosz)
+            mc.fix_spin_(ss=ss)
+
+    #==== Run CASSCF ====#
+    mc.verbose = 4
     mc.kernel(init_mo0)
     orbs = mc.mo_coeff
     ergs = mc.mo_energy
-    if fcisolver is None:
+    if fcisolver is None and not state_average:
         ssq, mult = mcscf.spin_square(mc)
         print('Spin square = %-10.6f' % ssq)
         print('Spin multiplicity = %-10.6f' % mult)
 
     #==== Determine occupations and orbital energies ====#
-    rdm_ao = reduce(np.dot, (ovl, mc.make_rdm1(), ovl))    # rdm_ao is in AO rep.    1)
-    rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))        # rdm_mo is in MO rep.
+    if state_average:
+        rdm_states = np.zeros((mol.nao, mol.nao, nesm))
+        for i in range(0,nesm): rdm_states[0:ncore, 0:ncore, i] = 2.0 * np.eye(ncore)
+        rdm_states[ncore:ncore+nCAS, ncore:ncore+nCAS, :] = \
+            np.stack(mc.fcisolver.states_make_rdm1(mc.ci, nCAS, nelCAS), axis=2)    # 1)
+        # 1) mc.fcisolver.states_make_rdm1 produces the states' RDMs in MO (instead of AO)
+        #    basis already. Reference:
+        #    https://pyscf.org/_modules/pyscf/mcscf/addons.html#StateAverageFCISolver.make_rdm1 .
+        rdm_mo = np.dot(rdm_states, sa_weights)     # 2)
+        # 2) mc.make_rdm1() can actually be used to obtain the total ensemble RDM in AO
+        #    basis which can then be transformed to MO basis to yield the total RDM in MO
+        #    basis over all MO, that is, its size is equal to mol.naoxmol.nao, unlike
+        #    what mc.fcisolver.states_make_rdm1 produces above, which contains the RDM only
+        #    within the active space. The total RMD obtained through use of mc.make_rdm1(), 
+        #    however, turns out to differ from rdm_mo computed here in the ordering of the
+        #    indices. This is bad because the indices of this RDM does not correspond to the
+        #    columns of orbs.
+    else:
+        rdm_ao = reduce(np.dot, (ovl, mc.make_rdm1(), ovl))    # rdm_ao is in AO rep.    3)
+        rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))        # rdm_mo is in MO rep.
+        # 3) rdm_ao is in AO rep., needs to transform to an orthogonal rep before feeding
+        #    it into symm.eigh below.
     #OLD o_trans = np.hstack(mol.symm_orb)     # ref: https://pyscf.org/pyscf_api_docs/pyscf.symm.html#pyscf.symm.addons.eigh
-    # 1) rdm_ao is in AO rep., needs to transform to an orthogonal rep before feeding
-    #    it into symm.eigh below.
+    
 
     #==== If natural orbitals are requested, and determine occs ====#
     if natorb:
@@ -232,11 +255,17 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         #    in this case the MO is chosen as the orthonormal basis.
     else:
         occs = np.diag(rdm_mo).copy()
+        orbs_ = orbs.copy()
         if sort_out is not None:
             orbs, occs, ergs = sort_orbs(orbs, occs, ergs, sort_out[0], sort_out[1])
         else:
             orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
-        rdm_mo = reduce(np.dot, (orbs.T, rdm_ao, orbs))     # Take into account the reordering of the columns of orbs.
+            
+        #== Rearrange RDMs to reflect the new ordering of orbs ==#.
+        trmat = orbs_.T @ ovl @ orbs
+        rdm_mo = trmat.T @ rdm_mo @ trmat
+        if state_average:
+            for i in range(0,nesm): rdm_states[:,:,i] = trmat.T @ rdm_states[:,:,i] @ trmat
 
 
     #==== Analyze ====#
@@ -260,19 +289,19 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     outs['occs'] = occs
     if ergs is not None: outs['ergs'] = ergs
     if save_rdm: outs['rdm'] = rdm_mo
+    if save_rdm and state_average: outs['rdm_states'] = rdm_states
 
     return outs
 ##########################################################################
 
 
 ##########################################################################
-def get_dft_orbs(mol, xc, sz=None, save_rdm=True, natorb=False):
+def get_dft_orbs(mol, xc, save_rdm=True, natorb=False):
     '''
     Input parameters:
     ----------------
 
     mol = Mole object.
-    sz = The z-projection of the total spin operator (S).
 
     Outputs:
     -------
@@ -286,7 +315,6 @@ def get_dft_orbs(mol, xc, sz=None, save_rdm=True, natorb=False):
               'effect because in DFT, the natural orbitals are the same as the canonical ' + \
               'orbitals.')
 
-        
     #==== Set up system (mol) ====#
     print('\n\n')
     print('=========================')
@@ -295,16 +323,6 @@ def get_dft_orbs(mol, xc, sz=None, save_rdm=True, natorb=False):
     print('')
     print('No. of MO / no. of electrons = %d / (%d, %d)' % 
           (mol.nao, mol.nelec[0], mol.nelec[1]))
-    dnel = mol.nelec[0] - mol.nelec[1]
-    if sz is not None:
-        mol.spin = int(2 * sz)
-        assert mol.spin == dnel, 'get_dft_orbs:' + \
-            f'The chosen value of sz ({sz}) is inconsistent with the difference ' + \
-            f'between the number of alpha and beta electrons ({dnel}).'
-    else:
-        mol.spin = dnel
-    mol.build()
-
 
     #==== Run DFT ====#
     mf = dft.RKS(mol)
@@ -314,9 +332,7 @@ def get_dft_orbs(mol, xc, sz=None, save_rdm=True, natorb=False):
     ssq, mult = mf.spin_square()
     print('Spin square = %-10.6f' % ssq)
     print('Spin multiplicity = %-10.6f' % mult)
-
     orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'erg', 'as')
-
 
     #==== What to output ====#
     outs = {}

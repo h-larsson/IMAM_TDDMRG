@@ -10,6 +10,7 @@ from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
+from IMAM_TDDMRG.utils.util_print import print_warning
 
 
 t_start = time.time()
@@ -33,22 +34,23 @@ if inputs['dump_inputs']:
 
 #==== Setting up the system ====#
 mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=inputs['inp_ecp'],
-            symmetry=inputs['inp_symmetry'])
+            symmetry=inputs['inp_symmetry'], charge=inputs['charge'], spin=inputs['twosz'])
 na, nb = mol.nelec
 pg = mol.groupname.lower()
 n_mo = mol.nao
 ovl = mol.intor('int1e_ovlp')
 print('Point group = ', mol.groupname)
-print('Number of electrons (alpha, beta) = ', mol.nelec)
+print('Charge = ', mol.charge)
+print('Number of electrons (alpha, beta, total) = ' +
+      f'{mol.nelec[0]}, {mol.nelec[1]}, {mol.nelectron}')
 print('Number of AO bases = ', mol.nao)
 print('Number of MO bases = ', n_mo)
 save_prefix = inputs['save_dir'] + '/' + inputs['prefix']
 
-
 #==== Generate orbitals based on the chosen method ====#
 #==== HF ====#
 if inputs['source'] == 'rhf':
-    outs = get_rhf_orbs(mol, inputs['sz'], True, inputs['natorb'])
+    outs = get_rhf_orbs(mol, True, inputs['natorb'])
     orbs = outs['orbs']
     occs = outs['occs']
     ergs = outs['ergs']
@@ -67,9 +69,10 @@ elif inputs['source'] == 'casscf':
     dmrg_nthreads = int(os.environ.get("OMP_NUM_THREADS", 1))
     outs = get_casscf_orbs(
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
-        inputs['ss'], inputs['ss_shift'], inputs['sz'], inputs['wfnsym'], inputs['natorb'], 
-        inputs['init_basis'], inputs['sort_out'], True, 2, inputs['fcisolver'], 
-        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads)
+        inputs['ss'], inputs['ss_shift'], inputs['twosz'], inputs['wfnsym'], inputs['natorb'], 
+        inputs['init_basis'], inputs['state_average'], inputs['sa_weights'],
+        inputs['sort_out'], True, 2, inputs['fcisolver'], inputs['max_bond_dim'], 
+        inputs['sweep_tol'], dmrg_nthreads)
     orbs = outs['orbs']
     occs = outs['occs']
     try:
@@ -84,11 +87,19 @@ elif inputs['source'] == 'casscf':
         rdm = None
         print(' >>> ATTENTION <<<')
         print('   The RDM from the CASSCF calculation will not be saved.')
+    if inputs['state_average']:
+        try:
+            rdm_states = outs['rdm_states']
+        except KeyError:
+            rdm_states = None
+            print(' >>> ATTENTION <<<')
+            print('   State averaging is active but the RDMs of the individual states ' +
+                  'in the ensemble will not be saved.')
 
 
 #==== DFT ====#
 elif inputs['source']  == 'dft':
-    outs = get_dft_orbs(mol, inputs['xc'], inputs['sz'], True, inputs['natorb'])
+    outs = get_dft_orbs(mol, inputs['xc'], True, inputs['natorb'])
     orbs = outs['orbs']
     occs = outs['occs']
     ergs = outs['ergs']
@@ -127,6 +138,15 @@ if inputs['localize']:
     try:
         rdm_init = np.load(inputs['rdm_for_loc'])
     except (FileNotFoundError, KeyError):
+        if inputs['state_averaging']:
+            print_warning('When localizing orbitals, using an RDM from a preceding ' + \
+                          'calculation in the same run, and state averaging is active, ' + \
+                          'the RDM that will be used by the localization algorithm ' + \
+                          'is the total ensemble RDM. If you want to use one of the ' + \
+                          'RDM of the individual ensemble states, use the input ' + \
+                          'keyword \'rdm_for_loc\' to specify the path of the desired ' + \
+                          'RDM already existing in the disk (a prior calculation is ' +
+                          'required).')
         try:
             rdm_init = rdm
         except NameError:
@@ -215,7 +235,16 @@ else:
     print('   No RDM array to be saved. **BE WARNED** that if an RDM array file ' + \
           'is pre-existing in the same diractory, its RDM values may not correspond \n' + \
           '   to the same parameters used in the current simulation.')
-
+if inputs['state_average']:
+    if rdm_states is not None:
+        np.save(save_prefix + '.rdm_sa', rdm_states)
+        print('\n *** INFO***')
+        print('   RDM_states array in MO basis has been saved to ' + save_prefix + '.rdm_sa.npy')
+    else:
+        print('\n >>> ATTENTION <<<')
+        print('   No RDM_states array to be saved. **BE WARNED** that if an RDM_states array file ' + \
+              'is pre-existing in the same diractory, its RDM_states values may not correspond \n' + \
+              '   to the same parameters used in the current simulation.')    
 
 print('')
 t_fin = time.time()
