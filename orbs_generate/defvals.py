@@ -7,6 +7,7 @@ def_inp_symmetry = 'c1'
 def_save_dir = '.'
 def_sz = None
 def_natorb = False
+def_conv_tol = 1.0E-7
 def_frozen = None
 def_ss = None
 def_ss_shift = None

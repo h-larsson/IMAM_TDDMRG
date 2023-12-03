@@ -51,7 +51,7 @@ save_prefix = inputs['save_dir'] + '/' + inputs['prefix']
 #==== Generate orbitals based on the chosen method ====#
 #==== HF ====#
 if inputs['source'] == 'rhf':
-    outs = get_rhf_orbs(mol, True, inputs['natorb'])
+    outs = get_rhf_orbs(mol, True, inputs['conv_tol'], inputs['natorb'])
     orbs = outs['orbs']
     occs = outs['occs']
     ergs = outs['ergs']
@@ -72,8 +72,8 @@ elif inputs['source'] == 'casscf':
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
         inputs['ss'], inputs['ss_shift'], inputs['twosz'], inputs['wfnsym'], inputs['natorb'], 
         inputs['init_basis'], inputs['state_average'], inputs['sa_weights'],
-        inputs['sort_out'], True, 2, inputs['fcisolver'], inputs['max_bond_dim'], 
-        inputs['sweep_tol'], dmrg_nthreads)
+        inputs['sort_out'], True, 2, inputs['conv_tol'], inputs['fcisolver'],
+        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads)
     orbs = outs['orbs']
     occs = outs['occs']
     try:
@@ -100,7 +100,7 @@ elif inputs['source'] == 'casscf':
 
 #==== DFT ====#
 elif inputs['source']  == 'dft':
-    outs = get_dft_orbs(mol, inputs['xc'], True, inputs['natorb'])
+    outs = get_dft_orbs(mol, inputs['xc'], inputs['conv_tol'], True, inputs['natorb'])
     orbs = outs['orbs']
     occs = outs['occs']
     ergs = outs['ergs']

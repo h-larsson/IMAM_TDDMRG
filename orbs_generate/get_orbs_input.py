@@ -35,11 +35,14 @@ def get_inputs(inp_file):
         inputs['save_dir'] = save_dir
     except NameError:
         inputs['save_dir'] = defvals.def_save_dir
-
     try:
         inputs['natorb'] = natorb
     except NameError:
         inputs['natorb'] = defvals.def_natorb
+    try:
+        inputs['conv_tol'] = conv_tol
+    except NameError:
+        inputs['conv_tol'] = defvals.def_conv_tol
 
         
     #==== CAS parameters ====#

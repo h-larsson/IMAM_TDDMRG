@@ -7,7 +7,7 @@ from util_orbs import sort_orbs
 
 
 ##########################################################################
-def get_rhf_orbs(mol, save_rdm=True, natorb=False): 
+def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False): 
     '''
     Input parameters:
     ----------------
@@ -35,7 +35,7 @@ def get_rhf_orbs(mol, save_rdm=True, natorb=False):
     print('No. of MO / no. of electrons = %d / (%d, %d)' % 
           (mol.nao, mol.nelec[0], mol.nelec[1]))
     mf = scf.RHF(mol)
-    mf.conv_tol = 1e-7
+    mf.conv_tol = conv_tol    #1e-7
     mf.kernel()
     orbs, occs, ergs = mf.mo_coeff, mf.mo_occ, mf.mo_energy
     ssq, mult = mf.spin_square()
@@ -60,7 +60,7 @@ def get_rhf_orbs(mol, save_rdm=True, natorb=False):
 def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
                     twosz=None, wfnsym=None, natorb=False, init_basis=None,
                     state_average=False, sa_weights=None, sort_out=None, save_rdm=True,
-                    verbose=2, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
+                    verbose=2, conv_tol=1.0E-7, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
                     dmrg_nthreads=1):
     '''
     Input parameters:
@@ -143,6 +143,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     print('')
     
     mc = mcscf.CASSCF(mf, ncas=nCAS, nelecas=nelCAS, frozen=frozen)
+    mc.conv_tol = conv_tol
     if ss is not None:
         if ss_shift is not None:
             mc.fix_spin_(ss_shift, ss=ss)
@@ -295,7 +296,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
 
 
 ##########################################################################
-def get_dft_orbs(mol, xc, save_rdm=True, natorb=False):
+def get_dft_orbs(mol, xc, conv_tol=1.0E-7, save_rdm=True, natorb=False):
     '''
     Input parameters:
     ----------------
@@ -325,6 +326,7 @@ def get_dft_orbs(mol, xc, save_rdm=True, natorb=False):
 
     #==== Run DFT ====#
     mf = dft.RKS(mol)
+    mf.conv_tol = conv_tol
     mf.xc = xc
     mf.kernel()
     orbs, occs, ergs = mf.mo_coeff, mf.mo_occ, mf.mo_energy
