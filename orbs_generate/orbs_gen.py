@@ -216,9 +216,9 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         rdm_mo = np.dot(rdm_states, sa_weights)     # 2)
         # 2) mc.make_rdm1() can actually be used to obtain the total ensemble RDM in AO
         #    basis which can then be transformed to MO basis to yield the total RDM in MO
-        #    basis over all MO, that is, its size is equal to mol.naoxmol.nao, unlike
+        #    basis over all MO, that is, its size is equal to mol.nao x mol.nao, unlike
         #    what mc.fcisolver.states_make_rdm1 produces above, which contains the RDM only
-        #    within the active space. The total RMD obtained through use of mc.make_rdm1(), 
+        #    within the active space. The total RMD obtained through use of mc.make_rdm1(),
         #    however, turns out to differ from rdm_mo computed here in the ordering of the
         #    indices. This is bad because the indices of this RDM does not correspond to the
         #    columns of orbs.
@@ -234,12 +234,13 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     if natorb:
         print('>>> Computing natural orbitals <<<')
         #== Get natorb in MO rep. ==#
-        cas_sym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, mc.mo_coeff)
-        natocc, natorb = symm.eigh(rdm_mo, cas_sym)     # 2)
+        cas_sym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, mc.mo_coeff)   # Probably better use orbs instead of mc.mo_coeff since they are identical anyway.
+        natocc, natorb = symm.eigh(rdm_mo, cas_sym)     # 4)
         occs = natocc
+        # 4) rdm_mo needs to be in an orthonormal basis rep. to be an input to symm.eigh(),
+        #    in this case the MO is chosen as the orthonormal basis.
 
-        #== Transform back from symm_orb rep. to AO rep. ==#
-        #WARNING: Check if the line below is correct!
+        #== Transform back from MO rep. to AO rep. ==#
         orbs = orbs @ natorb
         ergs = None
 
@@ -251,8 +252,6 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         else:
             orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
         rdm_mo = np.diag(occs)
-        # 2) rdm_mo needs to be in an orthonormal basis rep. to be an input to symm.eigh(),
-        #    in this case the MO is chosen as the orthonormal basis.
     else:
         occs = np.diag(rdm_mo).copy()
         orbs_ = orbs.copy()

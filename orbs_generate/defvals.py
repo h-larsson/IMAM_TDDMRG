@@ -24,3 +24,6 @@ def_state_average = False
 def_sa_weights = None
 def_sort_out = None
 def_loc_exclude = []
+def_sort_ref = None
+def_similar_thr = 0.8
+def_dissimilar_break = False

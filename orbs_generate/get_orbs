@@ -8,6 +8,7 @@ from pyscf import gto
 from pyscf.tools import cubegen
 from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
+from util_orbs import sort_similar
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
 from IMAM_TDDMRG.utils.util_print import print_warning
@@ -174,7 +175,14 @@ if inputs['localize']:
         print(' >>> ATTENTION <<<')
         print('   The RDM from orbitals localization will not be saved.')
 
-    
+        
+#==== Similarity sorting ====#
+if inputs['sort_ref'] is not None:
+    osort_ref = np.load(inputs['sort_ref'])
+    orbs, idsort = sort_similar(orbs, osort_ref, ovl, inputs['similar_thr'],
+                                inputs['dissimilar_break'])
+    if occs is not None: occs = occs[idsort]    
+    if ergs is not None: ergs = ergs[idsort]
 
 #==== Ensure that the output orbitals are orthonormal ====#
 itest = orbs.T @ ovl @ orbs

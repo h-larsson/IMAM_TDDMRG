@@ -105,7 +105,20 @@ def get_inputs(inp_file):
 
     elif inputs['source'] == 'dft':
         inputs['xc'] = xc
-                
+
+    try:
+        inputs['sort_ref'] = sort_ref
+    except NameError:
+        inputs['sort_ref'] = defvals.def_sort_ref
+    if inputs['sort_ref'] is not None:
+        try:
+            inputs['similar_thr'] = similar_thr
+        except NameError:
+            inputs['similar_thr'] = defvals.def_similar_thr
+        try:
+            inputs['dissimilar_break'] = dissimilar_break
+        except NameError:
+            inputs['dissimilar_break'] = defvals.def_dissimilar_break
 
     try:
         inputs['localize'] = localize

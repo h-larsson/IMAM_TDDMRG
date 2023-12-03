@@ -1,4 +1,6 @@
 import numpy as np
+from IMAM_TDDMRG.utils.util_print import print_matrix
+
 
 
 ##########################################################################
@@ -40,3 +42,39 @@ def sort_orbs(orbs, occs, ergs, sr='erg', s='de'):
 ##########################################################################
 
 
+##########################################################################
+def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, verbose=1):
+
+    assert orb.shape[0] == orb_ref.shape[0]
+    assert orb.shape[1] == orb_ref.shape[1]
+    
+    n = orb.shape[0]
+    if ovl is None:
+        ovl = np.eye(n,n)
+        
+    ovl_ref = orb_ref.T @ ovl @ orb   # The reference is taken to be orbs. of neutral.
+    if verbose == 1:
+        print('Overlap matrix between the calculated (column) and reference (row) orbitals:')
+        print_matrix(ovl_ref)
+        
+    idmax = [np.argmax(np.abs(ovl_ref[:,i])) for i in range(0, ovl_ref.shape[1])]
+    idmax = np.array(idmax)
+    assert len(idmax) == len(set(idmax)), 'Some orbitals have conflicting orders.'
+    elmax = [np.max(np.abs(ovl_ref[:,i])) for i in range(0, ovl_ref.shape[1])]
+    elmax = np.array(elmax)
+    dissim = idmax[elmax < similar_thr]
+    if len(dissim) > 0:
+        if dissim_break:
+            raise ValueError('These calculated orbitals: {str(dissim+1)} are ' + \
+                             'too dissimilar to the reference orbitals.')
+        else:
+            print(f'WARNING: These calculated orbitals: {str(dissim+1)} are too ' + \
+                  'dissimilar to the reference orbitals.')
+    
+    # Reorder columns of orb such that if ovl_ref is recalculated using the newly
+    # ordered orb, the maximum of each column of ovl_ref is a diagonal element.
+    idsort = np.argsort(idmax)
+    orb = orb[:,idsort]
+
+    return orb, idsort
+##########################################################################

@@ -1563,10 +1563,7 @@ class MYTDDMRG:
                     cmps_cp = cmps.deep_copy('cmps_cp')         # 1)
                     if self.mpi is not None: self.mpi.barrier()
 
-
                     dm = self.get_one_pdm(True, cmps_cp)
-
-                    
                     cmps_cp.info.deallocate()
                     dm_full = make_full_dm(self.n_core, dm)
                     dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
