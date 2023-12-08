@@ -115,6 +115,10 @@ def get_inputs(inp_file):
         inputs['sort_ref'] = defvals.def_sort_ref
     if inputs['sort_ref'] is not None:
         try:
+            inputs['nsort_ref'] = nsort_ref
+        except NameError:
+            inputs['nsort_ref'] = 'DEFINE_LATER'
+        try:
             inputs['similar_thr'] = similar_thr
         except NameError:
             inputs['similar_thr'] = defvals.def_similar_thr

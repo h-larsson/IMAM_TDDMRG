@@ -178,11 +178,16 @@ if inputs['localize']:
         
 #==== Similarity sorting ====#
 if inputs['sort_ref'] is not None:
+    if inputs['nsort_ref'] == 'DEFINE_LATER':
+        nsort_ref = mol.nao
+    else:
+        nsort_ref = inputs['nsort_ref']
     osort_ref = np.load(inputs['sort_ref'])
-    orbs, idsort = sort_similar(orbs, osort_ref, ovl, inputs['similar_thr'],
-                                inputs['dissimilar_break'])
-    if occs is not None: occs = occs[idsort]    
-    if ergs is not None: ergs = ergs[idsort]
+    orbs[:,0:nsort_ref], idsort = sort_similar(orbs[:,0:nsort_ref], osort_ref[:,0:nsort_ref], 
+                                               ovl, inputs['similar_thr'],
+                                               inputs['dissimilar_break'])
+    if occs is not None: occs[0:nsort_ref] = occs[idsort]    
+    if ergs is not None: ergs[0:nsort_ref] = ergs[idsort]
 
 #==== Ensure that the output orbitals are orthonormal ====#
 itest = orbs.T @ ovl @ orbs
@@ -243,16 +248,17 @@ else:
     print('   No RDM array to be saved. **BE WARNED** that if an RDM array file ' + \
           'is pre-existing in the same diractory, its RDM values may not correspond \n' + \
           '   to the same parameters used in the current simulation.')
-if inputs['state_average']:
-    if rdm_states is not None:
-        np.save(save_prefix + '.rdm_sa', rdm_states)
-        print('\n *** INFO***')
-        print('   RDM_states array in MO basis has been saved to ' + save_prefix + '.rdm_sa.npy')
-    else:
-        print('\n >>> ATTENTION <<<')
-        print('   No RDM_states array to be saved. **BE WARNED** that if an RDM_states array file ' + \
-              'is pre-existing in the same diractory, its RDM_states values may not correspond \n' + \
-              '   to the same parameters used in the current simulation.')    
+if inputs['source'] == 'casscf':
+    if inputs['state_average']:
+        if rdm_states is not None:
+            np.save(save_prefix + '.rdm_sa', rdm_states)
+            print('\n *** INFO***')
+            print('   RDM_states array in MO basis has been saved to ' + save_prefix + '.rdm_sa.npy')
+        else:
+            print('\n >>> ATTENTION <<<')
+            print('   No RDM_states array to be saved. **BE WARNED** that if an RDM_states array file ' + \
+                  'is pre-existing in the same diractory, its RDM_states values may not correspond \n' + \
+                  '   to the same parameters used in the current simulation.')    
 
 print('')
 t_fin = time.time()

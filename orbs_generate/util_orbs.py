@@ -44,7 +44,11 @@ def sort_orbs(orbs, occs, ergs, sr='erg', s='de'):
 
 ##########################################################################
 def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, verbose=1):
-
+    '''
+    orb: Orbitals to be sorted in AO basis.
+    orb_ref: Orbitals in AO basis whose ordering is used as reference for the sorting.
+    '''
+    
     assert orb.shape[0] == orb_ref.shape[0]
     assert orb.shape[1] == orb_ref.shape[1]
     
@@ -52,7 +56,7 @@ def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, ve
     if ovl is None:
         ovl = np.eye(n,n)
         
-    ovl_ref = orb_ref.T @ ovl @ orb   # The reference is taken to be orbs. of neutral.
+    ovl_ref = orb_ref.T @ ovl @ orb
     if verbose == 1:
         print('Overlap matrix between the calculated (column) and reference (row) orbitals:')
         print_matrix(ovl_ref)
