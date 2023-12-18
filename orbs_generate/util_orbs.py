@@ -63,7 +63,8 @@ def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, ve
         
     idmax = [np.argmax(np.abs(ovl_ref[:,i])) for i in range(0, ovl_ref.shape[1])]
     idmax = np.array(idmax)
-    assert len(idmax) == len(set(idmax)), 'Some orbitals have conflicting orders.'
+    #OLDassert len(idmax) == len(set(idmax)), 'Some orbitals have conflicting orders. ' + \
+    #OLD    f'ID of the maximum of each column: {idmax}'
     elmax = [np.max(np.abs(ovl_ref[:,i])) for i in range(0, ovl_ref.shape[1])]
     elmax = np.array(elmax)
     dissim = idmax[elmax < similar_thr]

@@ -55,22 +55,56 @@ def get_inputs(inp_file):
     inputs = {}
 
     #==== General parameters ====#
+    # inp_coordinates:
+    #   A python multiline string that specifies the cartesian coordinates of the atoms in
+    #   the molecule. The format is as follows
+    #   '''
+    #      <Atom1>  <x1>  <y1>  <z1>;
+    #      <Atom2>  <x2>  <y2>  <z2>;
+    #      ...
+    #   '''
     inputs['inp_coordinates'] = inp_coordinates
+
+    # inp_basis:
+    #   A library that specifies the atomic orbitals (AO) basis on each atom. The format
+    #   follows pyscf format format for AO basis.
     inputs['inp_basis'] = inp_basis
+
+    # wfn_sym:
+    #   
     inputs['wfn_sym'] = wfn_sym
 
+    # complex_MPS_type (optional):
+    #   The complex type of MPS in the calculation. The possible options are 'hybrid'
+    #   and 'full' with default being 'hybird', which is faster than 'full'. Ideally,
+    #   for ground state and annihilation tasks, the choice of complex type should not
+    #   matter. For time evolution, the results will differ depending on the bond
+    #   dimension. The two complex types should give identical time evolution dynamics
+    #   when the bond dimension reaches convergence.
     try:
         inputs['complex_MPS_type'] = complex_MPS_type
     except NameError:
         inputs['complex_MPS_type'] = defvals.def_complex_MPS_type
+
+    # dump_inputs (optional):
+    #   If True, then the values of the input parameters will be printed to the output.
+    #   The default is False.
     try:
         inputs['dump_inputs'] = dump_inputs
     except NameError:
         inputs['dump_inputs'] = defvals.def_dump_inputs
+
+    # memory (optional):
+    #   Memory in bytes. The default is 1E9 (1 GB).
     try:
         inputs['memory'] = memory
     except NameError:
         inputs['memory'] = defvals.def_memory
+
+    # prefix (optional):
+    #   The prefix of files and folders created during simulation. The default is the
+    #   prefix of the input file if it has a '.py' extension, otherwise it uses the
+    #   full name of the input file as prefix.
     try:
         inputs['prefix'] = prefix
     except NameError:
@@ -78,22 +112,56 @@ def get_inputs(inp_file):
             inputs['prefix'] = inp_file[0:len(inp_file)-3]
         else:
             inputs['prefix'] = inp_file
+
+    # verbose_lvl (optional):
+    #   An integer that controls the verbosity level of the output. The default is 4.
     try:
         inputs['verbose_lvl'] = verbose_lvl
     except NameError:
         inputs['verbose_lvl'] = defvals.def_verbose_lvl
+
+    # inp_ecp (optional):
+    #   The effective core potential (ECP) on each atom. The format follows pyscf
+    #   format for ECP. The default is None, which means that no ECP will be used.
     try:
         inputs['inp_ecp'] = inp_ecp
     except NameError:
         inputs['inp_ecp'] = defvals.def_inp_ecp
+
+    # inp_symmetry (optional):
+    #   A string to specifies the point group symmetry of the molecule. The default is
+    #   'c1'.
     try:
         inputs['inp_symmetry'] = inp_symmetry
     except NameError:
         inputs['inp_symmetry'] = defvals.def_inp_symmetry
+
+    # orb_path (optional):
+    #   A string to specify the path of the orbitals stored as a *.npy file that is
+    #   used to represent the site of the MPS. The *.npy file should contain a 2D
+    #   array (matrix) of the AO coefficients of the orbitals, where the rows refer to
+    #   the AO index and the columns refer to the orbital index. The AO used to expand
+    #   the orbitals should be the same as the AO chosen for the inp_basis parameter.
+    #   When ignored, the orbitals will be calculated from the canonical Hartree-Fock
+    #   orbitals of the molecule using the chosen AO basis and geometry.
     try:
         inputs['orb_path'] = orb_path
     except NameError:
         inputs['orb_path'] = defvals.def_orb_path
+
+    # orb_order (optional):
+    #   Specifies the orbital ordering. The choices are the following:
+    #    1) A string that specifies the path of a *.npy file containig a 1D array
+    #       (vector) of integers representing the orbital index. These indices
+    #       is 0-based.
+    #    2) A list of 0-based integers. This is basically the hard-coded version of
+    #       option one above.
+    #    3) A list of the form ['dipole', <u_x>, <u_y>, <u_z>]. Here, the ordering will
+    #       be calculated from the component of the dipole moments of the orbitals in
+    #       the direction specified by the vector [u_x, u_y, u_z]. This vector does not
+    #       need to be normalized.
+    #    4) A string 'genetic', the genetic algorithm, which is also the default.
+    #    5) A string 'fiedler', the Fiedler algorithm.
     try:
         inputs['orb_order'] = orb_order
     except NameError:

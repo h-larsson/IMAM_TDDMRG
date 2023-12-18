@@ -2,7 +2,7 @@
 
 def_memory = 1E9
 def_verbose_lvl = 4
-def_complex_MPS_type = 'full'
+def_complex_MPS_type = 'hybrid'
 def_dump_inputs = False
 def_orb_path = None
 def_inp_ecp = None

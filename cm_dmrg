@@ -187,17 +187,26 @@ if hasMPI:
     
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
-    if inputs['orb_order'] == 'DEFINE_LATER':
-        _print('Orbital ordering will be computed by the program.')
-        re_idx = orbital_reorder(h1e, g2e)
+    if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler' or \
+       inputs['orb_order'] == 'DEFINE_LATER':
+        _print('Orbital ordering will be computed by the program using ' +
+               'the ' + inputs['orb_order'] + ' algorithm.')
+        if inputs['orb_order'] == 'genetic':
+            ord_method = 'gaopt'
+        elif inputs['orb_order'] == 'fiedler' or inputs['orb_order'] == 'DEFINE_LATER':
+            ord_method = 'fiedler'
+        re_idx = orbital_reorder(h1e, g2e, method=ord_method)
     elif isinstance(inputs['orb_order'], list):
         assert inputs['orb_order'][0] == 'dipole'
         assert len(inputs['orb_order']) == 4
+        _print('Orbital ordering will be computed based on the dipole ' +
+               'moment component of the orbitals.')
         uv = inputs['orb_order'][1:4]
         i1 = inputs['nCore']
         i2 = inputs['nCore'] + inputs['nCAS']
         re_idx = orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
     elif type(inputs['orb_order']) == list:
+        _print('Orbital ordering is provided directly in the input.')
         re_idx = np.array(inputs['orb_order'])
     else:
         _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
