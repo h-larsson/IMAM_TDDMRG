@@ -96,7 +96,20 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     Outputs:
     -------
  
-    The output is a dictionary.
+    The output is a dictionary. With the following elements,
+    orbs = The output orbitals. The canonical orbitals if natorb is false, otherwise, the
+           natural orbitals.
+    occs = The occupation numbers of the output orbitals.
+    ergs = If natorb is False, the orbital energies of the output orbitals. If natorb is 
+           True, this element is absent.
+    rdm = If save_rdm is True, the 1RDM of the solution state in the output orbitals basis.
+          Hence, if natorb True, rdm is a diagonal matrix. If save_rdm is False, this 
+          element is absent.
+    rdm_states = If save_rdm and state_average are both True, the 1RDMs of the solution 
+                 states of the state averaging algorithm in the canonical orbitals basis.
+                 Note that the basis in which rdm_states is represented is not affected by 
+                 what the output orbitals are. That is, unlike rdm whose basis depends on 
+                 natorb. If save_rdm is False, this element is absent.
     '''
 
     
@@ -252,6 +265,8 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
             orbs, occs, ergs = sort_orbs(orbs, occs, ergs, sort_out[0], sort_out[1])
         else:
             orbs, occs, ergs = sort_orbs(orbs, occs, ergs, 'occ', 'de')
+
+        #==== Express output RDM in the natural orbitals basis ====#
         rdm_mo = np.diag(occs)
     else:
         occs = np.diag(rdm_mo).copy()

@@ -165,7 +165,7 @@ def get_inputs(inp_file):
     try:
         inputs['orb_order'] = orb_order
     except NameError:
-        inputs['orb_order'] = 'DEFINE_LATER'
+        inputs['orb_order'] = defvals.def_orb_order
         
     #==== CAS parameters ====#
     inputs['nCore'] = nCore

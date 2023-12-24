@@ -160,7 +160,7 @@ if inputs['localize']:
         inputs['loc_irrep'] = None
     outs = localize(mol, orbs_init, rdm_init, ovl, inputs['loc_subs'],
                     inputs['loc_occs'], inputs['loc_type'], inputs['loc_irrep'],
-                    inputs['loc_exclude'])
+                    inputs['loc_exclude'], inputs['loc_sort'])
 
     #== Outputs ==#
     orbs = outs['orbs']
@@ -188,6 +188,10 @@ if inputs['sort_ref'] is not None:
                                                inputs['dissimilar_break'])
     if occs is not None: occs[0:nsort_ref] = occs[idsort]    
     if ergs is not None: ergs[0:nsort_ref] = ergs[idsort]
+    if rdm is not None:
+        assert len(rdm.shape) == 2
+        rdm[0:nsort_ref,0:nsort_ref] = rdm[:,idsort]
+        rdm[0:nsort_ref,0:nsort_ref] = rdm[idsort,:]
 
 #==== Ensure that the output orbitals are orthonormal ====#
 itest = orbs.T @ ovl @ orbs

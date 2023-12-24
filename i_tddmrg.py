@@ -127,7 +127,7 @@ class MYTDDMRG:
 
 
     #################################################
-    def __init__(self, mol, nel_site, scratch='./nodex', memory=1*1E9, isize=2E8, 
+    def __init__(self, mol, nel_site, scratch='./nodex', memory=1*1E9, isize=6E8, 
                  omp_threads=8, verbose=2, print_statistics=True, mpi=None,
                  delayed_contraction=True):
         """
@@ -1404,7 +1404,10 @@ class MYTDDMRG:
             cmps_t0 = bs.MultiMPS.make_complex(mps, "mps_t0")
         _print('Initial canonical form (ortho. center) = ' +
                f'{cmps.canonical_form} ({cmps.center})')
-        if mps.dot != 1: # change to 2dot      #NOTE: Is it for converting to two-site DMRG?
+
+
+        #==== Take care of the algorithm type (1- or 2- site) ====#
+        if mps.dot != 1: # change to 2dot
             cmps.load_data()
             cmps_t0.load_data()
             if comp == 'hybrid':

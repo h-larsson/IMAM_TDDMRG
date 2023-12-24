@@ -9,14 +9,15 @@ loc_type_err = 'localize: The value of the argument \'loc_type\' is undefined, '
 
 ##########################################################################
 def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None, 
-                 loc_type=None, loc_irrep=None, excludes=[]):
+                 loc_type=None, loc_irrep=None, excludes=[], sort_to_occ=False):
     '''
     mol:
       The Mole object based on which the input orbitals is constructed.
     orbs0:
       Input orbitals to be localized.
     rdm0:
-      The 1RDM associated with the input orbitals orbs0.
+      The 1RDM in the input orbital basis, hence, e.g., if the input orbitals are 
+      the natural orbitals of some state, then rdm0 should be a diagonal matrix.
     loc_subs:
       A list of lists where each list element contains the 1-base orbital indices
       to be localized in the localization subspace represented by this list element.
@@ -35,6 +36,9 @@ def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None,
       symmetry breaking of orbitals as a result of the localization. Therefore,
       unless absolutely needed, this argument should always be left to its default.
       value.
+    sort_to_occ:
+      Only meaningful when rdm0 is not None. If True, the output localized orbitals
+      will be sorted according to their occupation numbers calculated using rdm0.
     '''
 
     print('')
@@ -49,7 +53,10 @@ def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None,
         assert has_rdm0
         occs0 = np.diag(rdm0).copy()          # occs0 = Occupations of input orbitals.
         occs_id = np.array( [ i+1 for i in range(0,len(occs0)) ] )   # i+1 instead of i because it has to be 1-base.
-        occs_thr = [0.0] + occs_thr + [2.0]           # occs_thr = Occupation thresholds to determine localization subspaces.
+        occs_thr = [0.0] + occs_thr + [2.1]           # occs_thr = Occupation thresholds to determine localization subspaces.
+        # The last element of occs_thr above is purposely set to 2.1 instead of 2.0 because
+        # the double occupations elements of occs0 are sometimes very slightly over 2.0.
+        
         loc_subs_occs = [None] * (len(occs_thr)-1)    # loc_subs_occs = Orbital indices in each localization subspace.
         for i in range(0, len(occs_thr)-1):
             if i < len(occs_thr)-2:
@@ -98,8 +105,10 @@ def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None,
         occs = np.zeros(orbs.shape[1])
         for i in range(0, orbs.shape[1]):
             occs[i] = np.einsum('j, jk, k', trmat[:,i], rdm0, trmat[:,i])
-        orbs, occs, _ = sort_orbs(orbs, occs, None, 'occ', 'de')
-        trmat = orbs0.T @ ovl @ orbs
+        if sort_to_occ:
+            orbs, occs, _ = sort_orbs(orbs, occs, None, 'occ', 'de')
+            #== Reorder trmat ==#
+            trmat = orbs0.T @ ovl @ orbs
         rdm = trmat.T @ rdm0 @ trmat    # rdm is the 1RDM in the localized orbitals basis.
     else:
         occs = None
@@ -127,7 +136,6 @@ def localize_sub(orbs, mol, loc_type='PM', loc_irrep=True):
     #==== Obtain the irrep of each orbital ====#
     if loc_irrep:
         orb_sym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, orbs)
-        orb_sym_ = orb_sym
         
         
     #==== Perform localization within each irrep ====#
@@ -149,30 +157,27 @@ def localize_sub(orbs, mol, loc_type='PM', loc_irrep=True):
         raise ValueError(loc_type_err)
 
     
-    symset = set(orb_sym_)     # Unique elements of the irreps in orb_sym_[i]
+    symset = set(orb_sym)     # Unique elements of the irreps in orb_sym[i]
     print('  Detected irreps among the input orbitals = ', symset)
-    orbs_ = orbs
-    orbs_l = []
+
+    orbs_l = np.zeros(orbs.shape)
     if loc_irrep:
         #== Loop over the large/small occupation sections ==#
-        n = len(orb_sym_)
+        n = len(orb_sym)
 
         #== Loop over the unique irreps ==#
         for s in symset:
-            ids = [k for k in range(0,n) if orb_sym_[k]==s]
-            orbs_s = orbs_[:, ids]
+            ids = [k for k in range(0,n) if orb_sym[k]==s]
             if loc_type == 'ER' or loc_type == 'PM' or loc_type == 'B':
-                orbs_l.append( do_loc(mol, orbs_s).kernel() )
+                orbs_l[:,ids] = do_loc(mol, orbs[:,ids]).kernel()
             elif isinstance(loc_type, np.ndarray):
-                orbs_l.append( orbs_s @ do_loc )
+                orbs_l[:,ids] = orbs[:,ids] @ do_loc
     else:
         print('  Irreps are disregarded in the localization.')
         if loc_type == 'ER' or loc_type == 'PM' or loc_type == 'B':
-            orbs_l.append( do_loc(mol, orbs_).kernel() )
+            orbs_l = do_loc(mol, orbs).kernel()
         elif isinstance(loc_type, np.ndarray):
-            orbs_l.append( orbs_ @ do_loc )
-                
-            
-    orbs_l = np.hstack(orbs_l)
+            orbs_l = orbs @ do_loc
+                            
     return orbs_l
 ##########################################################################

@@ -24,7 +24,8 @@ from IMAM_TDDMRG.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG, orbital_reorder
 from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder_dip
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning, print_section
+from IMAM_TDDMRG.orbs_generate.analyze_orbs import analyze
 yn_bools = ('No','Yes')
 
 
@@ -151,6 +152,8 @@ if MAIN_PROCESS:
                'to obtain the above HF orbitals is different than what is used ' + \
                'for this simulation.'
     orbs_shape = orbs.shape
+    print_section('Orbitals Coefficients and Symmetries')
+    analyze(mol, orbs)
 
 
     #==== Get the integrals ====#
@@ -169,6 +172,8 @@ else:
     ecore = None
     molpro_osym = molpro_wsym = None
 
+    
+#==== Distribute some data to other MPI processes ====#
 if hasMPI:
     orbs_shape = commPy.bcast(orbs_shape, root = 0)
     h1eshape = commPy.bcast(h1eshape, root = 0)
@@ -187,13 +192,12 @@ if hasMPI:
     
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
-    if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler' or \
-       inputs['orb_order'] == 'DEFINE_LATER':
+    if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler':
         _print('Orbital ordering will be computed by the program using ' +
                'the ' + inputs['orb_order'] + ' algorithm.')
         if inputs['orb_order'] == 'genetic':
             ord_method = 'gaopt'
-        elif inputs['orb_order'] == 'fiedler' or inputs['orb_order'] == 'DEFINE_LATER':
+        elif inputs['orb_order'] == 'fiedler':
             ord_method = 'fiedler'
         re_idx = orbital_reorder(h1e, g2e, method=ord_method)
     elif isinstance(inputs['orb_order'], list):

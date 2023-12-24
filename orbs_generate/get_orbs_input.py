@@ -170,10 +170,13 @@ def get_inputs(inp_file):
             inputs['loc_irrep'] = loc_irrep
         except NameError:
             inputs['loc_irrep'] = 'DEFINE_LATER' #OLD [True] * len(inputs['loc_subs'])
-
         try:
             inputs['loc_exclude'] = loc_exclude
         except NameError:
             inputs['loc_exclude'] = defvals.def_loc_exclude
+        try:
+            inputs['loc_sort'] = loc_sort
+        except NameError:
+            inputs['loc_sort'] = defvals.def_loc_sort
             
     return inputs

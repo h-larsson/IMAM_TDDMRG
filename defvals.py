@@ -5,6 +5,7 @@ def_verbose_lvl = 4
 def_complex_MPS_type = 'hybrid'
 def_dump_inputs = False
 def_orb_path = None
+def_orb_order = 'genetic'
 def_inp_ecp = None
 def_inp_symmetry = 'c1'
 
