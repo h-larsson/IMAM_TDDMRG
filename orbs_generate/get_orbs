@@ -8,7 +8,7 @@ from pyscf import gto
 from pyscf.tools import cubegen
 from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
 from get_orbs_input import get_inputs
-from util_orbs import sort_similar
+from util_orbs import sort_similar, sort_irrep
 from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
 from local_orbs import localize
 from IMAM_TDDMRG.utils.util_print import print_warning
@@ -176,23 +176,37 @@ if inputs['localize']:
         print('   The RDM from orbitals localization will not be saved.')
 
         
-#==== Similarity sorting ====#
-if inputs['sort_ref'] is not None:
-    if inputs['nsort_ref'] == 'DEFINE_LATER':
-        nsort_ref = mol.nao
+#==== Orbitals sorting ====#
+if inputs['sorting']['type'] is not None:
+    if inputs['sorting']['range'] == 'DEFINE_LATER':
+        isort1 = 0
+        isort2 = mol.nao
     else:
-        nsort_ref = inputs['nsort_ref']
-    osort_ref = np.load(inputs['sort_ref'])
-    orbs[:,0:nsort_ref], idsort = sort_similar(orbs[:,0:nsort_ref], osort_ref[:,0:nsort_ref], 
-                                               ovl, inputs['similar_thr'],
-                                               inputs['dissimilar_break'])
-    if occs is not None: occs[0:nsort_ref] = occs[idsort]    
-    if ergs is not None: ergs[0:nsort_ref] = ergs[idsort]
+        isort1 = inputs['sorting']['range'][0] - 1
+        isort2 = inputs['sorting']['range'][1]
+
+    #== Get sorting indices ==#
+    if inputs['sorting']['type'] == 'reference':
+        osort_ref = np.load(inputs['sorting']['orb_ref'])
+        idsort = sort_similar(orbs[:,isort1:isort2], osort_ref[:,isort1:isort2], 
+                              ovl, inputs['sorting']['similar_thr'],
+                              inputs['sorting']['dissimilar_break'])    
+    elif inputs['sorting']['type'] == 'irrep':
+        idsort = sort_irrep(mol, orbs[:,isort1:isort2])
+    idsort = idsort + isort1
+        
+    #== Sort orbitals, occupations, etc ==#
+    orbs[:,isort1:isort2] = orbs[:,idsort]
+    if occs is not None: occs[isort1:isort2] = occs[idsort]
+    if ergs is not None: ergs[isort1:isort2] = ergs[idsort]
     if rdm is not None:
         assert len(rdm.shape) == 2
-        rdm[0:nsort_ref,0:nsort_ref] = rdm[:,idsort]
-        rdm[0:nsort_ref,0:nsort_ref] = rdm[idsort,:]
+        rdm[isort1:isort2,isort1:isort2] = rdm[isort1:isort2,idsort]
+        rdm[isort1:isort2,isort1:isort2] = rdm[idsort,isort1:isort2]
+else:
+    pass
 
+        
 #==== Ensure that the output orbitals are orthonormal ====#
 itest = orbs.T @ ovl @ orbs
 nn = orbs.shape[0]

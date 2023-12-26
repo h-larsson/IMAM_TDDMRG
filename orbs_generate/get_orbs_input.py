@@ -110,23 +110,26 @@ def get_inputs(inp_file):
         inputs['xc'] = xc
 
     try:
-        inputs['sort_ref'] = sort_ref
-    except NameError:
-        inputs['sort_ref'] = defvals.def_sort_ref
-    if inputs['sort_ref'] is not None:
-        try:
-            inputs['nsort_ref'] = nsort_ref
-        except NameError:
-            inputs['nsort_ref'] = 'DEFINE_LATER'
-        try:
-            inputs['similar_thr'] = similar_thr
-        except NameError:
-            inputs['similar_thr'] = defvals.def_similar_thr
-        try:
-            inputs['dissimilar_break'] = dissimilar_break
-        except NameError:
-            inputs['dissimilar_break'] = defvals.def_dissimilar_break
+        inputs['sorting'] = sorting
+        if inputs['sorting']['type'] == 'reference':
+            inputs['sorting']['orb_ref'] = sorting['orb_ref']
 
+        # sorting['range']: A tuple of two 1-based integers.
+        try:
+            inputs['sorting']['range'] = sorting['range']
+        except KeyError:
+            inputs['sorting']['range'] = defvals.def_sorting['range']
+        try:
+            inputs['sorting']['similar_thr'] = sorting['similar_thr']
+        except KeyError:
+            inputs['sorting']['similar_thr'] = defvals.def_sorting['similar_thr']
+        try:
+            inputs['sorting']['dissimilar_break'] = sorting['dissimilar_break']
+        except KeyError:
+            inputs['sorting']['dissimilar_break'] = defvals.def_sorting['dissimilar_break']
+    except NameError:
+        inputs['sorting'] = defvals.def_sorting
+            
     try:
         inputs['localize'] = localize
     except NameError:

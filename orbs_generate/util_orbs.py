@@ -1,4 +1,5 @@
 import numpy as np
+from pyscf import symm
 from IMAM_TDDMRG.utils.util_print import print_matrix
 
 
@@ -79,7 +80,21 @@ def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, ve
     # Reorder columns of orb such that if ovl_ref is recalculated using the newly
     # ordered orb, the maximum of each column of ovl_ref is a diagonal element.
     idsort = np.argsort(idmax)
-    orb = orb[:,idsort]
 
-    return orb, idsort
+    return idsort
+##########################################################################
+
+
+##########################################################################
+##########################################################################
+def sort_irrep(mol, orb):
+
+    osym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, orb)
+    symset = set(osym)
+    idsort = []
+    for s in symset:
+        idsort = idsort + [i for i in range(0,len(osym)) if osym[i]==s]
+    idsort = np.array(idsort)
+    
+    return idsort
 ##########################################################################
