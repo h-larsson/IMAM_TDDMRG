@@ -18,6 +18,8 @@ exec(open(inp_file).read())
 
 
 #==== Define printing range ====#
+assert 1 in [nx, ny, nz]     # Only prints hole density on a plane.
+assert nx*ny*nz not in [nx, ny, nz]    # Only one of nx,ny,nz must be 1, not more.
 x = ang2bohr * np.linspace(xl, xr, nx)
 y = ang2bohr * np.linspace(yl, yr, ny)
 z = ang2bohr * np.linspace(zl, zr, nz)
@@ -98,9 +100,11 @@ for ifl in range(0, n_sample):
                                   (x_, y_, z_, densf.real))
                     co = co + 1
     
-                densplot.write(' \n')
+                if nx == 1: densplot.write(' \n')
+            if ny == 1 or nz == 1: densplot.write(' \n')
     print(' ')
 
+    #==== Print into cube files ====#
     if make_cube:
         pdm1_ao = mo2ao_l @ np.sum(pdm1, axis=0) @ mo2ao_r
         hole_ao = pdm0_ao - pdm1_ao
