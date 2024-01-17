@@ -152,8 +152,12 @@ if MAIN_PROCESS:
                'to obtain the above HF orbitals is different than what is used ' + \
                'for this simulation.'
     orbs_shape = orbs.shape
-    print_section('Orbitals Coefficients and Symmetries')
-    analyze(mol, orbs)
+    print_section('The coefficients and symmetries of core orbitals')
+    analyze(mol, orbs[:,0:inputs['nCore']])
+    print_section('The coefficients and symmetries of active (site) orbitals')
+    analyze(mol, orbs[:,inputs['nCore']:inputs['nCore']+inputs['nCAS']])
+    print_section('The coefficients and symmetries of unused orbitals')
+    analyze(mol, orbs[:,inputs['nCore']+inputs['nCAS']:mol.nao])
 
 
     #==== Get the integrals ====#

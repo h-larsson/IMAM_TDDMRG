@@ -5,13 +5,15 @@ from scipy.linalg import eigh
 
 ##########################################################################
 def analyze(mol, ocoeff, oocc=None, oerg=None):
-    n_mo = mol.nao
+    n_ao = mol.nao    
     
     #==== Determine the no. of unique spin channels ====#
     if len(ocoeff.shape) == 3:
         ns = 2
+        n_mo = ocoeff.shape[2]
     elif len(ocoeff.shape) == 2:
         ns = 1
+        n_mo = ocoeff.shape[1]
 
     #==== Orbital occupations ====#
     if oocc is not None:
@@ -30,11 +32,11 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
             oerg_ = oerg            
         
     #==== Recast MO coefficients into another array ====#
-    mo_c = np.zeros((ns, n_mo, n_mo))
+    mo_c = np.zeros((ns, n_ao, n_mo))
     if ns == 1:
-        mo_c[0,:,:] = ocoeff
+        mo_c[0,:,:] = ocoeff.copy()
     elif ns == 2:
-        mo_c = ocoeff
+        mo_c = ocoeff.cop()
 
     #==== Orbital symmetry ====#
     osym_l = [None] * ns
@@ -53,16 +55,16 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
             of = 3
         
     #==== Get the index of the sorted MO coefficients ====#
-    idsort = np.zeros((ns, n_mo, n_mo))
+    idsort = np.zeros((ns, n_ao, n_mo))
     for s in range(0, ns):
         for i in range(0, n_mo):
             idsort[s,:,i] = np.argsort(np.abs(mo_c[s,:,i]))   # Sort from smallest to largest.
             idsort[s,:,i] = idsort[s,::-1,i]                  # Sort from largest to smallest.
     
     #==== Construct various labels ====#
-    atom_label = [None] * n_mo
-    sph_label =  [None] * n_mo
-    for i in range(0, n_mo):
+    atom_label = [None] * n_ao
+    sph_label =  [None] * n_ao
+    for i in range(0, n_ao):
         ao_label = mol.ao_labels(fmt=False)[i]
         atom_label[i] = ao_label[1] + str(ao_label[0])
         if ao_label[3] == '':
@@ -77,7 +79,7 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
     sph_fmt = '%' + str(max(ln_sph)) + 's'
     hline = ''.join(['-' for i in range(0, 127)])
     hline_ = ''.join(['-- ' for i in range(0, 42)])
-    nlarge = min(6, n_mo)
+    nlarge = min(6, n_ao)
         
     for s in range(0, ns):
         if ns == 2:

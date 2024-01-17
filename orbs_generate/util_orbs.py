@@ -87,10 +87,16 @@ def sort_similar(orb, orb_ref, ovl=None, similar_thr=0.8, dissim_break=False, ve
 
 ##########################################################################
 ##########################################################################
-def sort_irrep(mol, orb):
+def sort_irrep(mol, orb, irrep=None):
 
-    osym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, orb)
+    osym = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, orb)
     symset = set(osym)
+    if irrep is not None:
+        assert len(irrep) == len(set(irrep))
+        for i in range(0,len(irrep)):
+            assert irrep[i] in symset
+        symset = irrep
+            
     idsort = []
     for s in symset:
         idsort = idsort + [i for i in range(0,len(osym)) if osym[i]==s]
