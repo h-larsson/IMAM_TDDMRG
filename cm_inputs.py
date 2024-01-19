@@ -74,6 +74,12 @@ def get_inputs(inp_file):
     #   
     inputs['wfn_sym'] = wfn_sym
 
+    # prev_logbook:
+    try:
+        inputs['prev_logbook'] = prev_logbook
+    except NameError:
+        inputs['prev_logbook'] = defvals.def_prev_logbook
+    
     # complex_MPS_type (optional):
     #   The complex type of MPS in the calculation. The possible options are 'hybrid'
     #   and 'full' with default being 'hybird', which is faster than 'full'. Ideally,

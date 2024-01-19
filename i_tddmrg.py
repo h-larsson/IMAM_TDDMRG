@@ -31,7 +31,7 @@ Derived from:
 
 from ipsh import ipsh
 
-import time
+import os, time, glob
 import numpy as np
 import scipy.linalg
 from scipy.linalg import eigvalsh, eigh
@@ -562,10 +562,11 @@ class MYTDDMRG:
 
 
     #################################################
-    def dmrg(self, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, cutoff=1E-14,
-             occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
+    def dmrg(self, logbook_in, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, 
+             cutoff=1E-14, occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
              save_1pdm=False, flip_spect=False):
         """Ground-State DMRG."""
+        logbook = logbook_in.copy()
 
         if self.verbose >= 2:
             _print('>>> START GS-DMRG <<<')
@@ -581,6 +582,10 @@ class MYTDDMRG:
         _print('Quantum number information:')
         _print(' - Input MPS = ', self.target)
         _print(' - Input MPS multiplicity = ', self.target.multiplicity)
+        logbook.update({'gs:qnumber:n':self.target.n})
+        logbook.update({'gs:qnumber:mult':self.target.multiplicity})
+        logbook.update({'gs:qnumber:pg':self.target.pg})
+
 
         # MultiMPSInfo
         mps_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, self.target,
@@ -668,6 +673,7 @@ class MYTDDMRG:
         self.gs_energy = dmrg.energies[-1][0]
         self.bond_dim = bond_dims[-1]
         _print("Ground state energy = %20.15f" % self.gs_energy)
+        logbook.update({'gs:dmrg_energy':self.gs_energy})
 
 
         #==== MO occupations ====#
@@ -683,12 +689,15 @@ class MYTDDMRG:
         self.qmul0, self.qlow0 = \
             pcharge.calc(self.mol, dm0_full, orbs, self.ovl_ao)
         print_pcharge(self.mol, self.qmul0, self.qlow0)
+        logbook.update({'gs:mulliken':self.qmul0, 'gs:lowdin':self.qlow0})
 
 
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
             mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm0_full, orbs)
         print_mpole(e_dpole, n_dpole, e_qpole, n_qpole)
+        logbook.update({'gs:e_dipole':e_dpole, 'gs:n_dipole':n_dpole,
+                        'gs:e_quadpole':e_qpole, 'gs:n_quadpole':n_qpole})
 
         
         #==== Save the output MPS ====#
@@ -719,6 +728,8 @@ class MYTDDMRG:
         if self.verbose >= 2:
             _print('>>> COMPLETE GS-DMRG | Time = %.2f <<<' %
                    (time.perf_counter() - t))
+
+        return logbook
     #################################################
 
     
@@ -813,14 +824,15 @@ class MYTDDMRG:
 
     
     #################################################
-    def annihilate(self, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, pg,
-                   inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
+    def annihilate(self, logbook_in, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
+                   pg, inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
                    outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
                    cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False,
                    out_singlet_embed=False):
         """
         aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
         """
+        logbook = logbook_in.copy()
         ##OLD ops = [None] * len(aorb)
         ##OLD rkets = [None] * len(aorb)
         ##OLD rmpos = [None] * len(aorb)
@@ -943,6 +955,7 @@ class MYTDDMRG:
                 j = i if self.ridx is None else self.ridx[i]
                 if (np.abs(aorb[j]) >= aorb_thr):
                     aorb_sym = self.orb_sym[j]            # 1)
+                    logbook.update({'ann:osym':aorb_sym})
                     break
             for i in range(0, self.n_sites):
                 j = i if self.ridx is None else self.ridx[i]
@@ -1025,6 +1038,9 @@ class MYTDDMRG:
             _print(' - Annihilated orbital = ', SX(-1, 1, aorb_sym))
         _print(' - Output MPS = ', ion_target)
         _print(' - Output MPS multiplicity = ', ion_target.multiplicity)
+        logbook.update({'ann:wsym':ion_sym, 'ann:qnumber:n':ion_target.n,
+                        'ann:qnumber:mult':ion_target.multiplicity,
+                        'ann:qnumber:pg':ion_target.pg})
 
 
         #==== Tag the output MPS ====#
@@ -1032,6 +1048,7 @@ class MYTDDMRG:
             rket_info.tag = 'DKET_%d' % idx
         elif isinstance(aorb, np.ndarray):
             rket_info.tag = 'DKET_C'
+        logbook.update({'ann:tag':rket_info.tag})
         
 
         #==== Set the bond dimension of output MPS ====#
@@ -1116,6 +1133,7 @@ class MYTDDMRG:
         _print('Output MPS norm = ',
                '%11.8f, %11.8fj' % (nrm_.real, nrm_.imag) if comp=='full' else
                '%11.8f' % nrm_)
+        logbook.update({'ann:norm':nrm_})
 
             
         #==== Print the energy of the output MPS ====#
@@ -1125,6 +1143,8 @@ class MYTDDMRG:
                '%12.8f Hartree' % energy)
         _print('Canonical form of the annihilation output (ortho. center) = ' +
                f'{rkets.canonical_form} ({rkets.center})')
+        logbook.update({'ann:energy':energy, 'ann:canonical_form':rkets.canonical_form,
+                        'ann:center':rkets.center})
         dm1 = self.get_one_pdm(comp=='full', rkets)
         _print('Occupations after annihilation:')
         if isinstance(aorb, int):
@@ -1142,12 +1162,15 @@ class MYTDDMRG:
         self.qmul1, self.qlow1 = \
             pcharge.calc(self.mol, dm1_full, orbs, self.ovl_ao)
         print_pcharge(self.mol, self.qmul1, self.qlow1)
+        logbook.update({'ann:mulliken':self.qmul1, 'ann:lowdin':self.qlow1})
 
 
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
             mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm1_full, orbs)
         print_mpole(e_dpole, n_dpole, e_qpole, n_qpole)
+        logbook.update({'ann:e_dipole':e_dpole, 'ann:n_dipole':n_dpole,
+                        'ann:e_quadpole':e_qpole, 'ann:n_quadpole':n_qpole})
 
 
         #==== Singlet embedding ====#
@@ -1168,6 +1191,11 @@ class MYTDDMRG:
             _print(' - Output MPS multiplicity = ', rkets.info.target.multiplicity)
             _print(' - Output canonical form (ortho. center) = ' +
                f'{rkets.canonical_form} ({rkets.center})')
+            logbook.update({'ann:qnumber:n':rkets.info.target.n,
+                            'ann:qnumber:mult':rkets.info.target.multiplicity,
+                            'ann:qnumber:pg':rkets.info.target.pg,
+                            'ann:canonical_form':rkets.canonical_form,
+                            'ann:center':rkets.center})
             
             
         #==== Save the output MPS ====#
@@ -1185,18 +1213,24 @@ class MYTDDMRG:
         if self.verbose >= 2:
             _print('>>> COMPLETE : Application of annihilation operator | Time = %.2f <<<' %
                    (time.perf_counter() - t))
+
+        return logbook
     #################################################
 
 
     #################################################
     def save_time_info(self, save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps,
-                       save_1pdm, dm):
+                       save_1pdm, rs, re, ro, dm):
 
         def save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps,
-                            save_1pdm, dm):
+                            save_1pdm, rs, re, ro, dm):
             yn_bools = ('No','Yes')
             au2fs = 2.4188843265e-2   # a.u. of time to fs conversion factor
             with open(save_dir + '/TIME_INFO', 'w') as t_info:
+                t_info.write(' Reasons printed = \n')
+                if rs: t_info.write('    * sampling time \n')
+                if re: t_info.write('    * last time point \n')
+                if ro: t_info.write('    * otf file \n')
                 t_info.write(' Actual sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
                              (it, t, t*au2fs))
                 t_info.write(' Requested sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
@@ -1234,10 +1268,11 @@ class MYTDDMRG:
         if self.mpi is not None:
             if self.mpi.rank == 0:
                 save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm,
-                                dm)
+                                rs, re, ro, dm)
             self.mpi.barrier()
         else:
-            save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm, dm)
+            save_time_info0(save_dir, t, it, t_sp, i_sp, normsq, ac, save_mps, save_1pdm,
+                            rs, re, ro, dm)
     #################################################
 
 
@@ -1268,12 +1303,78 @@ class MYTDDMRG:
     #################################################
 
 
+    #################################################
+    def read_otf_file(self, drt, fc):
+        #==== Get the list of files in drt ====#
+        fl = glob.glob(drt + '/otf-*')
+        goodfile, save_mps, save_1pdm = False, False, False
+
+        #==== Return when no otf file is found ====#
+        if len(fl) == 0:
+            return False, False, False
+
+        readit = False
+        for f in fl:
+            #==== Strip the directory name ====#
+            fn = os.path.basename(f)
+
+            #==== Determine if the otf file for the fc-th step exists ====#
+            if fn[4:].isdigit():
+                fc0 = int(fn[4:])
+                if fc0 == fc:
+                    fn_full = f
+                    readit = True
+                    break
+
+        truel =  ('true',  't', '1', 'yes', 'y')
+        falsel = ('false', 'f', '0',  'no', 'n')
+
+        #==== Read the otf file for the fc-th step ====#
+        if readit:
+            with open(fn_full, 'r') as infile:
+                lines_ = infile.read()
+                lines = lines_.split('\n')
+                goodfile, save_mps, save_1pdm = False, False, False
+
+                #== Parse the content of the otf file ==#
+                for l in lines:
+                    w = l.split()
+                    if len(w) == 2 and w[0].lower() == 'save_mps':
+                        if w[1].lower() in truel:
+                            save_mps = True
+                        elif w[1].lower() in falsel:
+                            save_mps = False
+                    elif len(w) == 2 and w[0].lower() == 'save_1pdm':
+                        if w[1].lower() in truel:
+                            save_1pdm = True
+                        elif w[1].lower() in falsel:
+                            save_1pdm = False
+                    elif len(w) == 0:
+                        pass       # blank lines are tolerated.
+                    else:
+                        _print(f'An *.otf file {fn_full} is found but will be ignored ' + \
+                               'because it does not follow the correct format.')
+                        return False, False, False
+                goodfile = True
+                print_section('On-the-fly file')
+                _print('  A format-conforming otf file:')
+                _print(f'      {fn_full}')
+                _print('  is found requesting to save:')
+                if save_mps: _print( '     * MPS')
+                if save_1pdm: _print('     * one-particle RDM')
+        else:
+            return False, False, False
+        
+        return goodfile, save_mps, save_1pdm
+    #################################################
+
+
     ##################################################################
     def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
                        inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
-                       save_2pdm=False, sample_dir='samples', prefix='te', save_txt=True,
+                       save_2pdm=False, sample_dir='./samples', prefix='te', save_txt=True,
                        save_npy=False, in_singlet_embed=False, si_nel_site=None, 
                        prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
                        prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None,
@@ -1297,6 +1398,7 @@ class MYTDDMRG:
         #==== Construct the time vector ====#
         ts = self.get_te_times(dt0, tmax)
         n_steps = len(ts)
+        ndigit = len(str(n_steps))
         _print('Time points (a.u.) = ', ts)
             
         #==== Initiate autocorrelations file ====#
@@ -1353,6 +1455,7 @@ class MYTDDMRG:
             mps_info = brs.MPSInfo(0)
             mps_info.load_data(inmps_path)
             mps = loadMPSfromDir_OLD(mps_info, inmps_dir, self.mpi)
+            
         if in_singlet_embed:
             _print('The input MPS is a singlet embedded MPS.')
             nel_t0 = si_nel_site + self.nel_core
@@ -1539,50 +1642,67 @@ class MYTDDMRG:
             if self.mpi is not None: self.mpi.barrier()
 
             
-            #==== Stores MPS and/or PDM's at sampling times ====#
-            if t_sample is not None and np.prod(issampled)==0:
-                if it < n_steps-1:
-                    dt1 = abs( ts[it]   - t_sample[i_sp] )
-                    dt2 = abs( ts[it+1] - t_sample[i_sp] )
-                    dd = dt1 < dt2
-                else:
-                    dd = True
-                    
-                if dd and not issampled[i_sp]:
-                    save_dir = sample_dir + '/mps_sp-' + str(i_sp)
-                    if self.mpi is not None:
-                        if self.mpi.rank == 0:
-                            mkDir(save_dir)
-                            self.mpi.barrier()
-                    else:
+            #==== Determine reasons to save quantities ====#
+            if t_sample is not None and it <= n_steps-2:
+                dt1 = abs( ts[it]   - t_sample[i_sp] )
+                dt2 = abs( ts[it+1] - t_sample[i_sp] )
+                dd = (dt1 < dt2)
+                r_sample = (dd and not issampled[i_sp])
+            else:
+                r_sample = False
+            r_end = (it == n_steps-1)
+            save_mps_end, save_1pdm_end = r_end, r_end
+            r_otf, save_mps_otf, save_1pdm_otf = self.read_otf_file(sample_dir, it+1)
+
+            
+            #==== Compute and prob. store save quantities at sampling times ====#
+            # 1) through t_sample,
+            # 2) at the last time point, and
+            # 3) requested on the fly.
+            if r_sample or r_end or r_otf:                    
+                save_dir = sample_dir + '/mps_sp-' + str(it+1).zfill(ndigit)
+                if self.mpi is not None:
+                    if self.mpi.rank == 0:
                         mkDir(save_dir)
+                        self.mpi.barrier()
+                else:
+                    mkDir(save_dir)
 
-                    #==== Saving MPS ====##
-                    if save_mps:
-                        saveMPStoDir(cmps, save_dir, self.mpi)
+                #==== Saving MPS ====##
+                if save_mps or save_mps_otf or save_mps_end:
+                    saveMPStoDir(cmps, save_dir, self.mpi)
 
-                    #==== Calculate 1PDM ====#
-                    if self.mpi is not None: self.mpi.barrier()
-                    cmps_cp = cmps.deep_copy('cmps_cp')         # 1)
-                    if self.mpi is not None: self.mpi.barrier()
+                #==== Calculate 1PDM ====#
+                if self.mpi is not None: self.mpi.barrier()
+                cmps_cp = cmps.deep_copy('cmps_cp')         # 1)
+                if self.mpi is not None: self.mpi.barrier()
 
-                    dm = self.get_one_pdm(True, cmps_cp)
-                    cmps_cp.info.deallocate()
-                    dm_full = make_full_dm(self.n_core, dm)
-                    dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
-                    dm_full = dm_full * nel_t0 / np.abs(dm_tr)      # dm_full is now normalized
-                    #OLD cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
-                    # NOTE:
-                    # 1) Copy the current MPS because self.get_one_pdm convert the input
-                    #    MPS to a real MPS.
+                dm = self.get_one_pdm(True, cmps_cp)
+                cmps_cp.info.deallocate()
+                dm_full = make_full_dm(self.n_core, dm)
+                dm_tr = np.sum( np.trace(dm_full, axis1=1, axis2=2) )
+                dm_full = dm_full * nel_t0 / np.abs(dm_tr)      # dm_full is now normalized
+                #OLD cmps_cp.deallocate()      # Unnecessary because it must have already been called inside the expect.solve function in the get_one_pdm above
+                # NOTE:
+                # 1) Copy the current MPS because self.get_one_pdm convert the input
+                #    MPS to a real MPS.
 
-                    #==== Save 1PDM ====#
-                    if save_1pdm: np.save(save_dir+'/1pdm', dm)
-                        
-                    #==== Save time info ====#
-                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, normsqs, 
-                                        acorr_t, save_mps, save_1pdm, dm)
+                #==== Save 1PDM ====#
+                if save_1pdm or save_1pdm_otf or save_1pdm_end:
+                    np.save(save_dir+'/1pdm', dm)
+                    
+                #==== Save time info ====#
+                if r_sample:
+                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp,
+                                        normsqs, acorr_t, save_mps, save_1pdm, r_sample,
+                                        r_end, r_otf, dm)
+                else:
+                    self.save_time_info(save_dir, ts[it], it, ts[it], it,
+                                        normsqs, acorr_t, save_mps_otf or save_mps_end,
+                                        save_1pdm_otf or save_1pdm_end, r_sample,
+                                        r_end, r_otf, dm)
 
+                if r_sample:
                     #==== Partial charges ====#
                     orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs()),
                                           axis=2)
@@ -1590,7 +1710,7 @@ class MYTDDMRG:
                     if self.mpi is None or self.mpi.rank == 0:
                         q_print.print_pcharge(tt, qlow)
                     if self.mpi is not None: self.mpi.barrier()
-
+                    
                     #==== Multipole components ====#
                     e_dpole, n_dpole, e_qpole, n_qpole = \
                         mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm_full, orbs)
@@ -1598,10 +1718,10 @@ class MYTDDMRG:
                         mp_print.print_mpole(tt, e_dpole, n_dpole, e_qpole, n_qpole)
                     if self.mpi is not None: self.mpi.barrier()
 
-
                     issampled[i_sp] = True
                     i_sp += 1
 
+                    
         #==== Print max min imaginary parts (for debugging) ====#
         if t_sample is not None:
             if self.mpi is None or self.mpi.rank == 0:

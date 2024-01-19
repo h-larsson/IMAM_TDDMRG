@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 
-import os, sys, time, socket
+import os, sys, time, socket, pickle
 import numpy as np
 from scipy.linalg import eigvalsh
 from humanfriendly import format_timespan
@@ -15,12 +15,15 @@ from pyscf import gto, scf, ao2mo, symm
 from IMAM_TDDMRG import defvals, cm_inputs
 inp_file = str(sys.argv[1])
 inputs = cm_inputs.get_inputs(inp_file)
+from IMAM_TDDMRG.utils import util_logbook
+inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
+logbook = {}
 ######################
 #^^^^ Input File ^^^^#
 ######################
 
 
-from IMAM_TDDMRG.utils import util_complex_type
+from IMAM_TDDMRG.utils import util_complex_type, util_logbook
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG, orbital_reorder
 from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder_dip
@@ -113,6 +116,7 @@ _print('Total number of electrons = ', sum(mol.nelec))
 _print('AO basis set = ', inputs['inp_basis'])
 _print('Number of AO bases = ', mol.nao)
 _print('Number of MO bases = ', n_mo)
+logbook.update({'nelCore':nelCore, 'point_group':pg})
 
 
 #==== Specification of the CAS ====#
@@ -125,6 +129,7 @@ _print('Number of core orbitals = ', inputs['nCore'])
 _print('Number of CAS orbitals (CAS electrons) = %d (%d)' %
        (inputs['nCAS'], inputs['nelCAS']))
 _print('Number of virtual orbitals = ', nvir)
+logbook.update({'nvir':nvir, 'nsites':nsites})
 
 
 #==== Obtain the site orbitals ====#
@@ -170,6 +175,7 @@ if MAIN_PROCESS:
     #==== Get the symmetries ====#
     molpro_osym, molpro_wsym = \
         get_syms(mol, inputs['wfn_sym'], inputs['nCore'], inputs['nCAS'], orbs)
+    logbook.update({'molpro_osym':molpro_osym, 'molpro_wsym':molpro_wsym})
 else:
     orbs = h1e = g2e = None
     orbs_shape = h1eshape = g2eshape = None
@@ -205,17 +211,18 @@ if MAIN_PROCESS:
             ord_method = 'fiedler'
         re_idx = orbital_reorder(h1e, g2e, method=ord_method)
     elif isinstance(inputs['orb_order'], list):
-        assert inputs['orb_order'][0] == 'dipole'
-        assert len(inputs['orb_order']) == 4
-        _print('Orbital ordering will be computed based on the dipole ' +
-               'moment component of the orbitals.')
-        uv = inputs['orb_order'][1:4]
-        i1 = inputs['nCore']
-        i2 = inputs['nCore'] + inputs['nCAS']
-        re_idx = orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
-    elif type(inputs['orb_order']) == list:
-        _print('Orbital ordering is provided directly in the input.')
-        re_idx = np.array(inputs['orb_order'])
+        if inputs['orb_order'][0] == 'dipole':
+            assert len(inputs['orb_order']) == 4
+            _print('Orbital ordering will be computed based on the dipole ' +
+                   'moment component of the orbitals.')
+            uv = inputs['orb_order'][1:4]
+            i1 = inputs['nCore']
+            i2 = inputs['nCore'] + inputs['nCAS']
+            re_idx = orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
+        else:
+            assert all(isinstance(i, int) for i in inputs['orb_order'])
+            _print('Orbital ordering is provided directly in the input.')
+            re_idx = np.array(inputs['orb_order'])
     else:
         _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
         re_idx = np.load(inputs['orb_order'])
@@ -227,6 +234,7 @@ if MAIN_PROCESS:
     np.save('./' + inputs['prefix'] + '.ord', re_idx)
     re_idx_shape = re_idx.shape
     re_idx_type = type(re_idx)
+    logbook.update({'orb_order':re_idx})
 else:
     re_idx = re_idx_shape = re_idx_type = None
 
@@ -257,6 +265,7 @@ _print('CAS orbitals symmetries = ', [symm.irrep_id2name(mol.groupname, s) for s
 wsym = swap_pg(molpro_wsym)
 _print('MPS symmetry = ', symm.irrep_id2name(mol.groupname, wsym))
 _print('Core energy = %12.8f Hartree' % ecore)
+logbook.update({'pyscf_osym':osym, 'pyscf_wsym':wsym})
 
 
 if inputs['do_groundstate']:
@@ -276,10 +285,10 @@ if inputs['do_groundstate']:
         kw = 'gs_outmps_dir'
         if inputs['dump_inputs']:
             _print('  ', kw, ' = ', inputs[kw])
-    obj.dmrg(inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
-             inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
-             inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
-             inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'])
+    logbook = obj.dmrg(logbook, inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
+                       inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
+                       inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
+                       inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'])
     _print('\n')
 
 
@@ -305,7 +314,8 @@ if inputs['do_annihilate']:
         kw = 'ann_outmps_dir'
         if inputs['dump_inputs']:
             _print('  ', kw, ' = ', inputs[kw])
-    obj.annihilate(
+    logbook = \
+        obj.annihilate(logbook,
         inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], 
         inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], 
         inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'],
@@ -356,6 +366,17 @@ if inputs['do_timeevo']:
 
 
 
+#==== Dump some information to logbook ====#
+logbook.update(inputs)      # 1)
+with open(inputs['prefix'] + '.lb', 'wb') as f:
+    try:
+        pickle.dump(logbook, f)
+    except TypeError:
+        for key in logbook:
+            print(key, type(logbook[key]))
+        raise TypeError('The types of some keys are not compatible with pickle.')
+# 1) Content of inputs is appended near the end of the program to account for the actual
+#    values of some inputs that were assigned with a default value of 'DEFINE_LATER'.
 
 
 #==== Wrapping up ====#

@@ -2,6 +2,7 @@
 
 def_memory = 1E9
 def_verbose_lvl = 4
+def_prev_logbook = None
 def_complex_MPS_type = 'hybrid'
 def_dump_inputs = False
 def_orb_path = None
