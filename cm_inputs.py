@@ -302,6 +302,10 @@ def get_inputs(inp_file):
         inputs['tmax'] = tmax
         inputs['dt'] = dt
         try:
+            inputs['tinit'] = tinit
+        except NameError:
+            inputs['tinit'] = defvals.def_tinit
+        try:
             inputs['te_inmps_dir'] = te_inmps_dir
         except NameError:
             inputs['te_inmps_dir'] = 'DEFINE_LATER'

@@ -675,7 +675,7 @@ class MYTDDMRG:
 
         self.gs_energy = dmrg.energies[-1][0]
         self.bond_dim = bond_dims[-1]
-        _print("Ground state energy = %20.15f" % self.gs_energy)
+        _print("Ground state energy = %16.10f" % self.gs_energy)
         logbook.update({'gs:dmrg_energy':self.gs_energy})
 
 
@@ -1236,7 +1236,7 @@ class MYTDDMRG:
                 t_info.write(' Reasons printed = \n')
                 if rs: t_info.write('    * sampling time \n')
                 if re: t_info.write('    * last time point \n')
-                if ro: t_info.write('    * otf file \n')
+                if ro: t_info.write('    * probe file \n')
                 t_info.write(' Actual sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
                              (it, t, t*au2fs))
                 t_info.write(' Requested sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
@@ -1283,7 +1283,7 @@ class MYTDDMRG:
 
 
     #################################################
-    def get_te_times(self, dt0, tmax):
+    def get_te_times(self, dt0, tmax, tinit=0.0):
 
         #OLD n_steps = int(tmax/dt + 1)
         #OLD ts = np.linspace(0, tmax, n_steps)    # times
@@ -1291,11 +1291,11 @@ class MYTDDMRG:
             dt = [dt0]
         else:
             dt = dt0
-        ts = [0.0]
+        ts = [tinit]
         i = 1
         while ts[-1] < tmax:
             if i <= len(dt):
-                ts = ts + [sum(dt[0:i])]
+                ts = ts + [tinit + sum(dt[0:i])]
             else:
                 ts = ts + [ts[-1] + dt[-1]]
             i += 1
@@ -1310,12 +1310,13 @@ class MYTDDMRG:
 
 
     #################################################
-    def read_otf_file(self, drt, fc):
+    def read_probe_file(self, drt, fc):
         #==== Get the list of files in drt ====#
-        fl = glob.glob(drt + '/otf-*')
+        fl = glob.glob(drt + '/probe-*')
+        prefixlen = len('probe-')
         goodfile, save_mps, save_1pdm = False, False, False
 
-        #==== Return when no otf file is found ====#
+        #==== Return when no probe file is found ====#
         if len(fl) == 0:
             return False, False, False
 
@@ -1324,9 +1325,9 @@ class MYTDDMRG:
             #==== Strip the directory name ====#
             fn = os.path.basename(f)
 
-            #==== Determine if the otf file for the fc-th step exists ====#
-            if fn[4:].isdigit():
-                fc0 = int(fn[4:])
+            #==== Determine if the probe file for the fc-th step exists ====#
+            if fn[prefixlen:].isdigit():
+                fc0 = int(fn[prefixlen:])
                 if fc0 == fc:
                     fn_full = f
                     readit = True
@@ -1335,14 +1336,14 @@ class MYTDDMRG:
         truel =  ('true',  't', '1', 'yes', 'y')
         falsel = ('false', 'f', '0',  'no', 'n')
 
-        #==== Read the otf file for the fc-th step ====#
+        #==== Read the probe file for the fc-th step ====#
         if readit:
             with open(fn_full, 'r') as infile:
                 lines_ = infile.read()
                 lines = lines_.split('\n')
                 goodfile, save_mps, save_1pdm = False, False, False
 
-                #== Parse the content of the otf file ==#
+                #== Parse the content of the probe file ==#
                 for l in lines:
                     w = l.split()
                     if len(w) == 2 and w[0].lower() == 'save_mps':
@@ -1358,12 +1359,12 @@ class MYTDDMRG:
                     elif len(w) == 0:
                         pass       # blank lines are tolerated.
                     else:
-                        print_warning(f'An *.otf file {fn_full} is found but will be ignored ' + \
+                        print_warning(f'A probe file {fn_full} is found but will be ignored ' + \
                                       'because it does not follow the correct format.')
                         return False, False, False
                 goodfile = True
-                print_section('On-the-fly file')
-                _print('  A format-conforming otf file:')
+                print_section('Probe file')
+                _print('  A format-conforming probe file:')
                 _print(f'      {fn_full}')
                 _print('  is found requesting to save:')
                 if save_mps: _print( '     * MPS')
@@ -1377,7 +1378,7 @@ class MYTDDMRG:
 
     ##################################################################
     def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
-                       inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
+                       tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
                        inmps_multi=False, exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
@@ -1402,12 +1403,12 @@ class MYTDDMRG:
             inmps_dir = inmps_dir0
 
         if comp == 'full':
-            assert inmps_cpx, 'When complex type is \'full\', inmps_cpx must be true, ' + \
+            assert inmps_cpx, "When complex type is 'full', inmps_cpx must be true, " + \
                 'that is, the initial MPS must be complex.'
 
             
         #==== Construct the time vector ====#
-        ts = self.get_te_times(dt0, tmax)
+        ts = self.get_te_times(dt0, tmax, tinit)
         n_steps = len(ts)
         ndigit = len(str(n_steps))
         _print('Time points (a.u.) = ', ts)
@@ -1456,7 +1457,10 @@ class MYTDDMRG:
             idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
             if self.mpi is not None:
                 idMPO = bs.ParallelMPO(idMPO, self.identrule)
-            if inmps_multi: nroots = 2
+            if inmps_multi:
+                nroots = 2
+            else:
+                nroots = None
             mps, mps_info, _ = \
                 loadMPSfromDir(inmps_dir, inmps_name, inmps_cpx, inmps_multi, idMPO,
                                cached_contraction=True, MPI=self.mpi, nroots=nroots,
@@ -1670,15 +1674,15 @@ class MYTDDMRG:
                 r_sample = False
             r_end = (it == n_steps-1)
             save_mps_end, save_1pdm_end = r_end, r_end
-            r_otf, save_mps_otf, save_1pdm_otf = self.read_otf_file(sample_dir, it+1)
+            r_probe, save_mps_probe, save_1pdm_probe = self.read_probe_file(sample_dir, it+1)
 
             
             #==== Compute and prob. store save quantities at sampling times ====#
             # 1) through t_sample,
             # 2) at the last time point, and
-            # 3) requested on the fly.
-            if r_sample or r_end or r_otf:                    
-                save_dir = sample_dir + '/mps_sp-' + str(it+1).zfill(ndigit)
+            # 3) requested by a probe file.
+            if r_sample or r_end or r_probe:                    
+                save_dir = sample_dir + '/tevo-' + str(it+1).zfill(ndigit)
                 if self.mpi is not None:
                     if self.mpi.rank == 0:
                         mkDir(save_dir)
@@ -1687,13 +1691,7 @@ class MYTDDMRG:
                     mkDir(save_dir)
 
                 #==== Saving MPS ====##
-                for iSite in range(cmps.n_sites+1):
-                    _print(iSite, ' mpsinfo fname f = ', cmps.info.get_filename(False,iSite) )
-                    _print(iSite, ' mpsinfo fname t = ', cmps.info.get_filename(True,iSite) )
-                for iSite in range(-1,cmps.n_sites): # -1 is data
-                    _print(iSite, ' mps fname = ', cmps.get_filename(iSite) )
-
-                if save_mps or save_mps_otf or save_mps_end:
+                if save_mps or save_mps_probe or save_mps_end:
                     saveMPStoDir(cmps, save_dir, self.mpi)
 
                 #==== Calculate 1PDM ====#
@@ -1712,19 +1710,19 @@ class MYTDDMRG:
                 #    MPS to a real MPS.
 
                 #==== Save 1PDM ====#
-                if save_1pdm or save_1pdm_otf or save_1pdm_end:
+                if save_1pdm or save_1pdm_probe or save_1pdm_end:
                     np.save(save_dir+'/1pdm', dm)
                     
                 #==== Save time info ====#
                 if r_sample:
                     self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp,
                                         normsqs, acorr_t, save_mps, save_1pdm, r_sample,
-                                        r_end, r_otf, dm)
+                                        r_end, r_probe, dm)
                 else:
                     self.save_time_info(save_dir, ts[it], it, ts[it], it,
-                                        normsqs, acorr_t, save_mps_otf or save_mps_end,
-                                        save_1pdm_otf or save_1pdm_end, r_sample,
-                                        r_end, r_otf, dm)
+                                        normsqs, acorr_t, save_mps_probe or save_mps_end,
+                                        save_1pdm_probe or save_1pdm_end, r_sample,
+                                        r_end, r_probe, dm)
 
                 if r_sample:
                     #==== Partial charges ====#

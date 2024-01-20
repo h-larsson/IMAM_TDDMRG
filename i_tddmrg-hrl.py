@@ -873,7 +873,7 @@ class MYTDDMRG:
                     _print('i_sp, dt1, dt2 = ', i_sp, dt1, dt2)
                     if dd and not issampled[i_sp]:
                         # HRL: self.scratch is typically deletedafter the run. better save it somewhere else. see also above re. BLOCK2_MPS_DIR
-                        sample_dir = self.scratch + '/mps_sp-' + str(i_sp)
+                        sample_dir = self.scratch + '/tevo-' + str(i_sp)
                         mkDir(sample_dir)
      
                         ##### Using saveMPStoDir #####

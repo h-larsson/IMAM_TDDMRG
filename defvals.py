@@ -37,6 +37,7 @@ def_ann_out_singlet_embed = False
 
 def_te_inmps_fname = 'ANN_KET'
 def_te_method = 'tdvp'
+def_tinit = 0.0
 def_te_inmps_cpx = False
 def_te_inmps_multi = False
 def_exp_tol = 1.0E-6

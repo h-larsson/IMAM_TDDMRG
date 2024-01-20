@@ -72,7 +72,7 @@ for i in range(0,2): pdm0[i, nCore:nocc, nCore:nocc] = pdm0_[i,:,:]
 pdm0_ao = mo2ao_l @ np.sum(pdm0, axis=0) @ mo2ao_r
 ndigit = len(str(n_sample))
 for ifl in range(0, n_sample):
-    pdm1_dir = './' + prefix + '.sample/mps_sp-' + str(ifl)
+    pdm1_dir = './' + prefix + '.sample/tevo-' + str(ifl)
     pdm1_ = np.load(pdm1_dir + '/1pdm.npy')
     for i in range(0,2): pdm1[i, nCore:nocc, nCore:nocc] = pdm1_[i,:,:]
     print('Time point ', ifl)

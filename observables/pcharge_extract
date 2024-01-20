@@ -90,7 +90,7 @@ ovl = mol.intor('int1e_ovlp')
 print('\nCalculating and printing partial charges:')
 for i_sp in range(0, n_sample):
     #== Construct the PDM ==#
-    pdm_dir = inputs['sample_dir'] + '/mps_sp-' + str(i_sp)
+    pdm_dir = inputs['sample_dir'] + '/tevo-' + str(i_sp)
     with open(pdm_dir + '/TIME_INFO', 'r') as t_info:
         lines = t_info.read()
         line0 = lines.split('\n')[0]

@@ -73,14 +73,13 @@ if hasMPI:
     print(f"# A warm welcome from MPI on {socket.gethostname()} with size {MPI.size} and rank {MPI.rank}",
               flush=True)
     MPI.barrier()
-
+        
     
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
         _print('  ', kw, ' = ', inputs[kw])
     print(' ')
-
     
 
 #==== Print process-related status ====#
@@ -355,7 +354,7 @@ if inputs['do_timeevo']:
                       'has been turned on. Be warned that these MPSs might take up a ' +
                       'lot of storage space.')
     obj.time_propagate(inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
-                       inputs['te_inmps_dir'], inputs['te_inmps_fname'],
+                       inputs['tinit'], inputs['te_inmps_dir'], inputs['te_inmps_fname'],
                        inputs['te_inmps_cpx'], inputs['te_inmps_multi'], inputs['exp_tol'], 
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
