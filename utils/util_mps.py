@@ -155,8 +155,79 @@ def calc_energy_MPS(hmpo, mps, bond_dim_margin=0):
 
 
 #################################################
+def copyIt(fnam:str, mpsSaveDir:str, MPI:MPICommunicator=None):
+    if MPI is not None and MPI.rank != 0:
+        # ATTENTION: For multi node  calcs, I assume that all nodes have one global scratch dir
+        return
+    lastName = os.path.split(fnam)[-1]
+    fst = f"cp -p {fnam} {mpsSaveDir}/{lastName}"
+    # subprocess is favored but sometimes there is a problem due to memory allocation
+    try:
+        subprocess.call(fst.split())
+    except: # May problem due to allocate memory
+        print(f"# ATTENTION: saveMPStoDir with command'{fst}' failed!")
+        print(f"# Error message: {sys.exc_info()[0]}")
+        print(f"# Error message: {sys.exc_info()[1]}")
+        print(f"# Try again with shutil")
+        try:
+            # vv does not copy metadata 
+            shutil.copyfile(fnam, mpsSaveDir+"/"+lastName)
+        except:
+            print(f"\t# ATTENTION: saveMPStoDir with shutil also failed")
+            print(f"\t# Error message: {sys.exc_info()[0]}")
+            print(f"\t# Error message: {sys.exc_info()[1]}")
+            print(f"\t# Try again with syscal")
+            os.system(fst)
 #################################################
-def copyItRev(fnam: str, mpsSaveDir:str, MPI:MPICommunicator=None):
+
+
+#################################################
+def saveMPStoDir(mps:bs.MPS|bs.MultiMPS, mpsSaveDir:str, MPI:MPICommunicator=None):
+
+    mps.save_data() # Important! Saves canonical form
+    #OLD mkDir(mpsSaveDir)
+    if not os.path.exists(mpsSaveDir):
+        try:
+            os.makedirs(mpsSaveDir)
+        except FileExistsError: # don't ask...
+            pass
+    mps.info.save_data(f"{mpsSaveDir}/mps_info.bin")
+
+    #==== Duplicate MPS info files in scratch (obtained ====#
+    #====     from the MPSInfo object) to mpsSaveDir    ====#
+    for iSite in range(mps.n_sites+1):
+        fnam = mps.info.get_filename(False,iSite)
+        copyIt(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+        fnam = mps.info.get_filename(True, iSite)
+        copyIt(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+            
+    #==== Duplicate MPS files in scratch (obtained ====#
+    #====  from the MPSInfo object) to mpsSaveDir  ====#
+    for iSite in range(-1,mps.n_sites): # -1 is data
+        fnam = mps.get_filename(iSite)
+        copyIt(fnam, mpsSaveDir, MPI)
+        if MPI is not None:
+            MPI.barrier()
+    if isinstance(mps, bs.MultiMPS):
+        for iroot in range(0,mps.nroots):
+            print('type iroot ', type(iroot))
+            fnam = mps.get_wfn_filename(iroot, "")
+            # I think the second argument of get_wfn_filename should be
+            # made optional.
+            copyIt(fnam, mpsSaveDir, MPI)
+            if MPI is not None:
+                MPI.barrier()
+    return
+#################################################
+
+
+#################################################
+#################################################
+def copyItRev(fnam:str, mpsSaveDir:str, MPI:MPICommunicator=None):
     
     if MPI is not None and MPI.rank != 0:
         # ATTENTION: For multi node  calcs, I assume that all nodes have one global scratch dir
@@ -226,23 +297,29 @@ def loadMPSfromDir_OLD(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicat
 
 #################################################
 #################################################
-def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo, 
+def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool, impo, 
                    ref_center=0, cached_contraction:bool=True, MPI:MPICommunicator=None, 
-                   prule=None) -> bs.MPS:
+                   nroots=None, prule=None) -> bs.MPS | bs.MultiMPS:
 
     if MPI is not None:
         assert prule is not None, 'prule is required when the MPI input is not None.'
+    if multi_mps:
+        assert nroots is not None, 'When multi_mps is True, nroots is required.'
 
     #==== Construct the MPS information found in <mpsSaveDir>/<mpstag> ====#
     inmps_path = mpsSaveDir + "/" + mpstag
-    mps_info = brs.MPSInfo(0)
+    if multi_mps:
+        mps_info = brs.MultiMPSInfo(0)
+    else:
+        mps_info = brs.MPSInfo(0)
     mps_info.load_data(inmps_path)
 
-    
+        
     #==== Duplicate MPS info files in mpsSaveDir to the ====#
     #====   scratch obtained from the MPSInfo object    ====#
     for iSite in range(mps_info.n_sites + 1):
         fnam = mps_info.get_filename(False, iSite)
+        _print('mpsload : ', fnam)
         copyItRev(fnam, mpsSaveDir, MPI)
         if MPI is not None:
             MPI.barrier()
@@ -254,7 +331,10 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo,
             
     #==== Duplicate MPS files in mpsSaveDir to the ====#
     #==== scratch obtained from the MPSInfo object ====#
-    mps = bs.MPS(mps_info)          # 1)
+    if multi_mps:
+        mps = bs.MultiMPS(mps_info)          # 1)
+    else:
+        mps = bs.MPS(mps_info)          # 1)
     for iSite in range(-1, mps_info.n_sites):  # -1 is data
         fnam = mps.get_filename(iSite)
         copyItRev(fnam, mpsSaveDir, MPI)
@@ -263,10 +343,22 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo,
     # NOTES:
     # 1) At this point, mps is just a dummy MPS object used to get
     #    the path to the scratch folder.
+    if multi_mps:
+        _print('nroots = ', nroots)
+        for iroot in range(0, nroots):
+            fnam = mps.get_wfn_filename(iroot, "")
+            # I think the second argument of get_wfn_filename should be
+            # made optional.
+            copyItRev(fnam, mpsSaveDir, MPI)
+            if MPI is not None:
+                MPI.barrier()
 
     
     #==== Construct the actual MPS object ====#
-    mps = bs.MPS(mps_info).deep_copy(mps_info.tag)
+    if multi_mps:
+        mps = bs.MultiMPS(mps_info).deep_copy(mps_info.tag)
+    else:
+        mps = bs.MPS(mps_info).deep_copy(mps_info.tag)
     if MPI is not None:
         MPI.barrier()
     mps_info = mps.info
@@ -287,7 +379,8 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo,
         
     #==== Change canonical form for hybrid complex MPS ====#
     if mps.center == mps.n_sites - 1:
-        if complex_mps and comp == 'hybrid':
+        if complex_mps and multi_mps:
+#OLD        if complex_mps and comp == 'hybrid':
             _print('\n\nChange canonical form - hybrid complex ...')
             cf = str(mps.canonical_form)
             mps.dot = 1
@@ -321,7 +414,8 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, impo,
         ime.delayed_contraction = b2.OpNamesSet.normal_ops()
         ime.cached_contraction = cached_contraction
         ime.init_environments(False)
-        if complex_mps and comp == 'hybrid':
+        if complex_mps and multi_mps:
+#OLD        if complex_mps and comp == 'hybrid':
             expect = brs.ComplexExpect(ime, mps.info.bond_dim, mps.info.bond_dim)
         else:
             expect = bs.Expect(ime, mps.info.bond_dim, mps.info.bond_dim)

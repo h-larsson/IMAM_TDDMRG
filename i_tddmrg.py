@@ -92,14 +92,17 @@ except ImportError:
 #OLD_CPX         hasMPI = False
 
 import tools; tools.init(SX)
-from tools import saveMPStoDir, mkDir
+#from tools import saveMPStoDir, mkDir
+from tools import mkDir
 from gfdmrg import orbital_reorder
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_section, print_describe_content
+from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
+from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content
 from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole
 from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
-from IMAM_TDDMRG.utils.util_mps import loadMPSfromDir_OLD, loadMPSfromDir, trans_to_singlet_embed
+from IMAM_TDDMRG.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
+from IMAM_TDDMRG.utils.util_mps import trans_to_singlet_embed
 from IMAM_TDDMRG.observables import pcharge, mpole
 from IMAM_TDDMRG.phys_const import au2fs
 
@@ -900,10 +903,13 @@ class MYTDDMRG:
 
 
         #==== Load the input MPS ====#
+        complex_mps = (comp == 'full')
         mps, mps_info, _ = \
-                loadMPSfromDir(inmps_dir, inmps_name, comp=='full', idMPO_,
+                loadMPSfromDir(inmps_dir, inmps_name, complex_mps, False, idMPO_,
                                cached_contraction=True, MPI=self.mpi, 
-                               prule=self.prule if self.mpi is not None else None)
+                               prule=self.prule if self.mpi is not None else None)  # 1)
+        # At the moment, the annihilator function does not support input MPS of the
+        # type multi MPS.
         _print('Input MPS max. bond dimension = ', mps.info.bond_dim)
         assert mps_info.target.n == self.nel_site, \
             'The number of active space electrons from the quantum number label does ' + \
@@ -1352,8 +1358,8 @@ class MYTDDMRG:
                     elif len(w) == 0:
                         pass       # blank lines are tolerated.
                     else:
-                        _print(f'An *.otf file {fn_full} is found but will be ignored ' + \
-                               'because it does not follow the correct format.')
+                        print_warning(f'An *.otf file {fn_full} is found but will be ignored ' + \
+                                      'because it does not follow the correct format.')
                         return False, False, False
                 goodfile = True
                 print_section('On-the-fly file')
@@ -1371,8 +1377,9 @@ class MYTDDMRG:
 
     ##################################################################
     def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
-                       inmps_dir0=None, inmps_name='ANN_KET', exp_tol=1e-6, cutoff=0, 
-                       normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20, 
+                       inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
+                       inmps_multi=False, exp_tol=1e-6, cutoff=0, 
+                       normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
                        save_2pdm=False, sample_dir='./samples', prefix='te', save_txt=True,
                        save_npy=False, in_singlet_embed=False, si_nel_site=None, 
@@ -1393,6 +1400,10 @@ class MYTDDMRG:
             inmps_dir = self.scratch
         else:
             inmps_dir = inmps_dir0
+
+        if comp == 'full':
+            assert inmps_cpx, 'When complex type is \'full\', inmps_cpx must be true, ' + \
+                'that is, the initial MPS must be complex.'
 
             
         #==== Construct the time vector ====#
@@ -1445,9 +1456,10 @@ class MYTDDMRG:
             idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
             if self.mpi is not None:
                 idMPO = bs.ParallelMPO(idMPO, self.identrule)
+            if inmps_multi: nroots = 2
             mps, mps_info, _ = \
-                loadMPSfromDir(inmps_dir, inmps_name, comp=='full', idMPO,
-                               cached_contraction=True, MPI=self.mpi, 
+                loadMPSfromDir(inmps_dir, inmps_name, inmps_cpx, inmps_multi, idMPO,
+                               cached_contraction=True, MPI=self.mpi, nroots=nroots,
                                prule=self.prule if self.mpi is not None else None)
             #ipsh('After loading mps')
         else:
@@ -1455,7 +1467,9 @@ class MYTDDMRG:
             mps_info = brs.MPSInfo(0)
             mps_info.load_data(inmps_path)
             mps = loadMPSfromDir_OLD(mps_info, inmps_dir, self.mpi)
+
             
+        #==== Singlet embedding ====#
         if in_singlet_embed:
             _print('The input MPS is a singlet embedded MPS.')
             nel_t0 = si_nel_site + self.nel_core
@@ -1498,11 +1512,15 @@ class MYTDDMRG:
 
 
         #==== Make the initial MPS complex when using hybrid complex ====#
-        if comp == 'full':
+        if inmps_cpx:
+            # Just duplicate the initial MPS if it is complex, regardless of
+            # whether it is of multi MPS or normal MPS type. The comp type
+            # does not matter either here.
             cmps = mps.deep_copy('mps_t')
             cmps_t0 = mps.deep_copy('mps_t0')
-            #ipsh('init cmps')
-        elif comp == 'hybrid':
+        else:
+            # If the initial MPS is real (impliying comp=False), then use a
+            # multi MPS to transform it to a complex multi MPS.
             cmps = bs.MultiMPS.make_complex(mps, "mps_t")
             cmps_t0 = bs.MultiMPS.make_complex(mps, "mps_t0")
         _print('Initial canonical form (ortho. center) = ' +
@@ -1669,6 +1687,12 @@ class MYTDDMRG:
                     mkDir(save_dir)
 
                 #==== Saving MPS ====##
+                for iSite in range(cmps.n_sites+1):
+                    _print(iSite, ' mpsinfo fname f = ', cmps.info.get_filename(False,iSite) )
+                    _print(iSite, ' mpsinfo fname t = ', cmps.info.get_filename(True,iSite) )
+                for iSite in range(-1,cmps.n_sites): # -1 is data
+                    _print(iSite, ' mps fname = ', cmps.get_filename(iSite) )
+
                 if save_mps or save_mps_otf or save_mps_end:
                     saveMPStoDir(cmps, save_dir, self.mpi)
 

@@ -355,7 +355,8 @@ if inputs['do_timeevo']:
                       'has been turned on. Be warned that these MPSs might take up a ' +
                       'lot of storage space.')
     obj.time_propagate(inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
-                       inputs['te_inmps_dir'], inputs['te_inmps_fname'], inputs['exp_tol'], 
+                       inputs['te_inmps_dir'], inputs['te_inmps_fname'],
+                       inputs['te_inmps_cpx'], inputs['te_inmps_multi'], inputs['exp_tol'], 
                        inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                        inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
