@@ -15,9 +15,19 @@ def parse(inputs0):
             break
 
     for key in inputs:
-        if inputs[key] == 'logbook':
-            assert key in logbook, f'The input \'{key}\' cannot be found in the ' + \
-                'specified previous logbook. Check your previous logbook again.'
-            inputs[key] = logbook[key]
+        if isinstance(inputs[key], str):
+            key0 = None
+            if inputs[key] == 'logbook':
+                key0 = key
+            elif inputs[key][0:8] == 'logbook:':
+                key0 = inputs[key][8:]
+            else:
+                pass
 
+            if key0 is not None:
+                assert key0 in logbook, f'The keyword \'{key0}\' cannot be found in the ' + \
+                    'specified previous logbook. Check your previous logbook again.'
+                inputs[key] = logbook[key0]
+        else:
+            pass
     return inputs

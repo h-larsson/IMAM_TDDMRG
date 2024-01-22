@@ -201,6 +201,7 @@ if hasMPI:
     
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
+    # ==== Genetic or Fiedler ====#
     if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler':
         _print('Orbital ordering will be computed by the program using ' +
                'the ' + inputs['orb_order'] + ' algorithm.')
@@ -209,7 +210,8 @@ if MAIN_PROCESS:
         elif inputs['orb_order'] == 'fiedler':
             ord_method = 'fiedler'
         re_idx = orbital_reorder(h1e, g2e, method=ord_method)
-    elif isinstance(inputs['orb_order'], list):
+    elif isinstance(inputs['orb_order'], (np.ndarray, list, tuple)):
+        #==== Dipole component ====#
         if inputs['orb_order'][0] == 'dipole':
             assert len(inputs['orb_order']) == 4
             _print('Orbital ordering will be computed based on the dipole ' +
@@ -218,22 +220,29 @@ if MAIN_PROCESS:
             i1 = inputs['nCore']
             i2 = inputs['nCore'] + inputs['nCAS']
             re_idx = orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
+        #==== List, tuple, or array of integers ====#
         else:
-            assert all(isinstance(i, int) for i in inputs['orb_order'])
+            assert all(isinstance(i, (int, np.int8, np.int16, np.int32, np.int64))
+                       for i in inputs['orb_order'])
             _print('Orbital ordering is provided directly in the input.')
             re_idx = np.array(inputs['orb_order'])
+    #==== Load from an .npy file ====#
     else:
         _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
         re_idx = np.load(inputs['orb_order'])
-    _print('CAS orbitals ordering = ', re_idx)
+        
+    _print('\nCAS orbitals ordering = ', re_idx)
     if not all(isinstance(idx, (int, np.int8, np.int16, np.int32, np.int64)) \
                for idx in re_idx):
         raise ValueError('All elements of the \'orb_order\' input must ' +
                          'be an integer.')
+
+    #==== Save orbital ordering ====#
     np.save('./' + inputs['prefix'] + '.ord', re_idx)
+    
     re_idx_shape = re_idx.shape
     re_idx_type = type(re_idx)
-    logbook.update({'orb_order':re_idx})
+    logbook.update({'orb_order_id':re_idx})
 else:
     re_idx = re_idx_shape = re_idx_type = None
 

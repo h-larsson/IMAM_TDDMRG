@@ -214,7 +214,6 @@ def saveMPStoDir(mps:bs.MPS|bs.MultiMPS, mpsSaveDir:str, MPI:MPICommunicator=Non
             MPI.barrier()
     if isinstance(mps, bs.MultiMPS):
         for iroot in range(0,mps.nroots):
-            print('type iroot ', type(iroot))
             fnam = mps.get_wfn_filename(iroot, "")
             # I think the second argument of get_wfn_filename should be
             # made optional.
@@ -319,7 +318,6 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
     #====   scratch obtained from the MPSInfo object    ====#
     for iSite in range(mps_info.n_sites + 1):
         fnam = mps_info.get_filename(False, iSite)
-        _print('mpsload : ', fnam)
         copyItRev(fnam, mpsSaveDir, MPI)
         if MPI is not None:
             MPI.barrier()

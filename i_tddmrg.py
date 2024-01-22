@@ -1032,6 +1032,7 @@ class MYTDDMRG:
         elif isinstance(aorb, np.ndarray):
             ion_sym = self.wfn_sym ^ aorb_sym
             ion_target = SX(self.nel_site-1, 1, ion_sym)
+            logbook.update({'ann:wsym':ion_sym})
         rket_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, ion_target,
                                 self.hamil.basis)
         
@@ -1044,7 +1045,7 @@ class MYTDDMRG:
             _print(' - Annihilated orbital = ', SX(-1, 1, aorb_sym))
         _print(' - Output MPS = ', ion_target)
         _print(' - Output MPS multiplicity = ', ion_target.multiplicity)
-        logbook.update({'ann:wsym':ion_sym, 'ann:qnumber:n':ion_target.n,
+        logbook.update({'ann:qnumber:n':ion_target.n,
                         'ann:qnumber:mult':ion_target.multiplicity,
                         'ann:qnumber:pg':ion_target.pg})
 
