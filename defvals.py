@@ -9,6 +9,7 @@ def_orb_path = None
 def_orb_order = 'genetic'
 def_inp_ecp = None
 def_inp_symmetry = 'c1'
+def_mrci = None
 
 def_gs_steps = 50
 def_gs_noise = [1E-3]*4 + [1E-4]*4 + [0.0]

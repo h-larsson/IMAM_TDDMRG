@@ -68,7 +68,7 @@ _print('')
 if MAIN_PROCESS:
     t_start = time.time()
 
-    
+
 #==== Git information ====#
 try:
     # Ref. : https://stackoverflow.com/questions/26134026/how-to-get-the-current-checked-out-git-branch-name-through-pygit2
@@ -105,6 +105,7 @@ _print("Number of threads = ", n_threads)
 _print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
 _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
+#==== Scratch folder ====#
 def_scratch = './' + inputs['prefix'] + '.tmp'
 scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
 _print('Scratch directory = ', scratch)
@@ -138,10 +139,17 @@ nsites = inputs['nCAS']
 if MAIN_PROCESS:
     assert nelCore + inputs['nelCAS'] == sum(mol.nelec)
     assert inputs['nCore'] + inputs['nCAS'] <= n_mo
+    if inputs['mrci'] is not None:
+        assert isinstance(inputs['mrci'], dict)
 _print('Number of core orbitals = ', inputs['nCore'])
 _print('Number of CAS orbitals (CAS electrons) = %d (%d)' %
        (inputs['nCAS'], inputs['nelCAS']))
 _print('Number of virtual orbitals = ', nvir)
+if inputs['mrci'] is not None:
+    sorder = ['single', 'single-double', 'single-double-triple'][inputs['mrci']['order']-1]
+    _print('MRCI is active:')
+    _print('   * order = ', sorder)
+    _print('   * no. of orbitals in the second active space = ', inputs['mrci']['nactive2'])
 logbook.update({'nvir':nvir, 'nsites':nsites})
 
 
@@ -310,7 +318,8 @@ if inputs['do_groundstate']:
     logbook = obj.dmrg(logbook, inputs['D_gs'], inputs['gs_noise'], inputs['gs_steps'],
                        inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
                        inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
-                       inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'])
+                       inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'],
+                       inputs['mrci'])
     _print('\n')
 
 
@@ -338,12 +347,12 @@ if inputs['do_annihilate']:
             _print('  ', kw, ' = ', inputs[kw])
     logbook = \
         obj.annihilate(logbook,
-        inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], inputs['ann_fit_tol'], 
-        inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], inputs['ann_inmps_fname'], 
-        inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], inputs['ann_orb_thr'],
-        inputs['ann_sp'], inputs['ann_fit_cutoff'], inputs['ann_fit_occs'], 
-        inputs['ann_fit_bias'], inputs['normalize_annout'], inputs['save_ann_1pdm'],
-        inputs['ann_out_singlet_embed'])
+                       inputs['ann_orb'], inputs['D_ann_fit'], inputs['ann_fit_noise'], 
+                       inputs['ann_fit_tol'], inputs['ann_fit_steps'], pg, inputs['ann_inmps_dir'], 
+                       inputs['ann_inmps_fname'], inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], 
+                       inputs['ann_orb_thr'], inputs['ann_sp'], inputs['ann_fit_cutoff'], 
+                       inputs['ann_fit_occs'], inputs['ann_fit_bias'], inputs['normalize_annout'], 
+                       inputs['save_ann_1pdm'], inputs['ann_out_singlet_embed'], inputs['mrci'])
     _print('\n')
     
 
@@ -384,7 +393,7 @@ if inputs['do_timeevo']:
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
                        inputs['te_save_2pdm'], inputs['sample_dir'], inputs['prefix'],
                        inputs['save_txt'], inputs['save_npy'], inputs['te_in_singlet_embed'][0],
-                       inputs['te_in_singlet_embed'][1])
+                       inputs['te_in_singlet_embed'][1], inputs['mrci'])
     _print('\n')
 
 

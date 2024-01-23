@@ -567,7 +567,7 @@ class MYTDDMRG:
     #################################################
     def dmrg(self, logbook_in, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, 
              cutoff=1E-14, occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
-             save_1pdm=False, flip_spect=False):
+             save_1pdm=False, flip_spect=False, mrci_info=None):
         """Ground-State DMRG."""
         logbook = logbook_in.copy()
 
@@ -590,9 +590,15 @@ class MYTDDMRG:
         logbook.update({'gs:qnumber:pg':self.target.pg})
 
 
-        # MultiMPSInfo
-        mps_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, self.target,
-                               self.hamil.basis)
+        # MPS type (general or occupation-rectricted)
+        if mrci_info is not None:
+            assert mrci_info['order'] in [1, 2, 3]
+            assert mrci_info['nactive2'] <= self.n_sites
+            mps_info = brs.MRCIMPSInfo(self.n_sites, 0, mrci_info['nactive2'], mrci_info['order'],
+                                       self.hamil.vacuum, self.target, self.hamil.basis)
+        else:
+            mps_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, self.target, self.hamil.basis)
+        
         mps_info.tag = 'KET'
         if occs is None:
             if self.verbose >= 2:
@@ -831,7 +837,7 @@ class MYTDDMRG:
                    pg, inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
                    outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
                    cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False,
-                   out_singlet_embed=False):
+                   out_singlet_embed=False, mrci_info=None):
         """
         aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
         """
@@ -904,8 +910,14 @@ class MYTDDMRG:
 
         #==== Load the input MPS ====#
         complex_mps = (comp == 'full')
+        if mrci_info is not None:
+            mps_type = {'type':'mrci', 'nactive2':mrci_info['nactive2'], 'order':mrci_info['order'],
+                        'n_sites':self.n_sites, 'vacuum':self.hamil.vacuum, 'target':self.target,
+                        'basis':self.hamil.basis}
+        else:
+            mps_type = {'type':'normal'}
         mps, mps_info, _ = \
-                loadMPSfromDir(inmps_dir, inmps_name, complex_mps, False, idMPO_,
+                loadMPSfromDir(inmps_dir, inmps_name, complex_mps, mps_type, idMPO_,
                                cached_contraction=True, MPI=self.mpi, 
                                prule=self.prule if self.mpi is not None else None)  # 1)
         # At the moment, the annihilator function does not support input MPS of the
@@ -1380,14 +1392,14 @@ class MYTDDMRG:
     ##################################################################
     def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
                        tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
-                       inmps_multi=False, exp_tol=1e-6, cutoff=0, 
-                       normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
+                       inmps_multi=False, exp_tol=1e-6, cutoff=0, normalize=False, 
+                       n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
                        save_2pdm=False, sample_dir='./samples', prefix='te', save_txt=True,
-                       save_npy=False, in_singlet_embed=False, si_nel_site=None, 
-                       prefit=False, prefit_bond_dims=None, prefit_nsteps=None, 
-                       prefit_noises=None, prefit_conv_tol=None, prefit_cutoff=None,
-                       verbosity=6):
+                       save_npy=False, in_singlet_embed=False, se_nel_site=None, 
+                       mrci_info=None, prefit=False, prefit_bond_dims=None, 
+                       prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
+                       prefit_cutoff=None, verbosity=6):
         '''
         Coming soon
         '''
@@ -1458,13 +1470,25 @@ class MYTDDMRG:
             idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
             if self.mpi is not None:
                 idMPO = bs.ParallelMPO(idMPO, self.identrule)
-            if inmps_multi:
-                nroots = 2
+
+            #==== Determine initial MPS type (normal, multi, or MRCI) ====#
+            mps_type = {}
+            if mrci_info is not None:
+                assert not inmps_multi, 'At the moment MRCI MPS cannot be in multi MPS form.'
+                mps_type.update({'type':'mrci', 'nactive2':mrci_info['nactive2'], 
+                                 'order':mrci_info['order'], 'n_sites':self.n_sites,
+                                 'vacuum':self.hamil.vacuum, 'target':self.target,
+                                 'basis':self.hamil.basis})
             else:
-                nroots = None
+                if inmps_multi:
+                    mps_type['type'] = 'multi'
+                    mps_type['nroots'] = 2
+                else:
+                    mps_type['type'] = 'normal'
+            
             mps, mps_info, _ = \
-                loadMPSfromDir(inmps_dir, inmps_name, inmps_cpx, inmps_multi, idMPO,
-                               cached_contraction=True, MPI=self.mpi, nroots=nroots,
+                loadMPSfromDir(inmps_dir, inmps_name, inmps_cpx, mps_type, idMPO,
+                               cached_contraction=True, MPI=self.mpi, 
                                prule=self.prule if self.mpi is not None else None)
             #ipsh('After loading mps')
         else:
@@ -1477,7 +1501,7 @@ class MYTDDMRG:
         #==== Singlet embedding ====#
         if in_singlet_embed:
             _print('The input MPS is a singlet embedded MPS.')
-            nel_t0 = si_nel_site + self.nel_core
+            nel_t0 = se_nel_site + self.nel_core
         else:
             assert mps_info.target.n == self.nel_site, \
             f'The number of active space electrons from the quantum number label ' + \

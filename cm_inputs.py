@@ -178,6 +178,10 @@ def get_inputs(inp_file):
     inputs['nCAS'] = nCAS
     inputs['nelCAS'] = nelCAS
     inputs['twos'] = twos
+    try:
+        inputs['mrci'] = mrci
+    except:
+        inputs['mrci'] = defvals.def_mrci
 
     #==== Ground state parameters ====#
     inputs['do_groundstate'] = do_groundstate

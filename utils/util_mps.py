@@ -296,21 +296,27 @@ def loadMPSfromDir_OLD(mps_info: brs.MPSInfo,  mpsSaveDir:str, MPI:MPICommunicat
 
 #################################################
 #################################################
-def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool, impo, 
+def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, impo, 
                    ref_center=0, cached_contraction:bool=True, MPI:MPICommunicator=None, 
-                   nroots=None, prule=None) -> bs.MPS | bs.MultiMPS:
+                   prule=None) -> bs.MPS | bs.MultiMPS:
 
     if MPI is not None:
         assert prule is not None, 'prule is required when the MPI input is not None.'
-    if multi_mps:
-        assert nroots is not None, 'When multi_mps is True, nroots is required.'
+    if mps_type['type'] == 'multi':
+        assert 'nroots' in mps_type, 'When mps_type[\'type\'] is \'multi\', the key ' + \
+            '\'nroots\' is required.'
 
     #==== Construct the MPS information found in <mpsSaveDir>/<mpstag> ====#
     inmps_path = mpsSaveDir + "/" + mpstag
-    if multi_mps:
-        mps_info = brs.MultiMPSInfo(0)
-    else:
+    if mps_type['type'] == 'normal':
         mps_info = brs.MPSInfo(0)
+    elif mps_type['type'] == 'multi':
+        mps_info = brs.MultiMPSInfo(0)
+    elif mps_type['type'] == 'mrci':
+        mps_info = brs.MRCIMPSInfo(mps_type['n_sites'], 0, mps_type['nactive2'], mps_type['order'],
+                                   mps_type['vacuum'], mps_type['target'], mps_type['basis'])
+    else:
+        raise ValueError('The value of mps_type[\'type\'] is undefined.')
     mps_info.load_data(inmps_path)
 
         
@@ -329,7 +335,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
             
     #==== Duplicate MPS files in mpsSaveDir to the ====#
     #==== scratch obtained from the MPSInfo object ====#
-    if multi_mps:
+    if mps_type['type'] == 'multi':
         mps = bs.MultiMPS(mps_info)          # 1)
     else:
         mps = bs.MPS(mps_info)          # 1)
@@ -341,9 +347,8 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
     # NOTES:
     # 1) At this point, mps is just a dummy MPS object used to get
     #    the path to the scratch folder.
-    if multi_mps:
-        _print('nroots = ', nroots)
-        for iroot in range(0, nroots):
+    if mps_type['type'] == 'multi':
+        for iroot in range(0, mps_type['nroots']):
             fnam = mps.get_wfn_filename(iroot, "")
             # I think the second argument of get_wfn_filename should be
             # made optional.
@@ -353,7 +358,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
 
     
     #==== Construct the actual MPS object ====#
-    if multi_mps:
+    if mps_type['type'] == 'multi':
         mps = bs.MultiMPS(mps_info).deep_copy(mps_info.tag)
     else:
         mps = bs.MPS(mps_info).deep_copy(mps_info.tag)
@@ -377,8 +382,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
         
     #==== Change canonical form for hybrid complex MPS ====#
     if mps.center == mps.n_sites - 1:
-        if complex_mps and multi_mps:
-#OLD        if complex_mps and comp == 'hybrid':
+        if complex_mps and mps_type['type'] == 'multi':
             _print('\n\nChange canonical form - hybrid complex ...')
             cf = str(mps.canonical_form)
             mps.dot = 1
@@ -412,8 +416,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, multi_mps:bool,
         ime.delayed_contraction = b2.OpNamesSet.normal_ops()
         ime.cached_contraction = cached_contraction
         ime.init_environments(False)
-        if complex_mps and multi_mps:
-#OLD        if complex_mps and comp == 'hybrid':
+        if complex_mps and mps_type['type'] == 'multi':
             expect = brs.ComplexExpect(ime, mps.info.bond_dim, mps.info.bond_dim)
         else:
             expect = bs.Expect(ime, mps.info.bond_dim, mps.info.bond_dim)
