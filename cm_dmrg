@@ -67,6 +67,19 @@ _print('')
 
 if MAIN_PROCESS:
     t_start = time.time()
+
+#==== Git information ====#
+try:
+    # Ref. : https://stackoverflow.com/questions/26134026/how-to-get-the-current-checked-out-git-branch-name-through-pygit2
+    exec_path = os.path.realpath(__file__)
+    from pygit2 import Repository
+    repo = Repository(exec_path)
+    print_section('Git version')
+    _print('  * Branch = ', repo.head.shorthand)
+    _print('  * Revision version = ', repo.head.target)
+except:
+    _print('Git version information is not available - it will be ignored.')
+
     
 if hasMPI:
     MPI.barrier()
@@ -91,6 +104,7 @@ _print("Number of threads = ", n_threads)
 _print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
 _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
+#==== Scratch folder ====#
 def_scratch = './' + inputs['prefix'] + '.tmp'
 scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
 _print('Scratch directory = ', scratch)
