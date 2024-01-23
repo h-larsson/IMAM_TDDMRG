@@ -61,7 +61,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
                     twosz=None, wfnsym=None, natorb=False, init_basis=None,
                     state_average=False, sa_weights=None, sort_out=None, save_rdm=True,
                     verbose=2, conv_tol=1.0E-7, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
-                    dmrg_nthreads=1):
+                    dmrg_nthreads=1, set_cas_sym=None):
     '''
     Input parameters:
     ----------------
@@ -157,6 +157,8 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     
     mc = mcscf.CASSCF(mf, ncas=nCAS, nelecas=nelCAS, frozen=frozen)
     mc.conv_tol = conv_tol
+
+    #==== Spin-shifting ====#
     if ss is not None:
         if ss_shift is not None:
             mc.fix_spin_(ss_shift, ss=ss)
@@ -197,11 +199,19 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
     else:
         init_mo0 = init_mo.copy()
 
+    #==== Setting CAS symmetry (if requested) ====#
+    if set_cas_sym is not None:
+        init_mo0 = mcscf.sort_mo_by_irrep(mc, init_mo0, set_cas_sym)
+        # Setting CAS symmetry must come after projection of the initial MO to
+        # the desired AO basis representation (if they are in a different AO
+        # basis) because the initial MO that is inputto mcscf.sort_mo_by_irrep
+        # are assumed to be in the desired AO basis.
+
     #==== State average ====#
     if state_average:
+        assert sa_weights is not None
         nesm = len(sa_weights)
         print(f'State averaging CASSCF will be performed over {nesm} states.')
-        assert sa_weights is not None
         mc = mc.state_average_(sa_weights)
         if ss is not None:
             assert twosz is not None

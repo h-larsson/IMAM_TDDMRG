@@ -84,6 +84,10 @@ def get_inputs(inp_file):
         except NameError:
             inputs['init_basis'] = defvals.def_init_basis
         try:
+            inputs['set_cas_sym'] = set_cas_sym
+        except NameError:
+            inputs['set_cas_sym'] = defvals.def_set_cas_sym
+        try:
             inputs['state_average'] = state_average
         except NameError:
             inputs['state_average'] = defvals.def_state_average

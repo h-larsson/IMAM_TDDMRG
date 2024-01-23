@@ -1,6 +1,7 @@
 import numpy as np
 from pyscf import gto, symm
 from scipy.linalg import eigh
+from IMAM_TDDMRG.utils.util_print import print_section
 
 
 ##########################################################################
@@ -121,7 +122,14 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
                 print('%s' % \
                       ('('+coeff_str+', '+atom_label[jj]+', '+sph_label[jj])+')', end='  ')
             print('')
-            print(' '+hline_)    
+            print(' '+hline_)
+
+        #==== Irrep distribution ====#
+        irrep_dist = {i:osym_l[s].count(i) for i in osym_l[s]}
+        print_section('Irrep. distribution')
+        for sy in irrep_dist:
+            print('  %5s   %3d' % (sy, irrep_dist[sy]))
+        print('')
 ##########################################################################
 
 

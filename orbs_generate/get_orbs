@@ -6,16 +6,30 @@ from humanfriendly import format_timespan
 import numpy as np
 from pyscf import gto
 from pyscf.tools import cubegen
-from orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
-from get_orbs_input import get_inputs
-from util_orbs import sort_similar, sort_irrep
-from orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
-from local_orbs import localize
-from IMAM_TDDMRG.utils.util_print import print_warning
+from IMAM_TDDMRG.orbs_generate.orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
+from IMAM_TDDMRG.orbs_generate.get_orbs_input import get_inputs
+from IMAM_TDDMRG.orbs_generate.util_orbs import sort_similar, sort_irrep
+from IMAM_TDDMRG.orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
+from IMAM_TDDMRG.orbs_generate.local_orbs import localize
+from IMAM_TDDMRG.utils.util_print import print_warning, print_section
 
 
 t_start = time.time()
 
+
+#==== Git information ====#
+try:
+    # Ref. : https://stackoverflow.com/questions/26134026/how-to-get-the-current-checked-out-git-branch-name-through-pygit2
+    exec_path = os.path.realpath(__file__)
+    from pygit2 import Repository
+    repo = Repository(exec_path)
+    print_section('Git version')
+    print('  * Branch = ', repo.head.shorthand)
+    print('  * Revision version = ', repo.head.target)
+except:
+    print('Git version information is not available - it will be ignored.')
+
+    
 ######################
 #vvvv Input File vvvv#
 ######################
@@ -73,7 +87,7 @@ elif inputs['source'] == 'casscf':
         inputs['ss'], inputs['ss_shift'], inputs['twosz'], inputs['wfnsym'], inputs['natorb'], 
         inputs['init_basis'], inputs['state_average'], inputs['sa_weights'],
         inputs['sort_out'], True, 2, inputs['conv_tol'], inputs['fcisolver'],
-        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads)
+        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads, inputs['set_cas_sym'])
     orbs = outs['orbs']
     occs = outs['occs']
     try:
