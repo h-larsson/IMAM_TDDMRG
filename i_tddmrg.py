@@ -103,7 +103,7 @@ from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
 from IMAM_TDDMRG.utils.util_mps import trans_to_singlet_embed
-from IMAM_TDDMRG.observables import pcharge, mpole
+from IMAM_TDDMRG.observables import pcharge, mpole, bond_order
 from IMAM_TDDMRG.phys_const import au2fs
 
 if hasMPI:
@@ -700,6 +700,12 @@ class MYTDDMRG:
         print_pcharge(self.mol, self.qmul0, self.qlow0)
         logbook.update({'gs:mulliken':self.qmul0, 'gs:lowdin':self.qlow0})
 
+        #==== Bond order ====#
+        if self.mol.natm >= 2:
+            self.bo_mul0, self.bo_low0 = \
+                bond_order.calc(self.mol, dm0_full, orbs, ((2,3),), self.ovl_ao)
+            _print('Mulliken bond order: C-C = ', self.bo_mul0)
+            _print('Lowdin bond order: C-C = ', self.bo_low0)
 
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
