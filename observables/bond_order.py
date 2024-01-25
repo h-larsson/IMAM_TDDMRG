@@ -4,7 +4,20 @@ from IMAM_TDDMRG.observables.pcharge import get_atom_range
 
 
 ##########################################################
-def calc(mol, pdm, mo, atom_pairs, ovl=None):
+def calc(mol, pdm, mo, ovl=None):
+    bo_mul = np.zeros((mol.natm,mol.natm))
+    bo_low = np.zeros((mol.natm,mol.natm))
+    for i in range(0, mol.natm):
+        for j in range(i+1, mol.natm):
+            bo_mul[i,j], bo_low[i,j] = calc_pair(mol, pdm, mo, ((i,j),), ovl)
+            bo_mul[j,i], bo_low[j,i] = bo_mul[i,j], bo_low[i,j]
+
+    return bo_mul, bo_low
+##########################################################
+
+
+##########################################################
+def calc_pair(mol, pdm, mo, atom_pairs, ovl=None):
     '''
     mol = Mole object.
     pdm = The complete (core+active) one-particle-reduced density matrix in MO rep.

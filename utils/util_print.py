@@ -577,3 +577,16 @@ class print_td_mpole:
     
             self.footer_stat = True
 ##########################################################################
+
+
+##########################################################################
+def print_bond_order(bo):
+
+    _print('    %6s    %6s    %10s' % ('Atom A', 'Atom B', 'Bond order'))
+    for i in range(0, bo.shape[0]):
+        for j in range(i+1, bo.shape[1]):
+            if np.abs(bo[i,j]) > 0.1:
+                _print('    %6d    %6d    %10.6f' % (i+1, j+1, bo[i,j]))
+    print_i2('Note: Only bonds for which the bond order is larger than 0.2 are printed.')
+            
+##########################################################################

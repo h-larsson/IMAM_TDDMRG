@@ -96,8 +96,8 @@ import tools; tools.init(SX)
 from tools import mkDir
 from gfdmrg import orbital_reorder
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
-from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content
-from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole
+from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
+from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order
 from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
@@ -691,8 +691,7 @@ class MYTDDMRG:
         occs0 = np.zeros((2, self.n_core+self.n_sites))
         for i in range(0, 2): occs0[i,:] = np.diag(dm0_full[i,:,:]).copy()
         print_orb_occupations(occs0)
-        
-            
+                    
         #==== Partial charge ====#
         orbs = np.concatenate((self.core_orbs, self.unordered_site_orbs()), axis=2)
         self.qmul0, self.qlow0 = \
@@ -701,11 +700,11 @@ class MYTDDMRG:
         logbook.update({'gs:mulliken':self.qmul0, 'gs:lowdin':self.qlow0})
 
         #==== Bond order ====#
-        if self.mol.natm >= 2:
-            self.bo_mul0, self.bo_low0 = \
-                bond_order.calc(self.mol, dm0_full, orbs, ((2,3),), self.ovl_ao)
-            _print('Mulliken bond order: C-C = ', self.bo_mul0)
-            _print('Lowdin bond order: C-C = ', self.bo_low0)
+        self.bo_mul0, self.bo_low0 = bond_order.calc(self.mol, dm0_full, orbs, self.ovl_ao)
+        print_section('Mulliken bond orders', 2)
+        print_bond_order(self.bo_mul0)
+        print_section('Lowdin bond orders', 2)
+        print_bond_order(self.bo_low0)
 
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
@@ -713,7 +712,6 @@ class MYTDDMRG:
         print_mpole(e_dpole, n_dpole, e_qpole, n_qpole)
         logbook.update({'gs:e_dipole':e_dpole, 'gs:n_dipole':n_dpole,
                         'gs:e_quadpole':e_qpole, 'gs:n_quadpole':n_qpole})
-
         
         #==== Save the output MPS ====#
         #OLD mps.save_data()
@@ -1189,7 +1187,13 @@ class MYTDDMRG:
         print_pcharge(self.mol, self.qmul1, self.qlow1)
         logbook.update({'ann:mulliken':self.qmul1, 'ann:lowdin':self.qlow1})
 
-
+        #==== Bond order ====#
+        self.bo_mul1, self.bo_low1 = bond_order.calc(self.mol, dm1_full, orbs, self.ovl_ao)
+        print_section('Mulliken bond orders', 2)
+        print_bond_order(self.bo_mul1)
+        print_section('Lowdin bond orders', 2)
+        print_bond_order(self.bo_low1)
+        
         #==== Multipole analysis ====#
         e_dpole, n_dpole, e_qpole, n_qpole = \
             mpole.calc(self.mol, self.dpole_ao, self.qpole_ao, dm1_full, orbs)
