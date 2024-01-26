@@ -206,7 +206,7 @@ if inputs['sorting']['type'] is not None:
                               ovl, inputs['sorting']['similar_thr'],
                               inputs['sorting']['dissimilar_break'])    
     elif inputs['sorting']['type'] == 'irrep':
-        idsort = sort_irrep(mol, orbs[:,isort1:isort2])
+        idsort = sort_irrep(mol, orbs[:,isort1:isort2], inputs['sorting']['irrep_sort'])
     idsort = idsort + isort1
         
     #== Sort orbitals, occupations, etc ==#

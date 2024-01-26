@@ -1,5 +1,6 @@
 import numpy as np
 from block2 import SU2, SZ
+from gfdmrg import orbital_reorder
 from IMAM_TDDMRG.utils.util_print import _print
 
 # Set spin-adapted or non-spin-adapted here
@@ -85,7 +86,7 @@ def get_CAS_ints(mol, nCore, nCAS, nelCAS, ocoeff, verbose):
 
     del _mcCI, mf
 
-    return h1e, g2e, eCore  #, molpro_oSym, molpro_wSym
+    return h1e, g2e, eCore
 #################################################
 
 
@@ -232,6 +233,30 @@ def get_one_pdm(iscomp, spin_symm, n_sites, hamil, mps=None, mps_path=None, dmar
 
 
 #################################################
+def orbital_reorder_mrci(ord_method, mol, nCAS1, nCAS2, nelCAS, nelCAS2, orbs):
+    '''
+    orbs = active orbitals where the first nCAS1 columns are the active1 orbitals and 
+           next nCAS2 columns are the active2 orbitals.
+    nelCAS = The number of electrons in the total active space.
+    nelCAS2 = The number of electrons in the second active space, i.e. the maximum
+              excitation order.
+    '''
+    
+    #== 1st acitve space ==#
+    h1e_ac1, g2e_ac1, _ = \
+        get_CAS_ints(mol, 0, nCAS1, nelCAS, orbs[:, 0:nCAS1], True)
+    rid_ac1 = orbital_reorder(h1e_ac1, g2e_ac1, ord_method)
+
+    #== 2nd active space ==#
+    h1e_ac2, g2e_ac2, _ = \
+        get_CAS_ints(mol, 0, nCAS2, nelCAS2, orbs[:, nCAS1:nCAS1+nCAS2], True)
+    rid_ac2 = orbital_reorder(h1e_ac2, g2e_ac2, ord_method) + nCAS1
+
+    return np.hstack((rid_ac1, rid_ac2))
+#################################################
+
+
+#################################################
 def orbital_reorder_dip(mol, orbs, uv, verb=4):
     '''
     uv = The vector that defines the direction of component of the dipole 
@@ -265,4 +290,17 @@ def orbital_reorder_dip(mol, orbs, uv, verb=4):
     order_id = np.argsort(dip_l)
         
     return order_id
+#################################################
+
+
+#################################################
+def orbital_reorder_mrci_dip(mol, orbs, uv, nCAS1, nCAS2, verb=4):
+    '''
+    orbs = active orbitals where the first nCAS1 columns are the active1 orbitals and 
+           next nCAS2 columns are the active2 orbitals.
+    '''
+    
+    rid_ac1 = orbital_reorder_dip(mol, orbs[:, 0:nCAS1], uv, verb)
+    rid_ac2 = orbital_reorder_dip(mol, orbs[:, nCAS1:nCAS1+nCAS2], uv, verb) + nCAS1
+    return np.hstack((rid_ac1, rid_ac2))
 #################################################

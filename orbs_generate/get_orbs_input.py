@@ -131,6 +131,10 @@ def get_inputs(inp_file):
             inputs['sorting']['dissimilar_break'] = sorting['dissimilar_break']
         except KeyError:
             inputs['sorting']['dissimilar_break'] = defvals.def_sorting['dissimilar_break']
+        try:
+            inputs['sorting']['irrep_sort'] = sorting['irrep_sort']
+        except KeyError:
+            inputs['sorting']['irrep_sort'] = defvals.def_sorting['irrep_sort']
     except NameError:
         inputs['sorting'] = defvals.def_sorting
             

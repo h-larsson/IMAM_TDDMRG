@@ -28,4 +28,4 @@ def_sort_out = None
 def_loc_exclude = []
 def_loc_sort = False
 def_sorting = {'type':None, 'range':'DEFINE_LATER', 'orb_ref':None, 'similar_thr':0.8,
-               'dissimilar_break':False}
+               'dissimilar_break':False, 'irrep_sort':None}

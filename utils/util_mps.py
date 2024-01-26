@@ -75,7 +75,6 @@ print_i2 = getVerbosePrinter(r0, indent=2*' ', flush=True)
 print_i4 = getVerbosePrinter(r0, indent=4*' ', flush=True)    
 
 
-
 #################################################
 def print_MPO_bond_dims(mpo, name=''):
     mpo_bdims = [None] * len(mpo.left_operator_names)

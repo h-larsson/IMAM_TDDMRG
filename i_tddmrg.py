@@ -94,7 +94,6 @@ except ImportError:
 import tools; tools.init(SX)
 #from tools import saveMPStoDir, mkDir
 from tools import mkDir
-from gfdmrg import orbital_reorder
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
 from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
 from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order

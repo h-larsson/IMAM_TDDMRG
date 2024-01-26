@@ -590,3 +590,17 @@ def print_bond_order(bo):
     print_i2('Note: Only bonds for which the bond order is larger than 0.2 are printed.')
             
 ##########################################################################
+
+
+##########################################################################
+def print_mrci_warning():
+    print_warning('MRCI is active and orbitals ordering chosen are either genetic ' +
+                  'or fiedler. For these ordering methods, when MRCI is active, the \n' +
+                  'number of electrons needed for the construction of the 1e and 2e ' +
+                  'Hamiltonian components in the 1st and 2nd active spaces are taken \n' +
+                  'to be the largest allowed. That is, for the 1st active space, it ' +
+                  'is equal to the number of CAS electrons, and for the 2nd one, the \n' +
+                  'maximum number of electrons determined by the excitation order. ' +
+                  'It is treated as a warning because the above orbitals ordering \n' +
+                  'method has not been thoroughly tested.')
+##########################################################################
