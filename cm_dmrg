@@ -414,7 +414,7 @@ if inputs['do_timeevo']:
                        inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
                        inputs['te_save_2pdm'], inputs['sample_dir'], inputs['prefix'],
                        inputs['save_txt'], inputs['save_npy'], inputs['te_in_singlet_embed'][0],
-                       inputs['te_in_singlet_embed'][1], inputs['mrci'])
+                       inputs['te_in_singlet_embed'][1], inputs['mrci'], inputs['bo_pairs'])
     _print('\n')
 
 

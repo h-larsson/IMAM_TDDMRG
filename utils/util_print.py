@@ -162,6 +162,19 @@ def print_pcharge(mol, qmul, qlow):
 
 
 ##########################################################################
+def print_bond_order(bo):
+
+    _print('    %6s    %6s    %10s' % ('Atom A', 'Atom B', 'Bond order'))
+    for i in range(0, bo.shape[0]):
+        for j in range(i+1, bo.shape[1]):
+            if np.abs(bo[i,j]) > 0.1:
+                _print('    %6d    %6d    %10.6f' % (i+1, j+1, bo[i,j]))
+    print_i2('Note: Only bonds for which the bond order is larger than 0.1 are printed.')
+            
+##########################################################################
+
+
+##########################################################################
 def print_mpole(e_dpole, n_dpole, e_qpole, n_qpole):
 
     comp = get_complex_type()
@@ -447,6 +460,171 @@ class print_td_pcharge:
 ##########################################################################
 
 
+
+##########################################################################
+class print_td_bo:
+
+    def __init__(self, bo_pairs, atom_symbol, prefix, n_t, max_pairs=8, save_txt=True,
+                 save_npy=True):
+        self.bo_pairs = bo_pairs
+        self.npairs = len(bo_pairs)
+        self.atom_symbol = atom_symbol
+        self.natm = len(atom_symbol)
+        self.prefix = prefix
+        self.max_pairs = max_pairs
+        self.nparts = int(np.ceil(self.npairs / self.max_pairs))
+        self.rem = self.npairs % self.max_pairs
+        self.save_txt = save_txt
+        self.save_npy = save_npy
+        self.bo_file = []
+        self.it = -1
+        self.bo = np.zeros((self.npairs, n_t), dtype=np.complex128)
+
+        if not self.save_txt and not self.save_npy:
+            print_warning('An object of print_td_bo class is initiated but is set' +
+                          'to print nothing.')
+        
+        self.header_stat = False
+        self.print_stat = False
+        self.footer_stat = False
+    #############################################
+
+
+    #############################################
+    def atom_pair_labels(self, ib):
+        atom1_id = self.bo_pairs[ib][0] - 1
+        atom2_id = self.bo_pairs[ib][1] - 1
+        pair_label = '(' + self.atom_symbol[atom1_id] + str(atom1_id+1) + ',' + \
+                      self.atom_symbol[atom2_id] + str(atom2_id+1) + ')'
+        return pair_label
+    
+    def header(self):
+        if self.save_txt:
+            assert self.header_stat == False, \
+                'Cannot double print the header of the TD bond order files.'
+            assert self.print_stat == False, \
+                'Cannot print the header of the TD bond order files while it is ' + \
+                'printing the bond order values.'
+            assert self.footer_stat == False, \
+                'Cannot print the header of the TD bond order files when the footer ' + \
+                'has been printed as this indicates the end of the TD bond order ' + \
+                'printing.'
+
+        
+        #==== Loop over files ====#
+        if self.save_txt:
+            ib = 0
+            for i in range(0, self.nparts):
+                #==== File names ====#
+                self.bo_file += ['./' + self.prefix + '.' + str(i+1) + '.bo']
+            
+                #==== ncol = the no. of columns for the current file ====#
+                ncol = self.max_pairs
+                if i == self.nparts-1 and self.rem != 0:
+                    ncol = self.rem
+                hline = ''.join(['-' for i in range(0, 9+1+13+2+(1+16)*ncol)])
+            
+                #==== Begin printing the colum title ====#
+                with open(self.bo_file[i], 'w') as bof:
+                    print_describe_content('Lowdin bond order data', bof)
+                    bof.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+                    bof.write('#' + hline + '\n')
+                    bof.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
+            
+                    #== Loop over atom pairs for the current file ==#
+                    for j in range(0, ncol):
+                        bof.write(' %16s' % self.atom_pair_labels(ib))
+                        ib += 1
+                    bof.write('\n')
+                    bof.write('#' + hline + '\n')
+            
+            self.header_stat = True
+    #############################################
+
+    
+    ###############################################
+    def print_bo(self, tt, bo):
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD bond order files must be printed first (by ' + \
+                'calling print_td_bo.header() before printing the bond order ' + \
+                'values.'
+            assert self.footer_stat == False, \
+                'Cannot print the values of the TD bond order when the footer has ' + \
+                'been printed as this indicates the end of the TD bond order printing.'
+        if self.save_txt or self.save_npy:
+            assert isinstance(bo[0], (np.complex64, np.complex128))   # TD observables are numerically complex.
+            assert len(bo) == self.npairs, \
+                f'len(bo) = {len(bo)} while self.npairs = {self.npairs}.'
+        
+        self.it += 1
+        self.bo[:,self.it] = bo
+
+        #==== Printing into text files ====#
+        if self.save_txt:
+            ib = 0
+
+            #==== Loop over files ====#
+            for i in range(0, self.nparts):
+                ncol = self.max_pairs
+                if i == self.nparts-1 and self.rem != 0:
+                    ncol = self.rem
+                with open(self.bo_file[i], 'a') as bof:
+                    bof.write(' %9d %13.8f  ' % (self.it, tt))
+
+                    #== Loop over atom pairs for the current file ==#
+                    for j in range(0, ncol):
+                        bof.write(' %16.6e' % (self.bo[ib,self.it].real))
+                        ib += 1
+                    bof.write('\n')
+                    
+            self.print_stat = True
+
+                    
+        #==== Printing into *.npy file ====#
+        if self.save_npy:
+            npy_file = './' + self.prefix + '.bo'
+            np.save(npy_file, self.bo[:, 0:self.it+1])
+    ###############################################
+
+
+    ###############################################
+    def footer(self):
+        if self.save_txt:
+            assert self.header_stat == True, \
+                'The header of the TD bond order files must be printed first (by ' + \
+                'calling print_td_bo.header() before printing the footer.'
+            assert self.footer_stat == False, \
+                'Cannot double print the footer of the TD bond order files.'
+        
+        im_max = np.max(self.bo.imag, axis=1)
+        im_min = np.min(self.bo.imag, axis=1)
+
+        #==== Loop over files ====#
+        if self.save_txt:
+            ib = 0
+            for i in range(0, self.nparts):
+                with open(self.bo_file[i], 'a') as bof:
+                    bof.write('\n')
+                    if self.print_stat == False:
+                        bof.write('# WARNING: No bond order values have been printed.\n')
+                        
+                    bof.write('# Statistics of the imaginary parts (max,min): \n')
+                    ncol = self.max_pairs
+                    if i == self.nparts-1 and self.rem != 0:
+                        ncol = self.rem
+                        
+                    #== Loop over the atoms for the current file ==#
+                    for j in range(0, ncol):
+                        bof.write('#  %s: %17.8e, %17.8e \n' %
+                                   (self.atom_pair_labels(ib), im_max[ib], im_min[ib]))
+                        ib += 1
+    
+            self.footer_stat = True
+
+##########################################################################
+
+    
 ##########################################################################
 class print_td_mpole:
 
@@ -576,19 +754,6 @@ class print_td_mpole:
                 mpf.write('#   xz: %17.8e, %17.8e\n' % (qp_im_max[5], qp_im_min[5]))
     
             self.footer_stat = True
-##########################################################################
-
-
-##########################################################################
-def print_bond_order(bo):
-
-    _print('    %6s    %6s    %10s' % ('Atom A', 'Atom B', 'Bond order'))
-    for i in range(0, bo.shape[0]):
-        for j in range(i+1, bo.shape[1]):
-            if np.abs(bo[i,j]) > 0.1:
-                _print('    %6d    %6d    %10.6f' % (i+1, j+1, bo[i,j]))
-    print_i2('Note: Only bonds for which the bond order is larger than 0.2 are printed.')
-            
 ##########################################################################
 
 

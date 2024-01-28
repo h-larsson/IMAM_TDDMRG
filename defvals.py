@@ -57,3 +57,4 @@ def_te_save_2pdm = False
 def_save_txt = True
 def_save_npy = True
 def_te_in_singlet_embed = (False, None)
+def_bo_pairs = None

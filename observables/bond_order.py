@@ -25,38 +25,33 @@ def calc_pair(mol, pdm, mo, atom_pairs, ovl=None):
     ovl = The overlap matrix associated with the AO basis defined in mol.
     '''    
 
-
     #==== Complex or real PDM? ====#
     assert len(pdm.shape) == 3, 'partial_charge.calc: pdm is not a 3D array.'
     assert len(mo.shape) == 3, 'partial_charge.calc: mo is not a 3D array.'
     assert pdm.shape[1] == pdm.shape[2], 'partial_charge.calc: pdm is not square.'
     complex_pdm = (type(pdm[0,0,0]) == np.complex128)
     dtype = np.complex128 if complex_pdm else np.float64
-
     
     #==== Setting up the system ====#
     nao = mol.nao
     atom_ao_range = get_atom_range(mol)
-
     
     #==== AO overlap matrix ====#
     if ovl is None:
         ovl = mol.intor('int1e_ovlp')
     es, U = eigh(ovl)
     ovl_half = U @ (np.diag( np.sqrt(es) ) @ U.conj().T)
-    
-    
+        
     #==== P in AO basis ====#
     P = np.zeros((nao, nao), dtype=dtype)
     for i in range(0,2):
         P = P + mo[i,:,:] @ (pdm[i,:,:] @ mo[i,:,:].T)
-
         
     #==== Calculate bond orders ====#
     Bmul = np.einsum('ij, jk -> ik', P, ovl)
-    bo_mul = np.zeros(len(atom_pairs))
+    bo_mul = np.zeros(len(atom_pairs), dtype=dtype)
     Blow = np.einsum('ij, jk, kl -> il', ovl_half, P, ovl_half)
-    bo_low = np.zeros(len(atom_pairs))
+    bo_low = np.zeros(len(atom_pairs), dtype=dtype)
     for i in range(0,len(atom_pairs)):
         at1, at2 = atom_pairs[i]
 
@@ -76,7 +71,7 @@ def calc_pair(mol, pdm, mo, atom_pairs, ovl=None):
                 bo_mul[i] = bo_mul[i] + Bmul[j,k] * Bmul[k,j]
 
                 #==== Lowdin BO ====#
-                bo_low[i] = bo_low[i] + Blow[j,k]**2
+                bo_low[i] = bo_low[i] + np.abs(Blow[j,k])**2
     
     return bo_mul, bo_low
 ##########################################################

@@ -389,6 +389,10 @@ def get_inputs(inp_file):
             inputs['te_in_singlet_embed'] = te_in_singlet_embed
         except NameError:
             inputs['te_in_singlet_embed'] = defvals.def_te_in_singlet_embed
+        try:
+            inputs['bo_pairs'] = bo_pairs
+        except NameError:
+            inputs['bo_pairs'] = defvals.def_bo_pairs
 
     return inputs
 #######################################################

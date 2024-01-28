@@ -97,7 +97,8 @@ from tools import mkDir
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
 from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
 from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order
-from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_mpole
+from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_bo, \
+    print_td_mpole
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
@@ -1406,7 +1407,7 @@ class MYTDDMRG:
                        krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
                        save_2pdm=False, sample_dir='./samples', prefix='te', save_txt=True,
                        save_npy=False, in_singlet_embed=False, se_nel_site=None, 
-                       mrci_info=None, prefit=False, prefit_bond_dims=None, 
+                       mrci_info=None, bo_pairs=None, prefit=False, prefit_bond_dims=None, 
                        prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
                        prefit_cutoff=None, verbosity=6):
         '''
@@ -1443,10 +1444,18 @@ class MYTDDMRG:
         #==== Initiate Lowdin partial charges file ====#
         if t_sample is not None:
             atom_symbol = [self.mol.atom_symbol(i) for i in range(0, self.mol.natm)]
-            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample), 8, 
-                                            save_txt, save_npy)
+            q_print = print_td_pcharge(atom_symbol, prefix, len(t_sample), 8, save_txt,
+                                       save_npy)
             if self.mpi is None or self.mpi.rank == 0:
                 q_print.header()
+            if self.mpi is not None: self.mpi.barrier()
+
+        #==== Initiate Lowdin bond order file ====#
+        if t_sample is not None and bo_pairs is not None:
+            bo_print = print_td_bo(bo_pairs, atom_symbol, prefix, len(t_sample), 8, 
+                                   save_txt, save_npy)
+            if self.mpi is None or self.mpi.rank == 0:
+                bo_print.header()
             if self.mpi is not None: self.mpi.barrier()
 
         #==== Initiate multipole components file ====#
@@ -1766,6 +1775,17 @@ class MYTDDMRG:
                     if self.mpi is None or self.mpi.rank == 0:
                         q_print.print_pcharge(tt, qlow)
                     if self.mpi is not None: self.mpi.barrier()
+
+                    #==== ====#
+                    if bo_pairs is not None:
+                        bo_pairs_ = tuple( [ (bo_pairs[i][0]-1,bo_pairs[i][1]-1) for i in
+                                             range(0,len(bo_pairs)) ] )  # Transform to 0-base indices.
+                        bo_mul, bo_low = \
+                            bond_order.calc_pair(self.mol, dm_full, orbs, bo_pairs_,
+                                                 self.ovl_ao)
+                        if self.mpi is None or self.mpi.rank == 0:
+                            bo_print.print_bo(tt, bo_low)
+                        if self.mpi is not None: self.mpi.barrier()
                     
                     #==== Multipole components ====#
                     e_dpole, n_dpole, e_qpole, n_qpole = \
@@ -1782,6 +1802,10 @@ class MYTDDMRG:
         if t_sample is not None:
             if self.mpi is None or self.mpi.rank == 0:
                 q_print.footer()
+
+        if t_sample is not None and bo_pairs is not None:
+            if self.mpi is None or self.mpi.rank == 0:
+                bo_print.footer()
 
         if t_sample is not None:
             if self.mpi is None or self.mpi.rank == 0:
