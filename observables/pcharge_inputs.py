@@ -1,4 +1,4 @@
-from IMAM_TDDMRG.observables import pcharge_defvals as defvals
+from IMAM_TDDMRG.observables import observables_defvals as defvals
 
 
 #######################################################

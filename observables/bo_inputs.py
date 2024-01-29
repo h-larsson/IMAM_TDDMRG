@@ -15,6 +15,7 @@ def get_inputs(inp_file):
     inputs['nCore'] = nCore
     inputs['nCAS'] = nCAS
     inputs['nelec_t0'] = nelec_t0
+    inputs['bo_pairs'] = bo_pairs
 
     try:
         inputs['dump_inputs'] = dump_inputs

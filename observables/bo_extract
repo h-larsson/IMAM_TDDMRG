@@ -4,8 +4,8 @@ import sys, os, glob
 import numpy as np
 from pyscf import gto
 from IMAM_TDDMRG.utils.util_qm import make_full_dm
-from IMAM_TDDMRG.utils.util_print import print_td_mpole
-from IMAM_TDDMRG.observables import extract_time, mpole, mpole_inputs
+from IMAM_TDDMRG.utils.util_print import print_td_bo
+from IMAM_TDDMRG.observables import extract_time, bond_order, bo_inputs
 
 
 #============================#
@@ -33,15 +33,17 @@ orb_path = '/data/iwahyutama/Computations/IMAM_TDDMRG/Orbitals_DFT/Acetylene-chl
 nCore = 0
 nCAS = 33
 nelec_t0 = 29
+bo_pairs = ((1,2), (3,5), (9,4))
 '''
 #============================#
 
 
 
 
+
 #==== Input file ====#
 inp_file = str(sys.argv[1])
-inputs = mpole_inputs.get_inputs(inp_file)
+inputs = bo_inputs.get_inputs(inp_file)
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
@@ -57,8 +59,8 @@ if inputs['sample_dir'] == 'DEFINE_LATER':
 #==== Setting up the system ====#
 mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=inputs['inp_ecp'],
             symmetry=inputs['inp_symmetry'])
-dpole_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
-qpole_ao = mol.intor('int1e_rr').reshape(3,3,mol.nao,mol.nao)
+atom_symbol = [mol.atom_symbol(i) for i in range(0, mol.natm)]
+ovl = mol.intor('int1e_ovlp')
 nocc = inputs['nCore'] + inputs['nCAS']
 print('No. of bases = ', mol.nao)
 print('No. of core orbitals = ', inputs['nCore'])
@@ -78,23 +80,27 @@ print('Time evolution directory = ', inputs['sample_dir'])
 print('Number of time points = ', n_tevo)
 
 
-#==== Print multipole values ====#
-print('\nCalculating and printing multipole components:')
+#==== Bond orders IDs ====#
+bo_pairs_ = tuple( [ (inputs['bo_pairs'][i][0]-1,inputs['bo_pairs'][i][1]-1) for i in
+                     range(0,len( inputs['bo_pairs'] )) ] )
+
+
+#==== Calculate the time-dependent bond orders ====#
+print('\nCalculating and printing bond orders:')
 pdm_dir = glob.glob(inputs['sample_dir'] + '/tevo-*')
-mp_print = print_td_mpole(inputs['prefix'], n_tevo, inputs['save_txt'], inputs['save_npy'])
-mp_print.header()
+bo_print = print_td_bo(inputs['bo_pairs'], atom_symbol, inputs['prefix'], n_tevo, 8, 
+                       inputs['save_txt'], inputs['save_npy'])
+bo_print.header()
 for i in idsort:
-    #== Construct the PDM ==#
     pdm = np.load(pdm_dir[i] + '/1pdm.npy')
     pdm_full = make_full_dm(inputs['nCore'], pdm)
     tr = np.sum( np.trace(pdm_full, axis1=1, axis2=2) )
     pdm_full = pdm_full * inputs['nelec_t0'] / np.abs(tr)
     print('Sample no. %d,  time = %.6f a.u.' % (i, tt[i]))
     print('  Path = ', pdm_dir[i])
-    e_dpole, n_dpole, e_qpole, n_qpole = \
-        mpole.calc(mol, dpole_ao, qpole_ao, pdm_full, orbs)
-    mp_print.print_mpole(tt[i], e_dpole, n_dpole, e_qpole, n_qpole)
+    bo_mul, bo_low = bond_order.calc_pair(mol, pdm_full, orbs, bo_pairs_, ovl)
+    bo_print.print_bo(tt[i], bo_low)
 
     
 #==== Print footer (end) ====#
-mp_print.footer()
+bo_print.footer()
