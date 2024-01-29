@@ -689,7 +689,7 @@ class MYTDDMRG:
         dm0 = self.get_one_pdm(comp=='full', mps)
         dm0_full = make_full_dm(self.n_core, dm0)
         occs0 = np.zeros((2, self.n_core+self.n_sites))
-        for i in range(0, 2): occs0[i,:] = np.diag(dm0_full[i,:,:]).copy()
+        for i in range(0, 2): occs0[i,:] = np.diag(dm0_full[i,:,:]).copy().real
         print_orb_occupations(occs0)
                     
         #==== Partial charge ====#

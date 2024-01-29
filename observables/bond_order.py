@@ -5,8 +5,11 @@ from IMAM_TDDMRG.observables.pcharge import get_atom_range
 
 ##########################################################
 def calc(mol, pdm, mo, ovl=None):
-    bo_mul = np.zeros((mol.natm,mol.natm))
-    bo_low = np.zeros((mol.natm,mol.natm))
+    complex_pdm = (type(pdm[0,0,0]) == np.complex128)
+    dtype = np.complex128 if complex_pdm else np.float64
+    
+    bo_mul = np.zeros((mol.natm,mol.natm), dtype=dtype)
+    bo_low = np.zeros((mol.natm,mol.natm), dtype=dtype)
     for i in range(0, mol.natm):
         for j in range(i+1, mol.natm):
             bo_mul[i,j], bo_low[i,j] = calc_pair(mol, pdm, mo, ((i,j),), ovl)

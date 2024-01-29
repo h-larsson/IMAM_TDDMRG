@@ -114,9 +114,11 @@ def print_matrix(m, maxcol=10):
 
 ##########################################################################
 def print_orb_occupations(occs):
-
+    
     assert len(occs.shape) == 2
     assert occs.shape[0] == 2
+    if isinstance(occs[0,0], (complex, np.complex64, np.complex128)):
+        occs = occs.real
 
     maxcol = 5
     print_section('Molecular orbitals occupations (alpha, beta)', 2)
@@ -163,6 +165,9 @@ def print_pcharge(mol, qmul, qlow):
 
 ##########################################################################
 def print_bond_order(bo):
+
+    comp = get_complex_type()
+    if comp =='full': bo = bo.real
 
     _print('    %6s    %6s    %10s' % ('Atom A', 'Atom B', 'Bond order'))
     for i in range(0, bo.shape[0]):

@@ -30,6 +30,7 @@ from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder, \
     orbital_reorder_dip, orbital_reorder_mrci, orbital_reorder_mrci_dip
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning, print_section, \
     print_mrci_warning
+from IMAM_TDDMRG.utils.util_atoms import get_tot_nuc_charge, extract_atoms
 from IMAM_TDDMRG.orbs_generate.analyze_orbs import analyze
 yn_bools = ('No','Yes')
 
@@ -115,14 +116,14 @@ _print('Complex MPS type = ', inputs['complex_MPS_type'])
 
     
 #==== Setting up the system ====#
-mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
-            ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'])
 nelCore = 2 * inputs['nCore']
-mol.charge = mol.nelectron - nelCore - inputs['nelCAS']   # At this point, mol.nelectron is still equal to the total charge of the nuclei.
-mol.spin = inputs['twos']
-# NOTE:
-# mol.spin has no effect on the actual DMRG calculations, thus its value is taken just so
-# that it is consistent with the number of electrons (even/odd).
+tot_nq = get_tot_nuc_charge(extract_atoms(inputs['inp_coordinates']))
+charge = tot_nq - nelCore - inputs['nelCAS']
+_print('Total nuclear charge = ', tot_nq)
+_print('System charge = ', charge)
+mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
+            ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'],
+            charge=charge, spin=inputs['twos'])
 mol.build()
 n_mo = mol.nao
 pg = mol.groupname.lower()
