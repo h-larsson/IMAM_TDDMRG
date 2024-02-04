@@ -40,20 +40,23 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
         mo_c = ocoeff.cop()
 
     #==== Orbital symmetry ====#
+    issym = True
+    of = 0
     osym_l = [None] * ns
     osym = [None] * ns
     for i in range(0, ns):
-        try:
-            osym_l[i] = list(symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb,
-                                                 mo_c[i,:,:]))
-            osym[i] = [symm.irrep_name2id(mol.groupname, s) for s in osym_l[i]]
-            issym = True
-            of = 0
-        except ValueError:
-            osym_l[i] = ['UNSYM'] * mo_c.shape[2]
-            osym[i] = [-1] * mo_c.shape[2]
-            issym = False
-            of = 3
+        osym_l[i] = [None] * mo_c.shape[2]
+        osym[i] = [None] * mo_c.shape[2]
+        for j in range(0, mo_c.shape[2]):
+            try:
+                osym_l[i][j] = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb,
+                                                   mo_c[i,:,j:j+1])[0]
+                osym[i][j] = symm.irrep_name2id(mol.groupname, osym_l[i][j])
+            except:
+                osym_l[i][j] = 'UNSYM'
+                osym[i][j] = -1
+                issym = False
+                of = 3
         
     #==== Get the index of the sorted MO coefficients ====#
     idsort = np.zeros((ns, n_ao, n_mo))

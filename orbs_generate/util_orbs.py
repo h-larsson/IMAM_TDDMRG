@@ -1,5 +1,6 @@
 import numpy as np
-from pyscf import symm
+import scipy.linalg
+from pyscf import scf, symm, lo
 from IMAM_TDDMRG.utils.util_print import print_matrix
 
 
@@ -103,4 +104,83 @@ def sort_irrep(mol, orb, irrep=None):
     idsort = np.array(idsort)
     
     return idsort
+##########################################################################
+
+
+##########################################################################
+def get_IBO(mol, mf=None, align_groups=None):
+
+    ovl = mol.intor('int1e_ovlp')
+    if mf is None: mf = scf.RHF(mol).run()
+    
+    #==== Obtain IAOs in AO basis ====#
+    mo_occ = mf.mo_coeff[:,mf.mo_occ>0]
+    iao_ = lo.iao.iao(mol, mo_occ)
+    
+    #==== Obtain IAOs in symm. orthogonalized basis ====#
+    e, v = scipy.linalg.eigh(ovl)
+    x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
+    iao = x_i @ iao_
+    
+    #==== Calculate IBOs in AO basis ====#
+    ibo_ = lo.ibo.ibo(mol, mo_occ, iaos=iao)
+    if align_groups is not None:
+        # The task in this block is to determine mix_coef that satisfies:
+        #     I = mo_ref.T @ ovl @ ibo_new
+        # where
+        #     ibo_new = ibo_old @ mix_coef
+        # ibo_new is needed in linear molecules because the lobes of ibo_old are not necessarily aligned along
+        # any Cartesian axes. The first equation holds under the assumption that the irrep orderings in mo_ref and
+        # ibo_new are the same. Hence, the irrep ordering of ibo_new follows that of mo_ref. The columns of ibo_old
+        # must be degenerate, likewise, the columns of mo_ref may not be degenerate but better are.
+        mo_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mf.mo_coeff[:,0:ibo_.shape[1]])
+        for ik in align_groups:
+            ip = tuple( [ik[j]-1 for j in range(0,len(ik))] )
+            print('  -> Aligning IBOs:', ip, '(0-based)')
+    
+            #== Find the most suitable MOs for mo_ref ==#
+            c = mf.mo_coeff.T @ ovl @ ibo_[:,ip]
+            idx = np.argmax(np.abs(c), axis=0)
+            print('       Indices of the most suitable reference MOs:', idx, '(0-based)')
+            mo_ref = mf.mo_coeff[:, idx]
+            ref_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
+    
+            #== Compute the new (aligned) IBOs ==#
+            mix_coef = np.linalg.inv(mo_ref.T @ ovl @ ibo_[:,ip])
+            ibo0 = ibo_[:,ip] @ mix_coef
+            norms = np.einsum('ij, jk, ki -> i', ibo0.T, ovl, ibo0)  # np.diag(ibo_.T @ ovl @ ibo_)
+            ibo_[:,ip] = ibo0 / np.sqrt(norms)
+
+    return ibo_, iao_
+##########################################################################
+
+
+##########################################################################
+def get_IBO_cpl(mol, mf=None, align_groups=None):
+
+    ibo_, iao_ = get_IBO(mol, mf, align_groups)
+
+    #==== Obtain IAOs in symm. orthogonalized basis ====#
+    e, v = scipy.linalg.eigh(ovl)
+    x = v @ np.diag( 1/np.sqrt(e) ) @ v.T   # X for symmetric orthogonalization
+    x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
+    iao = x_i @ iao_
+    ibo = x_i @ ibo_
+
+    #==== Project IAO into the complementary space of the IBOs ====#
+    Q_proj = np.eye(ibo.shape[0]) - ibo @ ibo.T
+    ibo_c = Q_proj @ iao
+    norms = np.einsum('ij, ji -> i', ibo_c.T, ibo_c)
+    ibo_c = ibo_c / np.sqrt(norms)
+
+    #==== Orthogonalize IBO-c in Lowdin basis ====#
+    ibo_c, R = scipy.linalg.qr(ibo_c, mode='economic')
+
+    #==== Express orthogonalized IBO-c in AO basis ====#
+    ibo_c = x @ ibo_c
+
+    #==== Localize IBO-c ====#
+    ibo_c = lo.PM(mol, ibo_c).kernel()
+
+    return ibo_c
 ##########################################################################
