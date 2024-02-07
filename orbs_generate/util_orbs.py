@@ -109,6 +109,10 @@ def sort_irrep(mol, orb, irrep=None):
 
 ##########################################################################
 def get_IBO(mol, mf=None, align_groups=None):
+    
+    if align_groups is not None:
+        assert isinstance(align_groups, (list, tuple)), 'align_groups must be a tuple or list ' + \
+            'which in turn contains lists or tuples.'
 
     ovl = mol.intor('int1e_ovlp')
     if mf is None: mf = scf.RHF(mol).run()
@@ -156,9 +160,32 @@ def get_IBO(mol, mf=None, align_groups=None):
 
 
 ##########################################################################
-def get_IBO_cpl(mol, mf=None, align_groups=None):
+def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None):
+    '''
+    This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO) that
+    are also spanned by IAOs.
 
-    ibo_, iao_ = get_IBO(mol, mf, align_groups)
+    Inputs
+    ------
+    boao:
+       A tuple of the form (IBO, IAO) in AO basis.
+    loc:
+       The localization method, available options are 'IBO' and 'PM'
+
+    Outputs
+    -------
+    ibo_c:
+       The coefficients of IBO-c in AO basis.
+    '''
+     
+    assert loc == 'IBO' or loc == 'PM'
+    
+    if boao is not None:
+        assert isinstance(boao, tuple)
+        ibo_, iao_ = boao
+    else:
+        ibo_, iao_ = get_IBO(mol, mf, align_groups)
+    ovl = mol.intor('int1e_ovlp')
 
     #==== Obtain IAOs in symm. orthogonalized basis ====#
     e, v = scipy.linalg.eigh(ovl)
@@ -166,10 +193,19 @@ def get_IBO_cpl(mol, mf=None, align_groups=None):
     x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
     iao = x_i @ iao_
     ibo = x_i @ ibo_
+    
+    #==== Select the most suitable IAOs to construct IBO-c ====#
+    # Here, the first n_ibo_c columns of IAO with the smallest IBO components are
+    # selected as the vectors from which IBO-c is constrcuted. The idea of this
+    # choice is that IBO-c is supposed to be orthogonal to IBO, hence it makes sense
+    # to construct the former by assuming small contribution from the latter.
+    n_ibo_c = iao.shape[1] - ibo.shape[1]
+    norms = np.linalg.norm(ibo.T @ iao, axis=0)
+    ibo_c_id = np.argsort(norms)[0:n_ibo_c]
 
     #==== Project IAO into the complementary space of the IBOs ====#
     Q_proj = np.eye(ibo.shape[0]) - ibo @ ibo.T
-    ibo_c = Q_proj @ iao
+    ibo_c = Q_proj @ iao[:,ibo_c_id]
     norms = np.einsum('ij, ji -> i', ibo_c.T, ibo_c)
     ibo_c = ibo_c / np.sqrt(norms)
 
@@ -180,7 +216,10 @@ def get_IBO_cpl(mol, mf=None, align_groups=None):
     ibo_c = x @ ibo_c
 
     #==== Localize IBO-c ====#
-    ibo_c = lo.PM(mol, ibo_c).kernel()
+    if loc == 'IBO':
+        ibo_c = lo.ibo.ibo(mol, ibo_c, iaos=iao)
+    elif loc == 'PM':
+        ibo_c = lo.PM(mol, ibo_c).kernel()
 
     return ibo_c
 ##########################################################################
