@@ -813,8 +813,8 @@ class MYTDDMRG:
                 mk0 = aspace
 
             _print('%4d' % i, end='')
-            _print('%16.8f' % np.diag(dm[0,:,:])[i] + mk0, end='')
-            _print('%15.8f' % np.diag(dm[1,:,:])[i] + mk0, end='')
+            _print('%16.8f' % np.diag(dm[0,:,:])[i].real + mk0, end='')
+            _print('%15.8f' % np.diag(dm[1,:,:])[i].real + mk0, end='')
             j = i if self.ridx is None else self.ridx[i]
             sym_label = symm.irrep_id2name(self.groupname, self.orb_sym[j])
             _print('%13s' % (sym_label + ' / ' + str(self.orb_sym[j])), end='')
@@ -825,8 +825,8 @@ class MYTDDMRG:
 
         _print(hline)
         _print('%4s' % 'Sum', end='')
-        _print('%16.8f' % np.trace(dm[0,:,:]) + aspace, end='')
-        _print('%15.8f' % np.trace(dm[1,:,:]) + aspace, end='')
+        _print('%16.8f' % np.trace(dm[0,:,:]).real + aspace, end='')
+        _print('%15.8f' % np.trace(dm[1,:,:]).real + aspace, end='')
         _print('%13s' % ' ', end='')
         if isinstance(aorb, np.ndarray):
             _print('%13s' % ' ', end='')

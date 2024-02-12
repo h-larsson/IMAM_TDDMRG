@@ -1,7 +1,7 @@
 import os, glob
 import numpy as np
 import scipy.linalg
-from pyscf import gto, scf, lo, tools
+from pyscf import gto, scf, lo, tools, symm
 from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
 from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs
@@ -11,23 +11,23 @@ from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs
 def get_IBO(mol, mf=None, align_groups=None):
     
     if align_groups is not None:
-        assert isinstance(align_groups, (list, tuple)), 'align_groups must be a tuple or list ' + \
-            'which in turn contains lists or tuples.'
+        assert isinstance(align_groups, (list, tuple)), 'align_groups must be a tuple or ' + \
+            'list which in turn contains lists or tuples.'
 
     ovl = mol.intor('int1e_ovlp')
     if mf is None: mf = scf.RHF(mol).run()
     
-    #==== Obtain IAOs in AO basis ====#
+    #==== Obtain orthogonalized IAOs ====#
     mo_occ = mf.mo_coeff[:,mf.mo_occ>0]
     iao_ = lo.iao.iao(mol, mo_occ)
+    # e, v = scipy.linalg.eigh(ovl)
+    # x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
+    # iao = x_i @ iao_
+    iao = lo.vec_lowdin(iao_, ovl)
     
-    #==== Obtain IAOs in symm. orthogonalized basis ====#
-    e, v = scipy.linalg.eigh(ovl)
-    x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
-    iao = x_i @ iao_
     
     #==== Calculate IBOs in AO basis ====#
-    ibo_ = lo.ibo.ibo(mol, mo_occ, iaos=iao)
+    ibo = lo.ibo.ibo(mol, mo_occ, iaos=iao)
     if align_groups is not None:
         # The task in this block is to determine mix_coef that satisfies:
         #     I = mo_ref.T @ ovl @ ibo_new
@@ -43,27 +43,27 @@ def get_IBO(mol, mf=None, align_groups=None):
             print('  -> Aligning IBOs:', ip, '(0-based)')
     
             #== Find the most suitable MOs for mo_ref ==#
-            c = mf.mo_coeff.T @ ovl @ ibo_[:,ip]
+            c = mf.mo_coeff.T @ ovl @ ibo[:,ip]
             idx = np.argmax(np.abs(c), axis=0)
             print('       Indices of the most suitable reference MOs:', idx, '(0-based)')
             mo_ref = mf.mo_coeff[:, idx]
             ref_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
     
             #== Compute the new (aligned) IBOs ==#
-            mix_coef = np.linalg.inv(mo_ref.T @ ovl @ ibo_[:,ip])
-            ibo0 = ibo_[:,ip] @ mix_coef
-            norms = np.einsum('ij, jk, ki -> i', ibo0.T, ovl, ibo0)  # np.diag(ibo_.T @ ovl @ ibo_)
-            ibo_[:,ip] = ibo0 / np.sqrt(norms)
+            mix_coef = np.linalg.inv(mo_ref.T @ ovl @ ibo[:,ip])
+            ibo0 = ibo[:,ip] @ mix_coef
+            norms = np.einsum('ij, jk, ki -> i', ibo0.T, ovl, ibo0)  # np.diag(ibo.T @ ovl @ ibo)
+            ibo[:,ip] = ibo0 / np.sqrt(norms)
 
-    return ibo_, iao_
+    return ibo, iao
 ##########################################################################
 
 
 ##########################################################################
-def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None):
+def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E-8):
     '''
-    This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO) that
-    are also spanned by IAOs.
+    This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO)
+    that are also spanned by IAOs.
 
     Inputs
     ------
@@ -74,7 +74,7 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None):
 
     Outputs
     -------
-    ibo_c:
+    iboc:
        The coefficients of IBO-c in AO basis.
     '''
      
@@ -95,36 +95,36 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None):
     ibo = x_i @ ibo_
     
     #==== Select the most suitable IAOs to construct IBO-c ====#
-    # Here, the first n_ibo_c columns of IAO with the smallest IBO components are
-    # selected as the vectors from which IBO-c is constrcuted. The idea of this
-    # choice is that IBO-c is supposed to be orthogonal to IBO, hence it makes sense
-    # to construct the former by assuming small contribution from the latter.
-    n_ibo_c = iao.shape[1] - ibo.shape[1]
-    norms = np.linalg.norm(ibo.T @ iao, axis=0)
-    ibo_c_id = np.argsort(norms)[0:n_ibo_c]
+    n_iboc = iao.shape[1] - ibo.shape[1]
 
     #==== Project IAO into the complementary space of the IBOs ====#
     Q_proj = np.eye(ibo.shape[0]) - ibo @ ibo.T
-    ibo_c = Q_proj @ iao[:,ibo_c_id]
-    norms = np.einsum('ij, ji -> i', ibo_c.T, ibo_c)
-    ibo_c = ibo_c / np.sqrt(norms)
+    iboc = Q_proj @ iao
+    norms = np.einsum('ij, ji -> i', iboc.T, iboc)
+    iboc = iboc / np.sqrt(norms)
 
     #==== Orthogonalize IBO-c in Lowdin basis ====#
-    ibo_c, R = scipy.linalg.qr(ibo_c, mode='economic')
-
+    U, sv, Vt = np.linalg.svd(iboc, full_matrices=False)
+    n_ortho = len(sv[sv > ortho_thr])
+    assert n_ortho == n_iboc, f'The number of retained IBOCs ({n_ortho}) must be ' + \
+        'the same as the difference between the number of AOs and the number of ' + \
+        f'IBOs ({n_iboc}). Try changing ortho_thr.'
+    iboc = U[:,0:n_iboc]
+        
     #==== Express orthogonalized IBO-c in AO basis ====#
-    ibo_c = x @ ibo_c
+    iboc = x @ iboc
 
     #==== Localize IBO-c ====#
     if loc == 'IBO':
-        ibo_c = lo.ibo.ibo(mol, ibo_c, iaos=iao)
+        iboc = lo.ibo.ibo(mol, iboc, iaos=iao_)
     elif loc == 'PM':
-        ibo_c = lo.PM(mol, ibo_c).kernel()
+        iboc = lo.PM(mol, iboc).kernel()
 
-    return ibo_c
+    return iboc
 ##########################################################################
 
 
+##########################################################################
 def analyze(mol, ibo, iao, inputs, iboc=None):
 
     assert isinstance(inputs, dict)
@@ -147,8 +147,10 @@ def analyze(mol, ibo, iao, inputs, iboc=None):
         print('Sizes of IAO and IBO = ', iao.shape[1], ibo.shape[1])
     print('Trace of overlap matrix of IBO in AO rep. = %10.6f' % np.trace(ibo.T @ ovl @ ibo))
     if iboc is not None:
-        print('Trace of overlap matrix of IBOC in AO rep. = %10.6f' % np.trace(iboc.T @ ovl @ iboc))
-        print('Frobenius norm of overlap matrix between IBOC and IBO = %10.6f' % np.linalg.norm(iboc.T @ ovl @ ibo, ord='fro') )
+        print('Trace of overlap matrix of IBOC in AO rep. = %10.6f' %
+              np.trace(iboc.T @ ovl @ iboc))
+        print('Frobenius norm of overlap matrix between IBOC and IBO = %10.6f' %
+              np.linalg.norm(iboc.T @ ovl @ ibo, ord='fro') )
 
     #==== Analyze IAOs ====#
     print('Analysis of the IAOs:')
@@ -187,8 +189,10 @@ def analyze(mol, ibo, iao, inputs, iboc=None):
             print(f'{i+1:d}) Printing cube files: ')
             print('     ' + cubename)
             tools.cubegen.orbital(mol, cubename, iboc[:,i])
+##########################################################################
 
-    
+
+##########################################################################
 def get_tdocc(mol, ibo, iao, inputs, iboc=None):
     assert isinstance(inputs, dict)
     
@@ -300,3 +304,4 @@ def get_tdocc(mol, ibo, iao, inputs, iboc=None):
                                              'in your data. Proceed at your own risk.')
             t_last = tt[i]
             kk += 1
+##########################################################################
