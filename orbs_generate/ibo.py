@@ -93,8 +93,6 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
     x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
     iao = x_i @ iao_
     ibo = x_i @ ibo_
-    
-    #==== Select the most suitable IAOs to construct IBO-c ====#
     n_iboc = iao.shape[1] - ibo.shape[1]
 
     #==== Project IAO into the complementary space of the IBOs ====#
@@ -103,7 +101,7 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
     norms = np.einsum('ij, ji -> i', iboc.T, iboc)
     iboc = iboc / np.sqrt(norms)
 
-    #==== Orthogonalize IBO-c in Lowdin basis ====#
+    #==== Orthogonalize IBOC ====#
     U, sv, Vt = np.linalg.svd(iboc, full_matrices=False)
     n_ortho = len(sv[sv > ortho_thr])
     assert n_ortho == n_iboc, f'The number of retained IBOCs ({n_ortho}) must be ' + \
@@ -111,10 +109,10 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
         f'IBOs ({n_iboc}). Try changing ortho_thr.'
     iboc = U[:,0:n_iboc]
         
-    #==== Express orthogonalized IBO-c in AO basis ====#
+    #==== Express orthogonalized IBOC in AO basis ====#
     iboc = x @ iboc
 
-    #==== Localize IBO-c ====#
+    #==== Localize IBOC ====#
     if loc == 'IBO':
         iboc = lo.ibo.ibo(mol, iboc, iaos=iao_)
     elif loc == 'PM':
