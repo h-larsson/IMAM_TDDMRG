@@ -62,10 +62,38 @@ print('Number of AO bases = ', mol.nao)
 print('Number of MO bases = ', n_mo)
 save_prefix = inputs['save_dir'] + '/' + inputs['prefix']
 
+
+#==== Initial values ====#
+try:
+    orbs = np.load(inputs['init_orbs'])
+    print('Input orbitals found:\n    ' + inputs['init_orbs'])
+except:
+    orbs = None
+    print('No input orbitals found.')
+try:
+    occs = np.load(inputs['init_occs'])
+    print('Input occupation numbers found:\n    ' + inputs['init_occs'])
+except:
+    occs = None
+    print('No input occupation numbers found.')
+try:
+    ergs = np.load(inputs['init_ergs'])
+    print('Input orbital energies found:\n    ' + inputs['init_ergs'])
+except:
+    ergs = None
+    print('No input orbital energies found.')
+try:
+    rdm = np.load(inputs['init_rdm'])
+    print('Input RDM found:\n    ' + inputs['init_rdm'])
+except:
+    rdm = None
+    print('No input RDM found.')
+
+    
 #==== Generate orbitals based on the chosen method ====#
 #==== HF ====#
 if inputs['source'] == 'rhf':
-    outs = get_rhf_orbs(mol, True, inputs['conv_tol'], inputs['natorb'])
+    outs = get_rhf_orbs(mol, True, inputs['conv_tol'], inputs['natorb'], init_orb=orbs)
     orbs = outs['orbs']
     occs = outs['occs']
     ergs = outs['ergs']
@@ -79,7 +107,11 @@ if inputs['source'] == 'rhf':
         
 #==== CASSCF ====#
 elif inputs['source'] == 'casscf':
-    init_orbs_ = np.load(inputs['init_orbs'])
+    if inputs['init_orbs'] is not None:
+        init_orbs_ = orbs.copy()
+    else:
+        raise ValueError('When source is casscf, input keyword init_orbs must be given a ' +
+                         'valid orbitals.')
 
     dmrg_nthreads = int(os.environ.get("OMP_NUM_THREADS", 1))
     outs = get_casscf_orbs(
@@ -114,6 +146,10 @@ elif inputs['source'] == 'casscf':
 
 #==== DFT ====#
 elif inputs['source']  == 'dft':
+    if inputs['init_orbs'] is not None:
+        print('An initial orbital is detected. However, at the moment, the dft method \n' +
+              'does not support guess/initial orbitals. The above initial orbitals \n' +
+              'will be ignored.\n')
     outs = get_dft_orbs(mol, inputs['xc'], inputs['conv_tol'], True, inputs['natorb'])
     orbs = outs['orbs']
     occs = outs['occs']
@@ -126,7 +162,24 @@ elif inputs['source']  == 'dft':
         print('   The RDM from the DFT calculation will not be saved.')
 
 else:
-    pass
+    print('This job does not generate orbitals using any quantum chemistry methods ' +
+          'in the same run.')
+
+
+
+
+
+
+#=======================================================#
+#==== BEYOND THIS POINT, A VALID ORBITAL MUST EXIST ====#
+assert orbs is not None, \
+    'No orbitals have been calculated or supplied. Either specify a valid option for \n' + \
+    'the input keyword ''source'' or supply the orbitals directly by specifying its \n' + \
+    'path using the input keyword ''init_orbs''.\n'
+#=======================================================#
+
+
+
 
 
 
@@ -135,37 +188,24 @@ if inputs['localize']:
     # inputs['loc_subs'] is a list of lists of integers. These integers define the base-1 ID
     # of the localized orbitals for each subspace.
 
-    # Below, the localization algorithm will prioritize loading the input orbitals from
-    # the input keyword 'orbs_for_loc'. Meaning that if there is also computation of
-    # orbitals from a source above, these orbitals will be ignored and overwritten.
+    # Below, the localization algorithm will use the available orbitals whether
+    # provided by a previous 'source'-based calculation or by loading them through
+    # 'init_orbs'.
     #== Try to assign orbitals to be localized ==#
-    try:
-        orbs = np.load(inputs['orbs_for_loc'])
-        orbs_init = orbs.copy()
-    except (FileNotFoundError, KeyError):
-        try:      # 1)
-            orbs_init = orbs.copy()
-        except NameError:
-            raise RuntimeError('get_orbs: There is no input orbitals found to be localized.')
-    # 1) Successful if a previous SCF calculations in the same run outputs orbitals.
+    orbs_init = orbs.copy()
     
     #== Try to assign RDM needed for the occupations of localized orbs ==#
     try:
-        rdm_init = np.load(inputs['rdm_for_loc'])
-    except (FileNotFoundError, KeyError):
-        if inputs['state_averaging']:
-            print_warning('When localizing orbitals, using an RDM from a preceding ' + \
-                          'calculation in the same run, and state averaging is active, ' + \
-                          'the RDM that will be used by the localization algorithm ' + \
-                          'is the total ensemble RDM. If you want to use one of the ' + \
-                          'RDM of the individual ensemble states, use the input ' + \
-                          'keyword \'rdm_for_loc\' to specify the path of the desired ' + \
-                          'RDM already existing in the disk (a prior calculation is ' +
-                          'required).')
-        try:
-            rdm_init = rdm
-        except NameError:
-            rdm_init = None
+        rdm_init = rdm.copy()  #OLDnp.load(inputs['rdm_for_loc'])
+    except:
+        rdm_init = None
+        
+    if rdm_init is not None and inputs['source']=='casscf':
+        if inputs['state_average']:
+            print_warning('When orbitals localization is active and the orbitals are ' +
+                          'generated in the same run using CASSCF with state averaging, ' +
+                          'the RDM that will be processed by the localization algorithm ' +
+                          'is the total ensemble RDM.')
             
     #== If occupations-based localization subspace is requested ==#
     if inputs['loc_type'] == 'DEFINE_LATER':

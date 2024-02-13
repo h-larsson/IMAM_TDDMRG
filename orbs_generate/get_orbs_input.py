@@ -13,6 +13,22 @@ def get_inputs(inp_file):
     inputs['twosz'] = twosz
 
     try:
+        inputs['init_orbs'] = init_orbs
+    except NameError:
+        inputs['init_orbs'] = defvals.def_init_orbs
+    try:
+        inputs['init_occs'] = init_occs
+    except NameError:
+        inputs['init_occs'] = defvals.def_init_occs
+    try:
+        inputs['init_ergs'] = init_ergs
+    except NameError:
+        inputs['init_ergs'] = defvals.def_init_ergs
+    try:
+        inputs['init_rdm'] = init_rdm
+    except NameError:
+        inputs['init_rdm'] = defvals.def_init_rdm
+    try:
         inputs['dump_inputs'] = dump_inputs
     except NameError:
         inputs['dump_inputs'] = defvals.def_dump_inputs
@@ -57,7 +73,6 @@ def get_inputs(inp_file):
     elif inputs['source'] == 'casscf':
         inputs['nCAS'] = nCAS
         inputs['nelCAS'] = nelCAS
-        inputs['init_orbs'] = init_orbs
 
         try:
             inputs['frozen'] = frozen
@@ -163,16 +178,6 @@ def get_inputs(inp_file):
         except NameError:
             inputs['loc_occs'] = defvals.def_loc_occs
 
-        # orbs_for_loc
-        #   Input orbitals to be localized.
-        try:
-            inputs['orbs_for_loc'] = orbs_for_loc
-        except NameError:
-            inputs['orbs_for_loc'] = defvals.def_orbs_for_loc
-        try:
-            inputs['rdm_for_loc'] = rdm_for_loc
-        except NameError:
-            inputs['rdm_for_loc'] = defvals.def_rdm_for_loc
         try:
             inputs['loc_type'] = loc_type
         except NameError:

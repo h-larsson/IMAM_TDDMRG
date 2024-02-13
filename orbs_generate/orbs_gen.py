@@ -7,7 +7,7 @@ from util_orbs import sort_orbs
 
 
 ##########################################################################
-def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False): 
+def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False, init_orb=None): 
     '''
     Input parameters:
     ----------------
@@ -35,6 +35,8 @@ def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False):
     print('No. of MO / no. of electrons = %d / (%d, %d)' % 
           (mol.nao, mol.nelec[0], mol.nelec[1]))
     mf = scf.RHF(mol)
+    if init_orb is not None:
+        mf.init_guess = mf.make_rdm1(mo_coeff=init_orb)
     mf.conv_tol = conv_tol    #1e-7
     mf.kernel()
     orbs, occs, ergs = mf.mo_coeff, mf.mo_occ, mf.mo_energy

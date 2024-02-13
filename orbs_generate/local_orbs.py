@@ -8,8 +8,8 @@ loc_type_err = 'localize: The value of the argument \'loc_type\' is undefined, '
                'array.'
 
 ##########################################################################
-def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None, 
-                 loc_type=None, loc_irrep=None, excludes=[], sort_to_occ=False):
+def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None, loc_type=None,
+             loc_irrep=None, excludes=[], sort_to_occ=False):
     '''
     mol:
       The Mole object based on which the input orbitals is constructed.
@@ -53,9 +53,10 @@ def localize(mol, orbs0, rdm0=None, ovl=None, loc_subs=None, occs_thr=None,
         assert has_rdm0
         occs0 = np.diag(rdm0).copy()          # occs0 = Occupations of input orbitals.
         occs_id = np.array( [ i+1 for i in range(0,len(occs0)) ] )   # i+1 instead of i because it has to be 1-base.
-        occs_thr = [0.0] + occs_thr + [2.1]           # occs_thr = Occupation thresholds to determine localization subspaces.
+        occs_thr = [-0.1] + occs_thr + [2.1]           # occs_thr = Occupation thresholds to determine localization subspaces.
         # The last element of occs_thr above is purposely set to 2.1 instead of 2.0 because
         # the double occupations elements of occs0 are sometimes very slightly over 2.0.
+        # The same reason for the first element of occs_thr.
         
         loc_subs_occs = [None] * (len(occs_thr)-1)    # loc_subs_occs = Orbital indices in each localization subspace.
         for i in range(0, len(occs_thr)-1):
