@@ -8,26 +8,39 @@ from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs
 
 
 ##########################################################################
-def get_IBO(mol, mf=None, align_groups=None):
+def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
+    '''
+    oiao:
+       The orthogonalized IAO in AO basis.
+    mo_ref:
+       The orbitals acting as the polarization mold based on which the IBO is constructed. In the
+       original IBO formulation, it is the Hartree-Fock canonical orbitals.
+    align_groups:
+       A tuple of tuples. Each inner tuple consists of 1-base IBO indices to be aligned with 
+       mo_ref. This input is most likely only useful in linear molecules having orbitals higher 
+       than sigma (e.g. pi, delta, etc) where the lobes of these orbitals may not be aligned with
+       any Cartesian axes.
+    '''
     
     if align_groups is not None:
         assert isinstance(align_groups, (list, tuple)), 'align_groups must be a tuple or ' + \
             'list which in turn contains lists or tuples.'
 
     ovl = mol.intor('int1e_ovlp')
-    if mf is None: mf = scf.RHF(mol).run()
+    mf = scf.RHF(mol).run()
+    if mo_ref is None:
+        mo_ref = mf.mo_coeff[:,mf.mo_occ>0]
     
     #==== Obtain orthogonalized IAOs ====#
-    mo_occ = mf.mo_coeff[:,mf.mo_occ>0]
-    iao_ = lo.iao.iao(mol, mo_occ)
-    # e, v = scipy.linalg.eigh(ovl)
-    # x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
-    # iao = x_i @ iao_
-    iao = lo.vec_lowdin(iao_, ovl)
-    
+    if oiao is None:
+        iao = lo.iao.iao(mol, mf.mo_coeff[:,mf.mo_occ>0])
+        #OLD e, v = scipy.linalg.eigh(ovl)
+        #OLD x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
+        #OLD iao = x_i @ iao_
+        oiao = lo.vec_lowdin(iao, ovl)
     
     #==== Calculate IBOs in AO basis ====#
-    ibo = lo.ibo.ibo(mol, mo_occ, iaos=iao)
+    ibo = lo.ibo.ibo(mol, mo_ref, iaos=oiao)
     if align_groups is not None:
         # The task in this block is to determine mix_coef that satisfies:
         #     I = mo_ref.T @ ovl @ ibo_new
@@ -37,16 +50,16 @@ def get_IBO(mol, mf=None, align_groups=None):
         # any Cartesian axes. The first equation holds under the assumption that the irrep orderings in mo_ref and
         # ibo_new are the same. Hence, the irrep ordering of ibo_new follows that of mo_ref. The columns of ibo_old
         # must be degenerate, the columns of mo_ref may not be degenerate but better are.
-        mo_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mf.mo_coeff[:,0:ibo_.shape[1]])
+        mo_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
         for ik in align_groups:
             ip = tuple( [ik[j]-1 for j in range(0,len(ik))] )
             print('  -> Aligning IBOs:', ip, '(0-based)')
     
             #== Find the most suitable MOs for mo_ref ==#
-            c = mf.mo_coeff.T @ ovl @ ibo[:,ip]
+            c = mo_ref.T @ ovl @ ibo[:,ip]
             idx = np.argmax(np.abs(c), axis=0)
             print('       Indices of the most suitable reference MOs:', idx, '(0-based)')
-            mo_ref = mf.mo_coeff[:, idx]
+            mo_ref = mo_ref[:, idx]
             ref_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
     
             #== Compute the new (aligned) IBOs ==#
@@ -55,12 +68,12 @@ def get_IBO(mol, mf=None, align_groups=None):
             norms = np.einsum('ij, jk, ki -> i', ibo0.T, ovl, ibo0)  # np.diag(ibo.T @ ovl @ ibo)
             ibo[:,ip] = ibo0 / np.sqrt(norms)
 
-    return ibo, iao
+    return ibo
 ##########################################################################
 
 
 ##########################################################################
-def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E-8):
+def get_IBOC(mol, boao=None, mo_ref=None, loc='IBO', align_groups=None, ortho_thr=1E-8):
     '''
     This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO)
     that are also spanned by IAOs.
@@ -68,7 +81,8 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
     Inputs
     ------
     boao:
-       A tuple of the form (IBO, IAO) in AO basis.
+       A tuple of the form (IBO, OIAO), where IBO and OIAO are the intrinsic bond orbitals
+       and orthogonalized intrinsic atomic orbitals in AO basis.
     loc:
        The localization method, available options are 'IBO' and 'PM'
 
@@ -82,22 +96,22 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
     
     if boao is not None:
         assert isinstance(boao, tuple)
-        ibo_, iao_ = boao
+        ibo_, oiao_ = boao
     else:
-        ibo_, iao_ = get_IBO(mol, mf, align_groups)
+        ibo_, oiao_ = get_IBO(mol, mo_ref, align_groups)
     ovl = mol.intor('int1e_ovlp')
 
-    #==== Obtain IAOs in symm. orthogonalized basis ====#
+    #==== Obtain OIAOs in symm. orthogonalized basis ====#
     e, v = scipy.linalg.eigh(ovl)
     x = v @ np.diag( 1/np.sqrt(e) ) @ v.T   # X for symmetric orthogonalization
     x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
-    iao = x_i @ iao_
+    oiao = x_i @ oiao_
     ibo = x_i @ ibo_
-    n_iboc = iao.shape[1] - ibo.shape[1]
+    n_iboc = oiao.shape[1] - ibo.shape[1]
 
-    #==== Project IAO into the complementary space of the IBOs ====#
+    #==== Project OIAO into the complementary space of the IBOs ====#
     Q_proj = np.eye(ibo.shape[0]) - ibo @ ibo.T
-    iboc = Q_proj @ iao
+    iboc = Q_proj @ oiao
     norms = np.einsum('ij, ji -> i', iboc.T, iboc)
     iboc = iboc / np.sqrt(norms)
 
@@ -114,7 +128,7 @@ def get_IBOC(mol, boao=None, mf=None, loc='IBO', align_groups=None, ortho_thr=1E
 
     #==== Localize IBOC ====#
     if loc == 'IBO':
-        iboc = lo.ibo.ibo(mol, iboc, iaos=iao_)
+        iboc = lo.ibo.ibo(mol, iboc, iaos=oiao_)
     elif loc == 'PM':
         iboc = lo.PM(mol, iboc).kernel()
 
