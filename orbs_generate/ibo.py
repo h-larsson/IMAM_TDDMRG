@@ -186,19 +186,19 @@ def analyze(mol, ibo, iao, inputs, iboc=None):
         for i in range(0, max(iao.shape[1], ibo.shape[1])):
             if inputs['print_IAO'] and i < iao.shape[1]:
                 cubename = inputs['cube_dir'] + '/iao-' + str(i+1).zfill(ndigit_iao) + '.cube'
-                print(f'{i+1:d}) Printing cube files: ')
+                print(f'{i+1:d}) Printing cube files: ', flush=True)
                 print('     ' + cubename)
                 tools.cubegen.orbital(mol, cubename, iao[:,i])
             if inputs['print_IBO'] and i < ibo.shape[1]:
                 cubename = inputs['cube_dir'] + '/ibo-' + str(i+1).zfill(ndigit_ibo) + '.cube'
-                print(f'{i+1:d}) Printing cube files: ')
+                print(f'{i+1:d}) Printing cube files: ', flush=True)
                 print('     ' + cubename)
                 tools.cubegen.orbital(mol, cubename, ibo[:,i])
     if iboc is not None and inputs['print_IBOC']:
         ndigit_iboc = len(str(iboc.shape[1]))
         for i in range(0, iboc.shape[1]):
             cubename = inputs['cube_dir'] + '/iboc-' + str(i+1).zfill(ndigit_iboc) + '.cube'
-            print(f'{i+1:d}) Printing cube files: ')
+            print(f'{i+1:d}) Printing cube files: ', flush=True)
             print('     ' + cubename)
             tools.cubegen.orbital(mol, cubename, iboc[:,i])
 ##########################################################################

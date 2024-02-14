@@ -75,7 +75,7 @@ def calc(mol, orb, inputs):
                 #== Construct the full PDM ==#
                 pdm1 = np.load(pdm_dir[i] + '/1pdm.npy')
                 echeck = np.linalg.eigvalsh(np.sum(pdm1, axis=0))
-                print(str(k) + ')  t = ', tt[i], ' fs')
+                print(str(k) + ')  t = ', tt[i], ' fs', flush=True)
                 print('     RDM path = ', pdm_dir[i])
                 pdm_full = np.sum( util_qm.make_full_dm(nCore, pdm1), axis=0 )
                 tr = np.trace(pdm_full[nCore:nOcc, nCore:nOcc])
