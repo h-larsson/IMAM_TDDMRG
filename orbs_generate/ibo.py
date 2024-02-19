@@ -4,11 +4,11 @@ import scipy.linalg
 from pyscf import gto, scf, lo, tools, symm
 from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
-from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs
+from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs, local_orbs
 
 
 ##########################################################################
-def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
+def get_IBO(mol, oiao=None, mo_ref=None, by_symm=True, align_groups=None):
     '''
     oiao:
        The orthogonalized IAO in AO basis.
@@ -40,7 +40,15 @@ def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
         oiao = lo.vec_lowdin(iao, ovl)
     
     #==== Calculate IBOs in AO basis ====#
-    ibo = lo.ibo.ibo(mol, mo_ref, iaos=oiao)
+    if by_symm:
+        ibo = np.zeros(mo_ref.shape)
+        refs = np.array( symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref) )
+        for s in set(refs):
+            ibo[:,refs == s] = lo.ibo.ibo(mol, mo_ref[:,refs == s], iaos=oiao)
+    else:
+        ibo = lo.ibo.ibo(mol, mo_ref, iaos=oiao)
+
+    #==== Alignment ====#
     if align_groups is not None:
         # The task in this block is to determine mix_coef that satisfies:
         #     I = mo_ref.T @ ovl @ ibo_new
@@ -50,7 +58,6 @@ def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
         # any Cartesian axes. The first equation holds under the assumption that the irrep orderings in mo_ref and
         # ibo_new are the same. Hence, the irrep ordering of ibo_new follows that of mo_ref. The columns of ibo_old
         # must be degenerate, the columns of mo_ref may not be degenerate but better are.
-        mo_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
         for ik in align_groups:
             ip = tuple( [ik[j]-1 for j in range(0,len(ik))] )
             print('  -> Aligning IBOs:', ip, '(0-based)')
@@ -60,7 +67,6 @@ def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
             idx = np.argmax(np.abs(c), axis=0)
             print('       Indices of the most suitable reference MOs:', idx, '(0-based)')
             mo_ref = mo_ref[:, idx]
-            ref_irreps = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, mo_ref)
     
             #== Compute the new (aligned) IBOs ==#
             mix_coef = np.linalg.inv(mo_ref.T @ ovl @ ibo[:,ip])
@@ -73,16 +79,21 @@ def get_IBO(mol, oiao=None, mo_ref=None, align_groups=None):
 
 
 ##########################################################################
-def get_IBOC(mol, boao=None, mo_ref=None, loc='IBO', align_groups=None, ortho_thr=1E-8):
+def get_IBOC(mol, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=True, align_groups=None,
+             ortho_thr=1E-8):
     '''
     This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO)
     that are also spanned by IAOs.
 
     Inputs
     ------
-    boao:
-       A tuple of the form (IBO, OIAO), where IBO and OIAO are the intrinsic bond orbitals
-       and orthogonalized intrinsic atomic orbitals in AO basis.
+    oiao:
+       The orthogonalized IAO in AO basis.
+    ibo:
+       IBO in AO basis.
+    mo_ref:
+       The orbitals acting as the polarization mold based on which the IBO is constructed. In the
+       original IBO formulation, it is the Hartree-Fock canonical orbitals.
     loc:
        The localization method, available options are 'IBO' and 'PM'
 
@@ -93,44 +104,73 @@ def get_IBOC(mol, boao=None, mo_ref=None, loc='IBO', align_groups=None, ortho_th
     '''
      
     assert loc == 'IBO' or loc == 'PM'
-    
-    if boao is not None:
-        assert isinstance(boao, tuple)
-        ibo_, oiao_ = boao
-    else:
-        ibo_, oiao_ = get_IBO(mol, mo_ref, align_groups)
     ovl = mol.intor('int1e_ovlp')
+    if (oiao is None or ibo is None) and (mo_ref is None):
+        mf = scf.RHF(mol).run()
+        mo_ref = mf.mo_coeff[:,mf.mo_occ>0]
+
+    #==== Obtain orthogonalized IAOs ====#
+    if oiao is None:
+        iao = lo.iao.iao(mol, mo_ref)
+        oiao = lo.vec_lowdin(iao, ovl)
+        
+    #==== Obtain IBOs ====#
+    if ibo is None:
+        ibo = get_IBO(mol, oiao, mo_ref, by_symm, align_groups)
 
     #==== Obtain OIAOs in symm. orthogonalized basis ====#
     e, v = scipy.linalg.eigh(ovl)
     x = v @ np.diag( 1/np.sqrt(e) ) @ v.T   # X for symmetric orthogonalization
     x_i = v @ np.diag( np.sqrt(e) ) @ v.T   # X^-1 for symmetric orthogonalization
-    oiao = x_i @ oiao_
-    ibo = x_i @ ibo_
-    n_iboc = oiao.shape[1] - ibo.shape[1]
+    oiao_ = x_i @ oiao
+    ibo_ = x_i @ ibo
+    n_iboc = oiao_.shape[1] - ibo_.shape[1]
 
     #==== Project OIAO into the complementary space of the IBOs ====#
-    Q_proj = np.eye(ibo.shape[0]) - ibo @ ibo.T
-    iboc = Q_proj @ oiao
+    # If ibo_ has definite symmetry (irrep), then Q_proj conserves the symmetry of the
+    # input vector.
+    Q_proj = np.eye(ibo_.shape[0]) - ibo_ @ ibo_.T
+    iboc = Q_proj @ oiao_
     norms = np.einsum('ij, ji -> i', iboc.T, iboc)
     iboc = iboc / np.sqrt(norms)
 
-    #==== Orthogonalize IBOC ====#
-    U, sv, Vt = np.linalg.svd(iboc, full_matrices=False)
-    n_ortho = len(sv[sv > ortho_thr])
+    #==== Orthogonalize IBOC via SVD ====#
+    if by_symm:
+        # As it turns out, orthogonalization through SVD does not necessarily conserve
+        # symmetry. This is especially true in linear molecules with point group set to
+        # D2h or C2v where the absence of symmetry is reflected in the lobes of pi
+        # orbitals not oriented along any Cartesian axes. This block performs SVD for
+        # each symmetry block of iboc obtained above, hence preserving the symmetry
+        # of these iboc's.
+        o = np.array([])
+        iboc_s = np.array( symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, x@iboc) )
+        n_ortho = 0
+        for s in set(iboc_s):
+            U, sv, Vt = np.linalg.svd(iboc[:,iboc_s == s], full_matrices=False)
+            nsym = len(sv[sv > ortho_thr])
+            o = U[:,0:nsym] if o.size == 0 else np.hstack((o, U[:,0:nsym]))
+            n_ortho += nsym
+        iboc = o[:,0:n_ortho]
+    else:
+        U, sv, Vt = np.linalg.svd(iboc, full_matrices=False)
+        n_ortho = len(sv[sv > ortho_thr])
+        iboc = U[:,0:n_ortho]
+    
     assert n_ortho == n_iboc, f'The number of retained IBOCs ({n_ortho}) must be ' + \
         'the same as the difference between the number of AOs and the number of ' + \
-        f'IBOs ({n_iboc}). Try changing ortho_thr.'
-    iboc = U[:,0:n_iboc]
+        f'IBOs ({n_iboc}). Try changing ortho_thr.'    
         
     #==== Express orthogonalized IBOC in AO basis ====#
     iboc = x @ iboc
 
     #==== Localize IBOC ====#
     if loc == 'IBO':
-        iboc = lo.ibo.ibo(mol, iboc, iaos=oiao_)
+        #iboc = lo.ibo.ibo(mol, iboc, iaos=oiao)
+        iboc = get_IBO(mol, oiao, iboc, by_symm, align_groups)
     elif loc == 'PM':
-        iboc = lo.PM(mol, iboc).kernel()
+        assert by_symm, 'When using PM is localization method, by_symm must be True.'
+        outs = local_orbs.localize(mol, iboc, loc_subs=[[i+1 for i in range(iboc.shape[1])]])
+        iboc = outs['orbs']
 
     return iboc
 ##########################################################################
@@ -201,119 +241,4 @@ def analyze(mol, ibo, iao, inputs, iboc=None):
             print(f'{i+1:d}) Printing cube files: ', flush=True)
             print('     ' + cubename)
             tools.cubegen.orbital(mol, cubename, iboc[:,i])
-##########################################################################
-
-
-##########################################################################
-def get_tdocc(mol, ibo, iao, inputs, iboc=None):
-    assert isinstance(inputs, dict)
-    
-    #==== Preprocess inputs ====#
-    if inputs['prev_logbook'] is not None:
-        inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
-    if inputs.get('print_inputs', False):
-        print('\nInput parameters:')
-        for kw in inputs:
-            print('  ', kw, ' = ', inputs[kw])
-        print(' ')
-    
-    #==== Calculate IAOs, IBOs, and IBOCs in AO basis ====#
-    nOcc = inputs['nCore'] + inputs['nCAS']
-    nCore = inputs['nCore']
-    nCAS = inputs['nCAS']
-    nelCAS = inputs['nelCAS']
-    #OLDmol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], symmetry=inputs['inp_symmetry'])
-    ovl = mol.intor('int1e_ovlp')
-    #OlDibo, iao = util_orbs.get_IBO(mol, align_groups=inputs.get('align_groups', None))
-    if iboc is None:
-        iboc = util_orbs.get_IBOC(mol, boao=(ibo, iao))
-            
-    #==== Calculate IBOs in occupied orbitals basis ====#
-    orbs = np.load(inputs['orb_path'])
-    ibo_o = orbs.T @ ovl @ ibo
-    n_ibo = ibo_o.shape[1]
-    print('IBO trace = ', np.trace(ibo_o.T @ ibo_o))
-    iboc_o = orbs.T @ ovl @ iboc
-    n_iboc = iboc_o.shape[1]
-    print('IBOC trace = ', np.trace(iboc_o.T @ iboc_o))
-    
-    #==== Construct the time array ====#
-    if isinstance(inputs['tevo_dir'], list):
-        tevo_dir = inputs['tevo_dir'].copy()
-    elif isinstance(inputs['tevo_dir'], tuple):
-        tevo_dir = inputs['tevo_dir']
-    elif isinstance(inputs['tevo_dir'], str):
-        tevo_dir = ( inputs['tevo_dir'] )
-    tt = []
-    for d in tevo_dir:
-        tt = np.hstack( (tt, extract_time.get(d)) )
-    idsort = np.argsort(tt)
-    ntevo = len(tt)
-
-    pdm_dir = []
-    for d in tevo_dir:
-        pdm_dir = pdm_dir + glob.glob(d + '/tevo-*')
-
-    simtime_thr = inputs.get('simtime_thr', 1E-11)
-    with open(inputs['out_file'], 'w') as ouf:
-    
-        #==== Print column numbers ====#
-        ouf.write(' %9s %13s  ' % ('Col #1', 'Col #2'))
-        for i in range(3, n_ibo + n_iboc + 3):
-            ouf.write(' %16s' % ('Col #' + str(i)) )
-        ouf.write('\n')
-    
-        #==== Print IBO and IBOC indices ====#
-        ouf.write(' %9s %13s  ' % ('', ''))
-        for i in range(0, n_ibo):
-            ouf.write(' %16s' % ('IBO #' + str(i+1)) )
-        for i in range(0, n_iboc):
-            ouf.write(' %16s' % ('IBOC #' + str(i+1)) )
-        ouf.write('\n')
-        
-        k = 0
-        kk = 0
-        for i in idsort:
-            if kk > 0:
-                assert not (tt[i] < t_last), 'Time points are not properly sorted, this is a bug in ' \
-                    ' the program. Report to the developer. ' + f'Current time point = {tt[i]:13.8f}.'
-            if (kk > 0 and tt[i]-t_last > simtime_thr) or kk == 0:
-                #== Construct the full PDM ==#
-                pdm1 = np.load(pdm_dir[i] + '/1pdm.npy')
-                echeck = np.linalg.eigvalsh(np.sum(pdm1, axis=0))
-                print(str(k) + ')  t = ', tt[i], ' fs')
-                print('     RDM path = ', pdm_dir[i])
-                pdm_full = np.sum( util_qm.make_full_dm(nCore, pdm1), axis=0 )
-                tr = np.trace(pdm_full[nCore:nOcc, nCore:nOcc])
-                pdm_full[nCore:nOcc, nCore:nOcc] = pdm_full[nCore:nOcc, nCore:nOcc] *nelCAS / tr
-                
-                #== Calculate IBO and IBOC occupations ==#
-                occ_ibo = np.diag(ibo_o[0:nOcc,:].T @ pdm_full @ ibo_o[0:nOcc,:]).real
-                occ_iboc = np.diag(iboc_o[0:nOcc,:].T @ pdm_full @ iboc_o[0:nOcc:,:]).real
-                print('     Sum IBO occ = ', np.sum(occ_ibo))
-                print('     Sum IBOC occ = ', np.sum(occ_iboc))
-                print('     Sum IBO+IBOC occ = ', np.sum(occ_ibo) + np.sum(occ_iboc))
-                
-                #== Print time ==#
-                ouf.write(' %9d %13.8f  ' % (k, tt[i]))
-                
-                #== Print IBO and IBOC occupations ==#
-                for j in range(0, ibo_o.shape[1]):
-                    ouf.write(' %16.6e' % occ_ibo[j])
-                for j in range(0, iboc_o.shape[1]):
-                    ouf.write(' %16.6e' % occ_iboc[j])
-                ouf.write('\n')
-                k += 1
-            elif kk > 0 and tt[i]-t_last < simtime_thr:
-                util_print.print_warning('The data loaded from \n    ' + pdm_dir[i] + '\nhas a time point almost ' +
-                                         f'identical to the previous time point. Duplicate time point = {tt[i]:13.8f}')
-                pdm1 = np.load(pdm_dir[i] + '/1pdm.npy')
-                echeck_tsim = np.linalg.eigvalsh(np.sum(pdm1, axis=0))
-                if max(np.abs(echeck_tsim - echeck)) > 1E-6:
-                    util_print.print_warning(f'The 1RDM loaded at the identical time point {tt[i]:13.8f} yields ' +
-                                             'eigenvalues different by more than 1E-6 as the other identical \n' +
-                                             'time point. Ideally you don\'t want to have such inconcsistency ' +
-                                             'in your data. Proceed at your own risk.')
-            t_last = tt[i]
-            kk += 1
 ##########################################################################
