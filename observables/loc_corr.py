@@ -5,26 +5,24 @@ from IMAM_TDDMRG.utils import util_extract
 from IMAM_TDDMRG.observables import extract_time
 
 
-def calc(rdm, mol=None, orb=None, corr_dm=False, inputs=None):
+########################################################
+def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=None):
     
     '''
     Calculate static and dynamic correlation indices and optionally, correlation density 
-    matrices (used for plotting the local correlations). If rdm is obtained from a state
-    with some core orbitals (exactly doubly occupied), then matrix elements involving
-    these orbitals may be omitted from rdm since their contributions to the correlation
-    indices and density matrices are zero. When omitting core orbitals in the rdm, these
-    orbitals must also be absent in orb.
+    matrices (used for plotting the local correlations).
 
     Input
     -----
     mol:
       Mole object describing the molecule. The information about AO basis is contained here.
     rdm: 
-      One-particle reduced density matrix in orthonormal orbital basis representation 
-      where these orbitals are given by orb. rdm should be spin-resolved, i.e. rdm[0,:,:]
-      and rdm[1,:,:] must correspond to the RDMs in alpha and beta spin-orbitals.
+      The active space block of one-particle reduced density matrix in orthonormal orbital 
+      basis representation where these orbitals are given by orb. rdm should be
+      spin-resolved, i.e. rdm[0,:,:] and rdm[1,:,:] must correspond to the RDMs in alpha 
+      and beta spin-orbitals.
     orb:
-      AO coefficients of orthonormal orbitals in which rdm is represented.
+      AO coefficients of the active space orbitals in which rdm is represented.
 
     Output
     ------
@@ -43,11 +41,15 @@ def calc(rdm, mol=None, orb=None, corr_dm=False, inputs=None):
 
     if mol is None:
         mol = util_extract.mole(inputs)
+    if nCore is None:
+        nCore = inputs['nCore']
+    if nCAS is None:
+        nCAS = inputs['nCAS']
     if orb is None:
-        orb = np.load(inputs['orb_path'])
+        orb = np.load(inputs['orb_path'])[:,nCore:nCore+nCAS]
         
     assert len(rdm.shape) == 3
-    assert orb.shape[1] == rdm.shape[1]
+    assert orb.shape[1] == rdm.shape[1], f'{orb.shape[1]} vs. {rdm.shape[1]}'
     cpx = isinstance(rdm[0,0,0], complex)
     if cpx:
         dtype = complex
@@ -84,16 +86,24 @@ def calc(rdm, mol=None, orb=None, corr_dm=False, inputs=None):
         corr_s = corr_d = None
 
     return o_s, o_d, corr_s, corr_d
+########################################################
 
 
-
-def td_calc(mol=None, tdir=None, orb=None, corr_dm=False, nc=(30,30,30), outfile='corr_id',
-            simtime_thr=1E-11, inputs=None):
+########################################################
+def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
+            corr_dm=False, nc=(30,30,30), outfile='corr_id', simtime_thr=1E-11,
+            tnorm=True, inputs=None):
 
     if mol is None:
         mol = util.extract_mole(inputs)
+    if nCore is None:
+        nCore = inputs['nCore']
+    if nCAS is None:
+        nCAS = inputs['nCAS']
+    if nelCAS is None:
+        nelCAs = inputs['nelCAS']
     if orb is None:
-        orb = np.load(inputs['orb_path'])
+        orb = np.load(inputs['orb_path'])[:,nCore:nCore+nCAS]
     if tdir is None:
         tdir = inputs['te_sample']
 
@@ -137,6 +147,10 @@ def td_calc(mol=None, tdir=None, orb=None, corr_dm=False, nc=(30,30,30), outfile
         #==== When the time point is different from the previous one ====#
         if (kk > 0 and tt[i]-t_last > simtime_thr) or kk == 0:
             rdm = np.load(rdm_dir[i] + '/1pdm.npy')
+            if tnorm:
+                for j in range(0,2):
+                    tr = np.trace(rdm[j,:,:])
+                    rdm[j,:,:] = rdm[j,:,:] * nelCAS / tr
             echeck = np.linalg.eigvalsh(np.sum(rdm, axis=0))
             o_s, o_d, corr_s, corr_d = calc(mol, rdm, orb, corr_dm)
             i_s = np.sum(o_s)
@@ -181,3 +195,4 @@ def td_calc(mol=None, tdir=None, orb=None, corr_dm=False, nc=(30,30,30), outfile
 
         #==== Increment general (non-unique) time point index ====#
         kk += 1
+########################################################

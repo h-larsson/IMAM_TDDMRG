@@ -79,7 +79,7 @@ def calc(mol, orb, inputs):
                 print('     RDM path = ', pdm_dir[i])
                 pdm_full = np.sum( util_qm.make_full_dm(nCore, pdm1), axis=0 )
                 tr = np.trace(pdm_full[nCore:nOcc, nCore:nOcc])
-                pdm_full[nCore:nOcc, nCore:nOcc] = pdm_full[nCore:nOcc, nCore:nOcc] *nelCAS / tr
+                pdm_full[nCore:nOcc, nCore:nOcc] = pdm_full[nCore:nOcc, nCore:nOcc] * nelCAS / tr
                 
                 #== Calculate orbital occupations ==#
                 occ_orb = np.diag(orb_o[0:nOcc,:].T @ pdm_full @ orb_o[0:nOcc,:]).real
