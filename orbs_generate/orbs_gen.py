@@ -230,7 +230,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         print('Spin square = %-10.6f' % ssq)
         print('Spin multiplicity = %-10.6f' % mult)
 
-    #==== Determine occupations and orbital energies ====#
+    #==== Determine occupancies and orbital energies ====#
     if state_average:
         rdm_states = np.zeros((mol.nao, mol.nao, nesm))
         for i in range(0,nesm): rdm_states[0:ncore, 0:ncore, i] = 2.0 * np.eye(ncore)

@@ -1,4 +1,4 @@
-import os, glob
+import glob
 import numpy as np
 from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
