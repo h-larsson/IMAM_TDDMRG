@@ -91,7 +91,9 @@ if hasMPI:
               flush=True)
     MPI.barrier()
         
-    
+
+WDIR = os.getcwd()
+logbook.update({'workdir':WDIR})
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
@@ -109,7 +111,7 @@ _print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
 _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
 #==== Scratch folder ====#
-def_scratch = './' + inputs['prefix'] + '.tmp'
+def_scratch = WDIR + '/' + inputs['prefix'] + '.tmp'
 scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
 _print('Scratch directory = ', scratch)
 _print('Complex MPS type = ', inputs['complex_MPS_type'])
@@ -282,7 +284,7 @@ if MAIN_PROCESS:
                          'be an integer.')
 
     #==== Save orbital ordering ====#
-    np.save('./' + inputs['prefix'] + '.ord', re_idx)
+    np.save(WDIR + '/' + inputs['prefix'] + '.ord', re_idx)
     
     re_idx_shape = re_idx.shape
     re_idx_type = type(re_idx)
@@ -389,7 +391,7 @@ if inputs['do_timeevo']:
     _print('')
 
     if inputs['sample_dir'] == 'DEFINE_LATER':
-        inputs['sample_dir'] = './' + inputs['prefix'] + '.sample'
+        inputs['sample_dir'] = WDIR + '/' + inputs['prefix'] + '.sample'
     if inputs['te_method'] == 'tdvp':
         method = TETypes.TangentSpace
     elif inputs['te_method'] == 'rk4':

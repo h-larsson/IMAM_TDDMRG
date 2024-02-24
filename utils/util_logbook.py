@@ -1,6 +1,9 @@
 import pickle
+from IMAM_TDDMRG.utils import util_print as uprint
 
 
+
+########################################################
 def parse(inputs0):
     inputs = inputs0.copy()
 
@@ -31,3 +34,20 @@ def parse(inputs0):
         else:
             pass
     return inputs
+########################################################
+
+
+########################################################
+def read(path):
+    with open(path, 'rb') as f:
+        logbook = pickle.load(f)
+    return logbook
+########################################################
+
+
+########################################################
+def content(lb):
+    uprint.print_section('Content of logbook')
+    for kw in lb:
+        uprint.print_i2(kw, ' = ', lb[kw])
+########################################################

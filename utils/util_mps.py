@@ -305,6 +305,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
         assert 'nroots' in mps_type, 'When mps_type[\'type\'] is \'multi\', the key ' + \
             '\'nroots\' is required.'
 
+
     #==== Construct the MPS information found in <mpsSaveDir>/<mpstag> ====#
     inmps_path = mpsSaveDir + "/" + mpstag
     if mps_type['type'] == 'normal':
@@ -318,7 +319,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
         raise ValueError('The value of mps_type[\'type\'] is undefined.')
     mps_info.load_data(inmps_path)
 
-        
+
     #==== Duplicate MPS info files in mpsSaveDir to the ====#
     #====   scratch obtained from the MPSInfo object    ====#
     for iSite in range(mps_info.n_sites + 1):
@@ -331,7 +332,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
         if MPI is not None:
             MPI.barrier()
 
-            
+
     #==== Duplicate MPS files in mpsSaveDir to the ====#
     #==== scratch obtained from the MPSInfo object ====#
     if mps_type['type'] == 'multi':
@@ -366,7 +367,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
     mps_info = mps.info
     mps_info.load_mutable()
 
-    
+
     #==== Take care of and adjust the max bond dimension ====#
     max_bdim = max([x.n_states_total for x in mps_info.left_dims])
     if mps_info.bond_dim < max_bdim:
@@ -406,7 +407,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
                 MPI.barrier()
             _print(cf + ' -> ' + mps.canonical_form)
 
-            
+
     #==== Further change canonical form (???) ====#
     if (mps.center == 0) != (ref_center == 0):      # 2)
         _print('\n\nChange canonical form ...')
@@ -433,7 +434,7 @@ def loadMPSfromDir(mpsSaveDir:str, mpstag:str, complex_mps:bool, mps_type:dict, 
     #    this conditional block works to enforce the position of the MPS center according
     #    to the value of reference center.
 
-        
+
     forward = mps.center == 0
     return mps, mps.info, forward
 

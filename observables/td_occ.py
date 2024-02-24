@@ -1,43 +1,43 @@
 import glob
 import numpy as np
-from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print
+from IMAM_TDDMRG.utils import util_atoms, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
 
 
 
-def calc(mol, orb, inputs):
+def calc(outfile, orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
+         simtime_thr=1E-11, logbook=None):
 
-    assert isinstance(inputs, dict)
-    
-    #==== Preprocess inputs ====#
-    if inputs['prev_logbook'] is not None:
-        inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
-    if inputs.get('print_inputs', False):
-        print('\nInput parameters:')
-        for kw in inputs:
-            print('  ', kw, ' = ', inputs[kw])
-        print(' ')
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+    if nCore is None:
+        nCore = logbook['nCore']
+    if nCAS is None:
+        nCAS = logbook['nCAS']
+    if nelCAS is None:
+        nelCAS = logbook['nelCAS']
+    if orb is None:
+        orb = np.load(logbook['orb_path'])
+    if tdir is None:
+        tdir = logbook['sample_dir']
+        
 
     #==== Some constants ====#
-    nOcc = inputs['nCore'] + inputs['nCAS']
-    nCore = inputs['nCore']
-    nCAS = inputs['nCAS']
-    nelCAS = inputs['nelCAS']
+    nOcc = nCore + nCAS
     ovl = mol.intor('int1e_ovlp')
 
     #==== Calculate the desired orbitals in occupied orbitals basis ====#
-    orbx = np.load(inputs['orb_path'])
-    orb_o = orbx.T @ ovl @ orb
-    norb = orb.shape[1]
+    orb_o = orb.T @ ovl @ orbx
+    norb = orbx.shape[1]
     print('Trace of orbital overlap matrix = ', np.trace(orb_o.T @ orb_o))
     
     #==== Construct the time array ====#
-    if isinstance(inputs['tevo_dir'], list):
-        tevo_dir = inputs['tevo_dir'].copy()
-    elif isinstance(inputs['tevo_dir'], tuple):
-        tevo_dir = inputs['tevo_dir']
-    elif isinstance(inputs['tevo_dir'], str):
-        tevo_dir = tuple( [inputs['tevo_dir']] )
+    if isinstance(tdir, list):
+        tevo_dir = tdir.copy()
+    elif isinstance(tdir, tuple):
+        tevo_dir = tdir
+    elif isinstance(tdir, str):
+        tevo_dir = tuple( [tdir] )
     tt = []
     for d in tevo_dir:
         tt = np.hstack( (tt, extract_time.get(d)) )
@@ -50,8 +50,7 @@ def calc(mol, orb, inputs):
         pdm_dir = pdm_dir + glob.glob(d + '/tevo-*')
 
     #==== Begin printing occupation numbers ====#
-    simtime_thr = inputs.get('simtime_thr', 1E-11)
-    with open(inputs['out_file'], 'w') as ouf:
+    with open(outfile, 'w') as ouf:
     
         #==== Print column numbers ====#
         ouf.write(' %9s %13s  ' % ('Col #1', 'Col #2'))
@@ -103,5 +102,8 @@ def calc(mol, orb, inputs):
                                              'eigenvalues different by more than 1E-6 as the other identical \n' +
                                              'time point. Ideally you don\'t want to have such inconcsistency ' +
                                              'in your data. Proceed at your own risk.')
+                else:
+                    print('   Data at this identical time point is consistent with the previous ' + \
+                          'time point. This is good.\n')
             t_last = tt[i]
             kk += 1

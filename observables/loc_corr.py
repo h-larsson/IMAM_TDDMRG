@@ -1,12 +1,13 @@
 import glob
 import numpy as np
-from pyscf import symm
-from IMAM_TDDMRG.utils import util_extract
+from pyscf import symm, tools
+from IMAM_TDDMRG.utils import util_atoms, util_print
 from IMAM_TDDMRG.observables import extract_time
+from IMAM_TDDMRG.phys_const import au2fs
 
 
 ########################################################
-def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=None):
+def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, logbook=None):
     
     '''
     Calculate static and dynamic correlation indices and optionally, correlation density 
@@ -22,7 +23,7 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=N
       spin-resolved, i.e. rdm[0,:,:] and rdm[1,:,:] must correspond to the RDMs in alpha 
       and beta spin-orbitals.
     orb:
-      AO coefficients of the active space orbitals in which rdm is represented.
+      AO coefficients of active space orbitals in which rdm is represented.
 
     Output
     ------
@@ -40,13 +41,13 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=N
     '''
 
     if mol is None:
-        mol = util_extract.mole(inputs)
+        mol = util_atoms.mole(logbook)
     if nCore is None:
-        nCore = inputs['nCore']
+        nCore = logbook['nCore']
     if nCAS is None:
-        nCAS = inputs['nCAS']
+        nCAS = logbook['nCAS']
     if orb is None:
-        orb = np.load(inputs['orb_path'])[:,nCore:nCore+nCAS]
+        orb = np.load(logbook['orb_path'])[:,nCore:nCore+nCAS]
         
     assert len(rdm.shape) == 3
     assert orb.shape[1] == rdm.shape[1], f'{orb.shape[1]} vs. {rdm.shape[1]}'
@@ -59,13 +60,10 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=N
     #==== Compute natural occupancies and orbitals ====#
     osym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, orb)
     natocc = np.zeros((2,rdm.shape[2]), dtype=dtype)
-    natorb = np.zeros(rdm.shape, dtype=dtype)
+    natorb_ = np.zeros(rdm.shape, dtype=dtype)
     for i in range(2):
-        natocc[i,:], natorb[i,:,:] = symm.eigh(rdm[i,:,:], osym)
+        natocc[i,:], natorb_[i,:,:] = symm.eigh(rdm[i,:,:], osym)
     natocc = natocc.real
-
-    #==== Transform nat. orbitals from orb rep. to AO rep. ====#
-    natorb = orb @ natorb
 
     #==== Calculate static and dynamic correlation indices ====#
     o_s = np.zeros(natocc.shape)
@@ -75,13 +73,19 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=N
         o_d[i,:] = 0.25 * ( np.sqrt(natocc[i,:]*(1-natocc[i,:])) -
                             2*natocc[i,:]*(1-natocc[i,:]) )
 
-    #==== Calculate static and dynamic correlation density matrices ====#
+    #==== Calculate static and dynamic correlation density matrices in pseudo-AO basis ====#
     if corr_dm:
-        corr_s = np.zeros(natorb.shape[1:3], dtype=dtype)
-        corr_d = np.zeros(natorb.shape[1:3], dtype=dtype)
+        #==== Transform nat. orbitals from orb rep. to pseudo-AO rep. ====#
+        # natorb_ = nat. orbitals in input orbitals representation
+        # natorb = nat. orbitals in pseudo-AO representation
+        natorb = np.zeros((2, mol.nao, natorb_.shape[2]), dtype=dtype)
+        for i in range(2): natorb[i,:,:] = orb @ natorb_[i,:,:]
+        
+        corr_s = np.zeros((mol.nao,mol.nao), dtype=dtype)
+        corr_d = np.zeros((mol.nao,mol.nao), dtype=dtype)
         for i in range(2):
-            corr_s = corr_s + (natorb * o_s[i,:]) @ natorb.conj().T     # natorb @ o_s @ natorb.H
-            corr_d = corr_d + (natorb * o_d[i,:]) @ natorb.conj().T     # natorb @ o_d @ natorb.H
+            corr_s = corr_s + (natorb[i,:,:] * o_s[i,:]) @ natorb[i,:,:].conj().T     # natorb @ o_s @ natorb.H
+            corr_d = corr_d + (natorb[i,:,:] * o_d[i,:]) @ natorb[i,:,:].conj().T     # natorb @ o_d @ natorb.H
     else:
         corr_s = corr_d = None
 
@@ -90,22 +94,26 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, inputs=N
 
 
 ########################################################
-def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
-            corr_dm=False, nc=(30,30,30), outfile='corr_id', simtime_thr=1E-11,
-            tnorm=True, inputs=None):
-
+def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
+            corr_dm=False, nc=(30,30,30), simtime_thr=1E-11,
+            tnorm=True, logbook=None):
+    '''
+    orb:
+      AO coefficients of active space orbitals in which rdm is represented.
+    '''
+    
     if mol is None:
-        mol = util.extract_mole(inputs)
+        mol = utils.extract_mole(logbook)
     if nCore is None:
-        nCore = inputs['nCore']
+        nCore = logbook['nCore']
     if nCAS is None:
-        nCAS = inputs['nCAS']
+        nCAS = logbook['nCAS']
     if nelCAS is None:
-        nelCAs = inputs['nelCAS']
+        nelCAS = logbook['nelCAS']
     if orb is None:
-        orb = np.load(inputs['orb_path'])[:,nCore:nCore+nCAS]
+        orb = np.load(logbook['orb_path'])[:,nCore:nCore+nCAS]
     if tdir is None:
-        tdir = inputs['te_sample']
+        tdir = logbook['sample_dir']
 
     #==== Construct the time array ====#
     if isinstance(tdir, list):
@@ -130,10 +138,11 @@ def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
 
     #==== Print column titles ====#
     with open(outfile, 'w') as outf:
+        outf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
         outf.write('#%9s %13s  ' % ('Col #1', 'Col #2'))
         outf.write(' %16s %16s' % ('Col #3', 'Col #4'))
         outf.write('\n')
-        outf.write('#%9s %13s  ' % ('No.', 'Time (fs)'))
+        outf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
         outf.write(' %16s %16s' % ('Static id.', 'Dynamic id.'))
         outf.write('\n')
 
@@ -144,15 +153,19 @@ def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
             assert not (tt[i] < t_last), 'Time points are not properly sorted, this is ' \
                 'a bug in the program. Report to the developer. ' + \
                 f'Current time point = {tt[i]:13.8f}.'
+            
+        rdm = np.load(rdm_dir[i] + '/1pdm.npy')
+        tr = np.sum( np.trace(rdm, axis1=1, axis2=2) ).real
+        if tnorm:
+            rdm = rdm * nelCAS / tr
+            
         #==== When the time point is different from the previous one ====#
         if (kk > 0 and tt[i]-t_last > simtime_thr) or kk == 0:
-            rdm = np.load(rdm_dir[i] + '/1pdm.npy')
-            if tnorm:
-                for j in range(0,2):
-                    tr = np.trace(rdm[j,:,:])
-                    rdm[j,:,:] = rdm[j,:,:] * nelCAS / tr
+            print('%d) Time point: %.5f fs' % (k, tt[i]))
+            print('    RDM1 loaded from ' + rdm_dir[i])
+            print('    RDM trace = %.8f' % tr)
             echeck = np.linalg.eigvalsh(np.sum(rdm, axis=0))
-            o_s, o_d, corr_s, corr_d = calc(mol, rdm, orb, corr_dm)
+            o_s, o_d, corr_s, corr_d = calc(rdm, mol, orb, nCore, nCAS, corr_dm)
             i_s = np.sum(o_s)
             i_d = np.sum(o_d)
 
@@ -169,9 +182,9 @@ def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
             if corr_dm:
                 assert corr_s is not None and corr_d is not None
                 cubename = rdm_dir[i] + '/corr-s' + str(k).zfill(ndigit) + '.cube'
-                cubegen.density(mol, cubename, corr_s, nx=nc[0], ny=nc[1], nz=nc[2])
+                tools.cubegen.density(mol, cubename, corr_s, nx=nc[0], ny=nc[1], nz=nc[2])
                 cubename = rdm_dir[i] + '/corr-d' + str(k).zfill(ndigit) + '.cube'
-                cubegen.density(mol, cubename, corr_d, nx=nc[0], ny=nc[1], nz=nc[2])
+                tools.cubegen.density(mol, cubename, corr_d, nx=nc[0], ny=nc[1], nz=nc[2])
 
             #==== Increment unique time point index ====#
             k += 1
@@ -182,14 +195,17 @@ def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
                 ('The data loaded from \n    ' + rdm_dir[i] + '\nhas a time point almost ' +
                  'identical to the previous time point. Duplicate time point = ' +
                  f'{tt[i]:13.8f}')
-            rdm = np.load(rdm_dir[i] + '/1pdm.npy')
             echeck_tsim = np.linalg.eigvalsh(np.sum(rdm, axis=0))
-            if max(np.abs(echeck_tsim - echeck)) > 1E-6:
+            max_error = max(np.abs(echeck_tsim - echeck))
+            if max_error > 1E-6:
                 util_print.print_warning\
                     (f'The 1RDM loaded at the identical time point {tt[i]:13.8f} yields ' +
-                     'eigenvalues different by more than 1E-6 as the other identical \n' +
+                     f'eigenvalues different by up to {max_error:.6e} as the other identical \n' +
                      'time point. Ideally you don\'t want to have such inconcsistency ' +
                      'in your data. Proceed at your own risk.')
+            else:
+                print('   Data at this identical time point is consistent with the previous ' + \
+                      'time point. This is good.\n')
 
         t_last = tt[i]
 

@@ -1,4 +1,8 @@
 
+from pyscf import gto
+
+
+
 
 ATOM_DATA = (
 (  '1', 'h', 'hydrogen'),
@@ -121,18 +125,26 @@ ATOM_DATA = (
 ('118', 'og', 'oganesson')
 )
 
+
+########################################################
 def get_nuc_charge(atom):
     for i in range(0,len(ATOM_DATA)):
         if str(atom).lower() in ATOM_DATA[i]:
             return int(ATOM_DATA[i][0])
     raise ValueError(f'The element {atom} of atom_list is not a recognized atom.')
-            
+########################################################
+
+
+########################################################
 def get_tot_nuc_charge(atom_list):
     nq = 0.0
     for a in atom_list:
         nq = nq + get_nuc_charge(a)
     return nq
+########################################################
 
+
+########################################################
 def extract_atoms(s):
     lines = s.split(';')
     a = []
@@ -142,4 +154,16 @@ def extract_atoms(s):
         if len(w) != 0: a = a + [w[0]]
         i += 1
     return a
-            
+########################################################
+
+
+########################################################
+def mole(logbook):
+    nelCore = 2 * logbook['nCore']
+    tot_nq = get_tot_nuc_charge(extract_atoms(logbook['inp_coordinates']))
+    charge = tot_nq - nelCore - logbook['nelCAS']
+    mol = gto.M(atom=logbook['inp_coordinates'], basis=logbook['inp_basis'],
+                ecp=logbook['inp_ecp'], symmetry=logbook['inp_symmetry'],
+                charge=charge, spin=logbook['twos'])
+    return mol
+########################################################

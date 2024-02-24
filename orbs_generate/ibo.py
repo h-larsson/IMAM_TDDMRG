@@ -2,13 +2,15 @@ import os, glob
 import numpy as np
 import scipy.linalg
 from pyscf import gto, scf, lo, tools, symm
-from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print
+from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print, util_atoms
+from IMAM_TDDMRG.utils import util_print as uprint
 from IMAM_TDDMRG.observables import extract_time
 from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs, local_orbs
 
 
 ##########################################################################
-def get_IBO(mol, oiao=None, mo_ref=None, by_symm=True, align_groups=None):
+def get_IBO(mol=None, oiao=None, mo_ref=None, by_symm=False, align_groups=None,
+            logbook=None):
     '''
     oiao:
        The orthogonalized IAO in AO basis.
@@ -21,7 +23,10 @@ def get_IBO(mol, oiao=None, mo_ref=None, by_symm=True, align_groups=None):
        than sigma (e.g. pi, delta, etc) where the lobes of these orbitals may not be aligned with
        any Cartesian axes.
     '''
-    
+
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+        
     if align_groups is not None:
         assert isinstance(align_groups, (list, tuple)), 'align_groups must be a tuple or ' + \
             'list which in turn contains lists or tuples.'
@@ -79,8 +84,8 @@ def get_IBO(mol, oiao=None, mo_ref=None, by_symm=True, align_groups=None):
 
 
 ##########################################################################
-def get_IBOC(mol, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=True, align_groups=None,
-             ortho_thr=1E-8):
+def get_IBOC(mol=None, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=False, 
+             align_groups=None, ortho_thr=1E-8, logbook=None):
     '''
     This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO)
     that are also spanned by IAOs.
@@ -102,7 +107,10 @@ def get_IBOC(mol, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=True, ali
     iboc:
        The coefficients of IBO-c in AO basis.
     '''
-     
+
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+        
     assert loc == 'IBO' or loc == 'PM'
     ovl = mol.intor('int1e_ovlp')
     if (oiao is None or ibo is None) and (mo_ref is None):
@@ -177,26 +185,19 @@ def get_IBOC(mol, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=True, ali
 
 
 ##########################################################################
-def analyze(mol, ibo, iao, inputs, iboc=None):
+def analyze(ibo, oiao, mol=None, iboc=None, print_ibo=False, print_oiao=False,
+            print_iboc=False, cube_dir=None, logbook=None):
 
-    assert isinstance(inputs, dict)
+    if mol is None:
+        mol = util_atoms.mole(logbook)
     
-    #==== Preprocess inputs ====#
-    if inputs['prev_logbook'] is not None:
-        inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
-    if inputs.get('print_inputs', False):
-        print('\nInput parameters:')
-        for kw in inputs:
-            print('  ', kw, ' = ', inputs[kw])
-        print(' ')
-
     ovl = mol.intor('int1e_ovlp')
     print('Number of electrons in mol object = ', mol.nelectron)
     print('Number of AOs = ', mol.nao)
     if iboc is not None:
-        print('Sizes of IAO, IBO, and IBOC = ', iao.shape[1], ibo.shape[1], iboc.shape[1])
+        print('Sizes of IAO, IBO, and IBOC = ', oiao.shape[1], ibo.shape[1], iboc.shape[1])
     else:
-        print('Sizes of IAO and IBO = ', iao.shape[1], ibo.shape[1])
+        print('Sizes of IAO and IBO = ', oiao.shape[1], ibo.shape[1])
     print('Trace of overlap matrix of IBO in AO rep. = %10.6f' % np.trace(ibo.T @ ovl @ ibo))
     if iboc is not None:
         print('Trace of overlap matrix of IBOC in AO rep. = %10.6f' %
@@ -205,39 +206,46 @@ def analyze(mol, ibo, iao, inputs, iboc=None):
               np.linalg.norm(iboc.T @ ovl @ ibo, ord='fro') )
 
     #==== Analyze IAOs ====#
-    print('Analysis of the IAOs:')
-    analyze_orbs.analyze(mol, iao)
+    print('')
+    uprint.print_section('Analysis of IAOs')
+    analyze_orbs.analyze(mol, oiao)
     
     #==== Analyze IBOs ====#
-    print('Analysis of the IBOs:')
+    print('')
+    uprint.print_section('Analysis of IBOs')
     analyze_orbs.analyze(mol, ibo)
     
     #==== Analyze IBOC's ====#
     if iboc is not None:
-        print('Analysis of the IBOC\'s:')
+        print('')
+        uprint.print_section('Analysis of IBOC\'s')
         analyze_orbs.analyze(mol, iboc)
 
     #==== Print IAOs, IBOs, and IBOCs into cube files ====#
-    if inputs['print_IAO'] or inputs['print_IBO']:
-        ndigit_iao = len(str(iao.shape[1]))
+    if print_oiao or print_ibo:
+        assert cube_dir is not None, 'cube_dir is needed when printing IBO or IAO into ' + \
+            'cube files.'
+        ndigit_oiao = len(str(oiao.shape[1]))
         ndigit_ibo = len(str(ibo.shape[1]))
-        if not os.path.isdir(inputs['cube_dir']):
-            os.mkdir(inputs['cube_dir'])
-        for i in range(0, max(iao.shape[1], ibo.shape[1])):
-            if inputs['print_IAO'] and i < iao.shape[1]:
-                cubename = inputs['cube_dir'] + '/iao-' + str(i+1).zfill(ndigit_iao) + '.cube'
+        if not os.path.isdir(cube_dir):
+            os.mkdir(cube_dir)
+        for i in range(0, max(oiao.shape[1], ibo.shape[1])):
+            if print_oiao and i < oiao.shape[1]:
+                cubename = cube_dir + '/iao-' + str(i+1).zfill(ndigit_oiao) + '.cube'
                 print(f'{i+1:d}) Printing cube files: ', flush=True)
                 print('     ' + cubename)
-                tools.cubegen.orbital(mol, cubename, iao[:,i])
-            if inputs['print_IBO'] and i < ibo.shape[1]:
-                cubename = inputs['cube_dir'] + '/ibo-' + str(i+1).zfill(ndigit_ibo) + '.cube'
+                tools.cubegen.orbital(mol, cubename, oiao[:,i])
+            if print_ibo and i < ibo.shape[1]:
+                cubename = cube_dir + '/ibo-' + str(i+1).zfill(ndigit_ibo) + '.cube'
                 print(f'{i+1:d}) Printing cube files: ', flush=True)
                 print('     ' + cubename)
                 tools.cubegen.orbital(mol, cubename, ibo[:,i])
-    if iboc is not None and inputs['print_IBOC']:
+    if iboc is not None and print_iboc:
+        assert cube_dir is not None, 'cube_dir is needed when printing IBOC into ' + \
+            'cube files.'
         ndigit_iboc = len(str(iboc.shape[1]))
         for i in range(0, iboc.shape[1]):
-            cubename = inputs['cube_dir'] + '/iboc-' + str(i+1).zfill(ndigit_iboc) + '.cube'
+            cubename = cube_dir + '/iboc-' + str(i+1).zfill(ndigit_iboc) + '.cube'
             print(f'{i+1:d}) Printing cube files: ', flush=True)
             print('     ' + cubename)
             tools.cubegen.orbital(mol, cubename, iboc[:,i])

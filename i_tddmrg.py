@@ -1536,16 +1536,11 @@ class MYTDDMRG:
         print_MPO_bond_dims(idMPO, 'Identity_2')
         if self.mpi is not None:
             idMPO = bs.ParallelMPO(idMPO, self.identrule)
-        #ipsh('Init norm')
         idN = bs.MovingEnvironment(idMPO, mps, mps, "norm_in")
-        #ipsh('Init norm')
         idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
-        #ipsh('Init norm')
         nrm = bs.Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
-        #ipsh('Init norm')
-        #nrm_ = nrm.solve(False)
-        #ipsh('Init norm')
-        #_print(f'Initial MPS norm = {nrm_.real:11.8f}, {nrm_.imag:11.8f}')
+        nrm_ = nrm.solve(False)
+        _print(f'Initial MPS norm = {nrm_.real:11.8f}, {nrm_.imag:11.8f}')
 
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
