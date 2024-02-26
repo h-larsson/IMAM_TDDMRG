@@ -95,8 +95,7 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, logbook=
 
 ########################################################
 def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
-            corr_dm=False, nc=(30,30,30), simtime_thr=1E-11,
-            tnorm=True, logbook=None):
+            corr_dm=False, nc=(30,30,30), simtime_thr=1E-11, tnorm=True, logbook=None):
     '''
     orb:
       AO coefficients of active space orbitals in which rdm is represented.
