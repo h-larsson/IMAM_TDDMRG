@@ -1,10 +1,14 @@
 import glob
 import numpy as np
 from pyscf import symm, tools
-from IMAM_TDDMRG.utils import util_atoms, util_print
+from IMAM_TDDMRG.utils import util_atoms, util_print, util_general
 from IMAM_TDDMRG.observables import extract_time
 from IMAM_TDDMRG.phys_const import au2fs
 
+
+EXT1 = '.tc'
+EXT2 = '.tcs.cube'
+EXT3 = '.tcd.cube'
 
 ########################################################
 def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, logbook=None):
@@ -75,9 +79,9 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, logbook=
 
     #==== Calculate static and dynamic correlation density matrices in pseudo-AO basis ====#
     if corr_dm:
-        #==== Transform nat. orbitals from orb rep. to pseudo-AO rep. ====#
+        #==== Transform nat. orbitals from orb rep. to AO rep. ====#
         # natorb_ = nat. orbitals in input orbitals representation
-        # natorb = nat. orbitals in pseudo-AO representation
+        # natorb = nat. orbitals in AO representation
         natorb = np.zeros((2, mol.nao, natorb_.shape[2]), dtype=dtype)
         for i in range(2): natorb[i,:,:] = orb @ natorb_[i,:,:]
         
@@ -94,15 +98,16 @@ def calc(rdm, mol=None, orb=None, nCore=None, nCAS=None, corr_dm=False, logbook=
 
 
 ########################################################
-def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
-            corr_dm=False, nc=(30,30,30), simtime_thr=1E-11, tnorm=True, logbook=None):
+def td_calc(mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
+            corr_dm=False, nc=(30,30,30), prefix='loc_corr', simtime_thr=1E-11, tnorm=True,
+            verbose=2, logbook=None):
     '''
     orb:
       AO coefficients of active space orbitals in which rdm is represented.
     '''
     
     if mol is None:
-        mol = utils.extract_mole(logbook)
+        mol = util_atoms.mole(logbook)
     if nCore is None:
         nCore = logbook['nCore']
     if nCAS is None:
@@ -113,30 +118,15 @@ def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCA
         orb = np.load(logbook['orb_path'])[:,nCore:nCore+nCAS]
     if tdir is None:
         tdir = logbook['sample_dir']
+    outname = prefix + EXT1
 
     #==== Construct the time array ====#
-    if isinstance(tdir, list):
-        tevo_dir = tdir.copy()
-    elif isinstance(tdir, tuple):
-        tevo_dir = tdir
-    elif isinstance(tdir, str):
-        tevo_dir = tuple( [tdir] )
-    tt = []
-    for d in tevo_dir:
-        tt = np.hstack( (tt, extract_time.get(d)) )  # tt may contains identical time points.
+    tt, _, ntevo, rdm_dir = util_general.extract_tevo(tdir)
     idsort = np.argsort(tt)
-    ntevo = 1
-    for i in range(1,len(tt)):
-        if tt[i]-tt[i-1] > simtime_thr: ntevo += 1 
     ndigit = len(str(ntevo))
-
-    #==== Get 1RDM path names ====#
-    rdm_dir = []
-    for d in tevo_dir:
-        rdm_dir = rdm_dir + glob.glob(d + '/tevo-*')
-
+    
     #==== Print column titles ====#
-    with open(outfile, 'w') as outf:
+    with open(outname, 'w') as outf:
         outf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
         outf.write('#%9s %13s  ' % ('Col #1', 'Col #2'))
         outf.write(' %16s %16s' % ('Col #3', 'Col #4'))
@@ -152,7 +142,14 @@ def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCA
             assert not (tt[i] < t_last), 'Time points are not properly sorted, this is ' \
                 'a bug in the program. Report to the developer. ' + \
                 f'Current time point = {tt[i]:13.8f}.'
-            
+
+        #==== Remove existing *.tdh files ====#
+        oldfiles = glob.glob(rdm_dir[i] + '/*' + EXT2) + \
+                   glob.glob(rdm_dir[i] + '/*' + EXT3)
+        for f in oldfiles:
+            os.remove(f)
+
+        #==== Load cation RDM1 ====#
         rdm = np.load(rdm_dir[i] + '/1pdm.npy')
         tr = np.sum( np.trace(rdm, axis1=1, axis2=2) ).real
         if tnorm:
@@ -160,16 +157,17 @@ def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCA
             
         #==== When the time point is different from the previous one ====#
         if (kk > 0 and tt[i]-t_last > simtime_thr) or kk == 0:
-            print('%d) Time point: %.5f fs' % (k, tt[i]))
-            print('    RDM1 loaded from ' + rdm_dir[i])
-            print('    RDM trace = %.8f' % tr)
+            if verbose > 1:
+                print('%d) Time point: %.5f fs' % (k, tt[i]))
+                print('    RDM1 loaded from ' + rdm_dir[i])
+                print('    RDM trace = %.8f' % tr)
             echeck = np.linalg.eigvalsh(np.sum(rdm, axis=0))
             o_s, o_d, corr_s, corr_d = calc(rdm, mol, orb, nCore, nCAS, corr_dm)
             i_s = np.sum(o_s)
             i_d = np.sum(o_d)
 
             #==== Print correlation indices ====#
-            with open(outfile, 'a') as outf:
+            with open(outname, 'a') as outf:
                 #== Print time ==#
                 outf.write(' %9d %13.8f  ' % (k, tt[i]))
     
@@ -180,9 +178,13 @@ def td_calc(outfile, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCA
             #==== Cube-print local correlation functions ====#
             if corr_dm:
                 assert corr_s is not None and corr_d is not None
-                cubename = rdm_dir[i] + '/corr-s' + str(k).zfill(ndigit) + '.cube'
+                cubename = rdm_dir[i] + '/' + prefix + '-' + str(k).zfill(ndigit) + EXT2
+                if verbose > 1:
+                    print('    Printing static local correlation into ' + cubename)
                 tools.cubegen.density(mol, cubename, corr_s, nx=nc[0], ny=nc[1], nz=nc[2])
-                cubename = rdm_dir[i] + '/corr-d' + str(k).zfill(ndigit) + '.cube'
+                cubename = rdm_dir[i] + '/' + prefix + '-' + str(k).zfill(ndigit) + EXT3
+                if verbose > 1:
+                    print('    Printing dynamic local correlation into ' + cubename)
                 tools.cubegen.density(mol, cubename, corr_d, nx=nc[0], ny=nc[1], nz=nc[2])
 
             #==== Increment unique time point index ====#

@@ -1,12 +1,15 @@
 import glob
 import numpy as np
-from IMAM_TDDMRG.utils import util_atoms, util_qm, util_print
+from IMAM_TDDMRG.utils import util_atoms, util_general, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
 
 
+EXT1 = '.toc'
 
-def calc(outfile, orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
-         simtime_thr=1E-11, logbook=None):
+
+####################################################
+def calc(orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
+         prefix='occup', simtime_thr=1E-11, logbook=None):
 
     if mol is None:
         mol = util_atoms.mole(logbook)
@@ -32,25 +35,11 @@ def calc(outfile, orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, ne
     print('Trace of orbital overlap matrix = ', np.trace(orb_o.T @ orb_o))
     
     #==== Construct the time array ====#
-    if isinstance(tdir, list):
-        tevo_dir = tdir.copy()
-    elif isinstance(tdir, tuple):
-        tevo_dir = tdir
-    elif isinstance(tdir, str):
-        tevo_dir = tuple( [tdir] )
-    tt = []
-    for d in tevo_dir:
-        tt = np.hstack( (tt, extract_time.get(d)) )
+    tt, _, _, pdm_dir = util_general.extract_tevo(tdir)
     idsort = np.argsort(tt)
-    ntevo = len(tt)
-
-    #==== Get 1RDM path names ====#
-    pdm_dir = []
-    for d in tevo_dir:
-        pdm_dir = pdm_dir + glob.glob(d + '/tevo-*')
-
+    
     #==== Begin printing occupation numbers ====#
-    with open(outfile, 'w') as ouf:
+    with open(prefix + EXT1, 'w') as ouf:
     
         #==== Print column numbers ====#
         ouf.write(' %9s %13s  ' % ('Col #1', 'Col #2'))
@@ -107,3 +96,4 @@ def calc(outfile, orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, ne
                           'time point. This is good.\n')
             t_last = tt[i]
             kk += 1
+####################################################
