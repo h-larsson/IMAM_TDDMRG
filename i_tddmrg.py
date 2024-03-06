@@ -841,7 +841,7 @@ class MYTDDMRG:
                    pg, inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
                    outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
                    cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False,
-                   out_singlet_embed=False, mrci_info=None):
+                   out_singlet_embed=False, mrci_info=None, mps_tag=None):
         """
         aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
         """
@@ -1067,10 +1067,13 @@ class MYTDDMRG:
 
 
         #==== Tag the output MPS ====#
-        if isinstance(aorb, int):
-            rket_info.tag = 'DKET_%d' % idx
-        elif isinstance(aorb, np.ndarray):
-            rket_info.tag = 'DKET_C'
+        if mps_tag is None:
+            if isinstance(aorb, int):
+                rket_info.tag = 'DKET_%d' % idx
+            elif isinstance(aorb, np.ndarray):
+                rket_info.tag = 'DKET_C'
+        else:
+            rket_info.tag = mps_tag
         logbook.update({'ann:tag':rket_info.tag})
         
 
