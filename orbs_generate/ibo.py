@@ -250,3 +250,92 @@ def analyze(ibo, oiao, mol=None, iboc=None, print_ibo=False, print_oiao=False,
             print('     ' + cubename)
             tools.cubegen.orbital(mol, cubename, iboc[:,i])
 ##########################################################################
+
+
+
+##########################################################################
+def identify_atom(oiao, nmax=2, mol=None, logbook=None):
+
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+
+    assert nmax > 0 and nmax <= mol.nao
+        
+    niao = oiao.shape[1]
+    ovl = mol.intor('int1e_ovlp')
+    normfac = 1/np.sqrt(np.diag(ovl))    # Normalization factor since AOs might not be normalized.
+    overlap = [np.zeros(nmax)]*niao
+    atom = [[None]*nmax]*niao
+    label = [[None]*nmax]*niao
+    for i in range(0, niao):
+        ovl_a = np.abs( (ovl @ oiao[:,i]) / normfac )
+        # ovl_a contains the overlap between the i-th IAO and the normalized AOs.
+        idsort = np.argsort(-ovl_a)
+        overlap[i] = ovl_a[idsort[0:nmax]]
+        max_label = [mol.ao_labels(fmt=False)[idsort[j]] for j in range(nmax)]
+        atom[i] = [max_label[j][0] for j in range(nmax)]
+        label[i] = [max_label[j][1] for j in range(nmax)]
+        
+    return atom, label, np.array(overlap)
+##########################################################################
+
+
+##########################################################################
+def iao_pcharge(oiao, rdm, mol=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
+                norm_rdm=False, rthr=0.5, logbook=None):
+
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+    if nCore is None:
+        nCore = logbook['nCore']
+    if nCAS is None:
+        nCAS = logbook['nCAS']
+    if nelCAS is None:
+        nelCAS = logbook['nelCAS']
+    if orb is None:
+        orb = np.load(logbook['orb_path'])
+
+        
+    assert len(rdm.shape) == 3
+
+    #==== Some constants ====#
+    niao = oiao.shape[1]
+    nOcc = nCore + nCAS
+    ovl = mol.intor('int1e_ovlp')
+    
+    #==== Calculate the desired orbitals in occupied orbitals basis ====#
+    orb_o = orb.T @ ovl @ oiao
+
+    #==== Normalize the RDM ====#
+    rdm_full = np.sum( util_qm.make_full_dm(nCore, rdm), axis=0 )
+    if norm_rdm:
+        tr = np.trace(rdm_full[nCore:nOcc, nCore:nOcc])
+        rdm_full[nCore:nOcc, nCore:nOcc] = rdm_full[nCore:nOcc, nCore:nOcc] * nelCAS / tr
+
+    #==== Compute occupation numbers ====#
+    occ_orb = np.einsum('ji,jk,ki -> i', orb_o[0:nOcc,:], rdm_full, orb_o[0:nOcc,:]).real
+
+    #==== Get atom IDs of IAOs ====#
+    NMAX = 2
+    atom, _, overlap = identify_atom(oiao, nmax=NMAX, mol=mol, logbook=None)
+    r = overlap[:,1] / overlap[:,0]
+    for i in range(niao):
+        if r[i] > rthr and atom[i][0] != atom[i][1]:
+            uprint.print_warning\
+                (f'The dominant atomic contributions to IAO number {i+1:d} ' +
+                 f'consist of different atoms: \n' +
+                 f'  1. Atom {atom[i][0]+1:d}, overlap = {overlap[i,0]:.6f},\n' +
+                 f'  2. Atom {atom[i][1]+1:d}, overlap = {overlap[i,1]:.6f}.\n' +
+                 'If you want to suppress this warning, increase rthr (the ' +
+                 'current value is {rthr:.6e}). However, note that the closer ' +
+                 'the ratio of the above overlaps to unity, the more ' +
+                 'ambiguous the association of the above IAO to a single atom is.')
+
+    #==== Compute partial charges ====#
+    atomid = np.array( [atom[i][0] for i in range(niao)] )
+    q = np.zeros(mol.natm)
+    for ia in range(mol.natm):
+        q[ia] = mol.atom_charge(ia) - np.sum(occ_orb[atomid == ia])
+
+    return q
+##########################################################################

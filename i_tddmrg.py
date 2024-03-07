@@ -1541,9 +1541,12 @@ class MYTDDMRG:
             idMPO = bs.ParallelMPO(idMPO, self.identrule)
         idN = bs.MovingEnvironment(idMPO, mps, mps, "norm_in")
         idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
-        nrm = bs.Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
+        if inmps_cpx and inmps_multi:
+            nrm = bs.ComplexExpect(idN, mps.info.bond_dim, mps.info.bond_dim)
+        else:
+            nrm = bs.Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
         nrm_ = nrm.solve(False)
-        _print(f'Initial MPS norm = {nrm_.real:11.8f}, {nrm_.imag:11.8f}')
+        _print(f'Initial MPS norm = Re: {nrm_.real:11.8f}, Im: {nrm_.imag:11.8f}')
 
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
