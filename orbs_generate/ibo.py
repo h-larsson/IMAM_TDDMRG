@@ -2,11 +2,15 @@ import os, glob
 import numpy as np
 import scipy.linalg
 from pyscf import gto, scf, lo, tools, symm
-from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print, util_atoms
+from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print, util_atoms, util_general
 from IMAM_TDDMRG.utils import util_print as uprint
 from IMAM_TDDMRG.observables import extract_time
 from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs, local_orbs
+from IMAM_TDDMRG.phys_const import au2fs
 
+
+
+EXT1 = '.iaoq'
 
 ##########################################################################
 def get_IBO(mol=None, oiao=None, mo_ref=None, by_symm=False, align_groups=None,
@@ -338,4 +342,112 @@ def iao_pcharge(oiao, rdm, mol=None, orb=None, nCore=None, nCAS=None, nelCAS=Non
         q[ia] = mol.atom_charge(ia) - np.sum(occ_orb[atomid == ia])
 
     return q
+##########################################################################
+
+
+##########################################################################
+def td_iao_pcharge(oiao, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
+                   prefix='iao_pcharge', rthr=0.5, simtime_thr=1E-11, tnorm=True, verbose=2,
+                   logbook=None):
+
+    '''
+    orb:
+      AO coefficients of all orbitals.
+    '''
+    
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+    if nCore is None:
+        nCore = logbook['nCore']
+    if nCAS is None:
+        nCAS = logbook['nCAS']
+    if nelCAS is None:
+        nelCAS = logbook['nelCAS']
+    if orb is None:
+        orb = np.load(logbook['orb_path'])
+    if tdir is None:
+        tdir = logbook['sample_dir']
+    outname = prefix + EXT1
+
+    #==== Construct the time array ====#
+    tt, _, ntevo, rdm_dir = util_general.extract_tevo(tdir)
+    idsort = np.argsort(tt)
+
+    #==== Print column titles ====#
+    with open(outname, 'w') as outf:
+        outf.write('# 1 a.u. of time = %.10f fs\n' % au2fs)
+        
+        outf.write('#%9s %13s  ' % ('Col #1', 'Col #2'))
+        for ia in range(mol.natm):
+            outf.write('  %12s' % ('Col #' + str(ia+3)))
+        outf.write('    %12s' % ('Col #' + str(mol.natm+3)))
+        outf.write('\n')
+
+        outf.write('#%9s %13s  ' % ('No.', 'Time (a.u.)'))
+        for ia in range(mol.natm):
+            label = mol.atom_symbol(ia) + str(ia+1)
+            outf.write('  %12s' % label)
+        outf.write('    %12s' % 'Total')
+        outf.write('\n')
+        
+    k = 0
+    kk = 0
+    for i in idsort:
+        if kk > 0:
+            assert not (tt[i] < t_last), 'Time points are not properly sorted, this is ' \
+                'a bug in the program. Report to the developer. ' + \
+                f'Current time point = {tt[i]:13.8f}.'
+
+        #==== Load cation RDM1 ====#
+        rdm = np.load(rdm_dir[i] + '/1pdm.npy')
+        tr = np.sum( np.trace(rdm, axis1=1, axis2=2) ).real
+        if tnorm:
+            rdm = rdm * nelCAS / tr
+            
+        #==== When the time point is different from the previous one ====#
+        if (kk > 0 and tt[i]-t_last > simtime_thr) or kk == 0:
+            if verbose > 1:
+                print('%d) Time point: %.5f fs' % (k, tt[i]))
+                print('    RDM1 loaded from ' + rdm_dir[i])
+                print('    RDM trace = %.8f' % tr)
+            echeck = np.linalg.eigvalsh(np.sum(rdm, axis=0))
+            qiao = iao_pcharge(oiao, rdm, mol=mol, orb=orb, nCore=nCore, nCAS=nCAS, 
+                               nelCAS=nelCAS, norm_rdm=tnorm, rthr=rthr)
+
+            #==== Print correlation indices ====#
+            with open(outname, 'a') as outf:
+                #== Print time ==#
+                outf.write(' %9d %13.8f  ' % (k, tt[i]))
+    
+                #== Print partial charges ==#
+                for ia in range(mol.natm):
+                    outf.write('  %12.6f' % qiao[ia])
+                outf.write('    %12.6f' % np.sum(qiao))
+                outf.write('\n')
+                
+            #==== Increment unique time point index ====#
+            k += 1
+
+        #==== When the time point is similar to the previous one ====#
+        elif kk > 0 and tt[i]-t_last < simtime_thr:
+            util_print.print_warning\
+                ('The data loaded from \n    ' + rdm_dir[i] + '\nhas a time point almost ' +
+                 'identical to the previous time point. Duplicate time point = ' +
+                 f'{tt[i]:13.8f}')
+            echeck_tsim = np.linalg.eigvalsh(np.sum(rdm, axis=0))
+            max_error = max(np.abs(echeck_tsim - echeck))
+            if max_error > 1E-6:
+                util_print.print_warning\
+                    (f'The 1RDM loaded at the identical time point {tt[i]:13.8f} yields ' +
+                     f'eigenvalues different by up to {max_error:.6e} as the other identical \n' +
+                     'time point. Ideally you don\'t want to have such inconcsistency ' +
+                     'in your data. Proceed at your own risk.')
+            else:
+                print('   Data at this identical time point is consistent with the previous ' + \
+                      'time point. This is good.\n')
+
+        t_last = tt[i]
+
+        #==== Increment general (non-unique) time point index ====#
+        kk += 1
 ##########################################################################
