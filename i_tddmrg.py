@@ -565,6 +565,83 @@ class MYTDDMRG:
 
 
     #################################################
+    def get_trans_one_pdm(self, cpx, bMPS, kMPS, dmargin=0):
+
+        bmps = bMPS.deep_copy('bmps')
+        kmps = kMPS.deep_copy('kmps')
+        
+        if self.verbose >= 2:
+            _print('>>> START trans one-pdm <<<')
+        t = time.perf_counter()
+
+        if self.mpi is not None:
+            self.mpi.barrier()
+
+        #OLDif bmps is None:   # bmps takes priority over bmps_name, the latter will only be used if the former is None.
+        #OLD    bmps_info = brs.MPSInfo(0)
+        #OLD    bmps_info.load_data(self.scratch + "/" + bmps_name)
+        #OLD    bmps = bs.MPS(bmps_info)
+        #OLD    bmps.load_data()
+        #OLD    bmps.info.load_mutable()
+            
+        max_bdim = max([x.n_states_total for x in bmps.info.left_dims])
+        if bmps.info.bond_dim < max_bdim:
+            bmps.info.bond_dim = max_bdim
+        max_bdim = max([x.n_states_total for x in bmps.info.right_dims])
+        if bmps.info.bond_dim < max_bdim:
+            bmps.info.bond_dim = max_bdim
+
+        max_bdim = max([x.n_states_total for x in kmps.info.left_dims])
+        if kmps.info.bond_dim < max_bdim:
+            kmps.info.bond_dim = max_bdim
+        max_bdim = max([x.n_states_total for x in kmps.info.right_dims])
+        if kmps.info.bond_dim < max_bdim:
+            kmps.info.bond_dim = max_bdim
+
+        # 1PDM MPO
+        pmpo = bs.PDM1MPOQC(self.hamil)
+        pmpo = bs.SimplifiedMPO(pmpo, bs.RuleQC())
+        if self.mpi is not None:
+            pmpo = bs.ParallelMPO(pmpo, self.pdmrule)
+
+        # 1PDM
+        pme = bs.MovingEnvironment(pmpo, bmps, kmps, "1PDM")
+        pme.init_environments(False)
+        if cpx_mps and comp == 'hybrid':
+            # WARNING: There is no ComplexExpect in block2.cpx.su2
+            expect = brs.ComplexExpect(pme, bmps.info.bond_dim+dmargin, kmps.info.bond_dim+dmargin)   #NOTE
+        else:
+            expect = bs.Expect(pme, bmps.info.bond_dim+dmargin, kmps.info.bond_dim+dmargin)   #NOTE
+        expect.iprint = max(self.verbose - 1, 0)
+        expect.solve(True, kmps.center == 0)
+        if spin_symmetry == 'su2':
+            dmr = expect.get_1pdm_spatial(self.n_sites)
+            dm = np.array(dmr).copy()
+        elif spin_symmetry == 'sz':
+            dmr = expect.get_1pdm(self.n_sites)
+            dm = np.array(dmr).copy()
+            dm = dm.reshape((self.n_sites, 2, self.n_sites, 2))
+            dm = np.transpose(dm, (0, 2, 1, 3))
+
+        if self.ridx is not None:
+            dm[:, :] = dm[self.ridx, :][:, self.ridx]
+
+        dmr.deallocate()
+        pmpo.deallocate()
+        pme.remove_partition_files()
+
+        if self.verbose >= 2:
+            _print('>>> COMPLETE trans one-pdm | Time = %.2f <<<' %
+                   (time.perf_counter() - t))
+
+        if spin_symmetry == 'su2':
+            return np.concatenate([dm[None, :, :], dm[None, :, :]], axis=0) / 2
+        elif spin_symmetry == 'sz':
+            return np.concatenate([dm[None, :, :, 0, 0], dm[None, :, :, 1, 1]], axis=0)
+    #################################################
+
+
+    #################################################
     def dmrg(self, logbook_in, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, 
              cutoff=1E-14, occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
              save_1pdm=False, flip_spect=False, mrci_info=None):
