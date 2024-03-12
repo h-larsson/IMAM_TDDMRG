@@ -1507,8 +1507,8 @@ class MYTDDMRG:
                        tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
                        inmps_multi=False, exp_tol=1e-6, cutoff=0, normalize=False, 
                        n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
-                       krylov_tol=5.0E-6, t_sample=None, save_mps='overwrite', save_1pdm=False, 
-                       save_2pdm=False, prefix='te', save_txt=True,
+                       krylov_tol=5.0E-6, t_sample0=None, save_mps='overwrite', 
+                       save_1pdm=False, save_2pdm=False, prefix='te', save_txt=True,
                        save_npy=False, in_singlet_embed=False, se_nel_site=None, 
                        mrci_info=None, bo_pairs=None, prefit=False, prefit_bond_dims=None, 
                        prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
@@ -1547,11 +1547,34 @@ class MYTDDMRG:
                 'that is, the initial MPS must be complex.'
 
             
-        #==== Construct the time vector ====#
+        #==== Construct propagation time vector ====#
         ts = self.get_te_times(dt0, tmax, tinit)
         n_steps = len(ts)
         ndigit = len(str(n_steps))
         _print('Time points (a.u.) = ', ts)
+
+        #==== Construct sampling time vector ====#
+        if t_sample0 is not None:
+            if isinstance(t_sample0, np.ndarray):
+                t_sample = list(t_sample0)
+            elif isinstance(t_sample0, (list, tuple)):
+                if t_sample0[0] == 'steps':
+                    assert len(t_sample0) == 2 and isinstance(t_sample0[1], int)
+                    t_sample = list( ts[0::t_sample0[1]] )
+                elif t_sample0[0] == 'delta':
+                    assert len(t_sample0) == 2 and isinstance(t_sample0[1], float)
+                    dt_s = t_sample0[1]
+                    t_sample = list( np.linspace(tinit, round(tmax/dt_s)*dt_s,
+                                                 round((tmax-tinit)/dt_s)+1) )
+            else:
+                raise ValueError('The value of t_sample0 is non-conforming to the ' +
+                                 'available options.')
+
+            if abs(t_sample[0]-tinit) > 1.0E-12:
+                t_sample = [tinit] + t_sample
+            if abs(t_sample[-1]-tmax) > 1.0E-12:
+                t_sample = t_sample + [tmax]
+            _print('Sampling time points (a.u.) = ', t_sample)
             
         #==== Initiate autocorrelations file ====#
         ac_print = print_autocorrelation(prefix, len(ts), save_txt, save_npy)
