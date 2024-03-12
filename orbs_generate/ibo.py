@@ -256,7 +256,6 @@ def analyze(ibo, oiao, mol=None, iboc=None, print_ibo=False, print_oiao=False,
 ##########################################################################
 
 
-
 ##########################################################################
 def identify_atom(oiao, nmax=2, mol=None, logbook=None):
 

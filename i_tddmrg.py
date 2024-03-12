@@ -1309,6 +1309,29 @@ class MYTDDMRG:
 
 
     #################################################
+    def save_time_info_ow(self, dir_ow, t, it, t_sp, i_sp, normsq, ac):
+
+        def save_time_info_ow0(dir_ow, t, it, t_sp, i_sp, normsq, ac):
+            yn_bools = ('No','Yes')
+            au2fs = 2.4188843265e-2   # a.u. of time to fs conversion factor
+            with open(dir_ow + '/TIME_INFO', 'w') as t_info:
+                t_info.write(' Actual sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
+                             (it, t, t*au2fs))
+                t_info.write(' Requested sampling time = (%d, %10.6f a.u. / %10.6f fs)\n' %
+                             (i_sp, t_sp, t_sp*au2fs))
+                t_info.write(' MPS norm square = %19.14f\n' % normsq)
+                t_info.write(' Autocorrelation = (%19.14f, %19.14f)\n' % (ac.real, ac.imag))
+                            
+        if self.mpi is not None:
+            if self.mpi.rank == 0:
+                save_time_info_ow0(dir_ow, t, it, t_sp, i_sp, normsq, ac)
+            self.mpi.barrier()
+        else:
+            save_time_info_ow0(dir_ow, t, it, t_sp, i_sp, normsq, ac)
+    #################################################
+
+
+    #################################################
     def get_te_times(self, dt0, tmax, tinit=0.0):
 
         #OLD n_steps = int(tmax/dt + 1)
@@ -1403,12 +1426,12 @@ class MYTDDMRG:
 
 
     ##################################################################
-    def time_propagate(self, max_bond_dim: int, method, tmax: float, dt0: float, 
+    def time_propagate(self, logbook, max_bond_dim: int, method, tmax: float, dt0: float, 
                        tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
                        inmps_multi=False, exp_tol=1e-6, cutoff=0, normalize=False, 
                        n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
-                       krylov_tol=5.0E-6, t_sample=None, save_mps=False, save_1pdm=False, 
-                       save_2pdm=False, sample_dir='./samples', prefix='te', save_txt=True,
+                       krylov_tol=5.0E-6, t_sample=None, save_mps='overwrite', save_1pdm=False, 
+                       save_2pdm=False, prefix='te', save_txt=True,
                        save_npy=False, in_singlet_embed=False, se_nel_site=None, 
                        mrci_info=None, bo_pairs=None, prefit=False, prefit_bond_dims=None, 
                        prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
@@ -1423,10 +1446,24 @@ class MYTDDMRG:
         #OLD_CPX     else:
         #OLD_CPX         from block2.sz import ParallelMPO
 
+            
+        #==== Needed directories ====#
         if inmps_dir0 is None:
             inmps_dir = self.scratch
         else:
             inmps_dir = inmps_dir0
+        assert save_mps=='overwrite' or save_mps=='sampled' or save_mps=='no'
+        sample_dir = logbook['workdir'] + '/' + prefix + '.sample'
+        mps_dir_ow = logbook['workdir'] + '/' + prefix + '.mps_t'
+        logbook.update({'sample_dir':sample_dir})
+        if save_mps == 'overwrite': logbook.update({'mps_dir_ow':mps_dir_ow})
+        if self.mpi is not None:
+            if self.mpi.rank == 0:
+                if save_mps == 'overwrite': mkDir(mps_dir_ow)
+                self.mpi.barrier()
+        else:
+            if save_mps == 'overwrite': mkDir(mps_dir_ow)
+            
 
         if comp == 'full':
             assert inmps_cpx, "When complex type is 'full', inmps_cpx must be true, " + \
@@ -1734,9 +1771,19 @@ class MYTDDMRG:
                 else:
                     mkDir(save_dir)
 
-                #==== Saving MPS ====##
-                if save_mps or save_mps_probe or save_mps_end:
-                    saveMPStoDir(cmps, save_dir, self.mpi)
+                #==== Saving MPS ====#
+                if save_mps_end:
+                    if save_mps == 'overwrite':
+                        saveMPStoDir(cmps, mps_dir_ow, self.mpi)
+                    elif save_mps == 'sampled':
+                        saveMPStoDir(cmps, save_dir, self.mpi)
+                    elif save_mps == 'no':
+                        pass
+                else:
+                    if save_mps == 'overwrite':
+                        saveMPStoDir(cmps, mps_dir_ow, self.mpi)
+                    if save_mps == 'sampled' or save_mps_probe:
+                        saveMPStoDir(cmps, save_dir, self.mpi)
 
                 #==== Calculate 1PDM ====#
                 if self.mpi is not None: self.mpi.barrier()
@@ -1758,15 +1805,18 @@ class MYTDDMRG:
                     np.save(save_dir+'/1pdm', dm)
                     
                 #==== Save time info ====#
-                if r_sample:
-                    self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp,
-                                        normsqs, acorr_t, save_mps, save_1pdm, r_sample,
-                                        r_end, r_probe, dm)
+                if r_end:
+                    sampled_mps_saved = save_mps_end if save_mps=='sampled' else False
                 else:
-                    self.save_time_info(save_dir, ts[it], it, ts[it], it,
-                                        normsqs, acorr_t, save_mps_probe or save_mps_end,
-                                        save_1pdm_probe or save_1pdm_end, r_sample,
-                                        r_end, r_probe, dm)
+                    sampled_mps_saved = save_mps=='sampled' or save_mps_probe
+                self.save_time_info(save_dir, ts[it], it, t_sample[i_sp], i_sp, normsqs, 
+                                    acorr_t, sampled_mps_saved,
+                                    save_1pdm or save_1pdm_probe or save_1pdm_end,
+                                    r_sample, r_end, r_probe, dm)
+                if save_mps == 'overwrite':
+                    self.save_time_info_ow(mps_dir_ow, ts[it], it, t_sample[i_sp], i_sp, 
+                                           normsqs, acorr_t)
+                                    
 
                 if r_sample:
                     #==== Partial charges ====#
@@ -1811,7 +1861,8 @@ class MYTDDMRG:
         if t_sample is not None:
             if self.mpi is None or self.mpi.rank == 0:
                 mp_print.footer()
-            
+                
+        return logbook    
     ##############################################################
     
 

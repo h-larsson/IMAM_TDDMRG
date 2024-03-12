@@ -326,10 +326,6 @@ def get_inputs(inp_file):
         except NameError:
             inputs['te_inmps_multi'] = defvals.def_te_inmps_multi
         try:
-            inputs['sample_dir'] = sample_dir
-        except NameError:
-            inputs['sample_dir'] = 'DEFINE_LATER'
-        try:
             inputs['te_method'] = te_method
         except NameError:
             inputs['te_method'] = defvals.def_te_method
