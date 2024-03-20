@@ -231,7 +231,7 @@ if MAIN_PROCESS:
     # ==== Genetic or Fiedler ====#
     if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler':
         _print('Orbital ordering will be computed by the program using ' +
-               'the ' + inputs['orb_order'] + ' algorithm.')
+               inputs['orb_order'] + ' algorithm.')
         if inputs['orb_order'] == 'genetic':
             ord_method = 'gaopt'
         elif inputs['orb_order'] == 'fiedler':

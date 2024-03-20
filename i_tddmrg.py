@@ -605,15 +605,18 @@ class MYTDDMRG:
             pmpo = bs.ParallelMPO(pmpo, self.pdmrule)
 
         # 1PDM
-        pme = bs.MovingEnvironment(pmpo, bmps, kmps, "1PDM")
+        assert bmps.center == 0 and kmps.center == 0
+        pme = bs.MovingEnvironment(pmpo, bmps, kmps, "1PTDM")
         pme.init_environments(False)
-        if cpx_mps and comp == 'hybrid':
+        if cpx and comp == 'hybrid':
             # WARNING: There is no ComplexExpect in block2.cpx.su2
             expect = brs.ComplexExpect(pme, bmps.info.bond_dim+dmargin, kmps.info.bond_dim+dmargin)   #NOTE
         else:
             expect = bs.Expect(pme, bmps.info.bond_dim+dmargin, kmps.info.bond_dim+dmargin)   #NOTE
+        _print('hereo2')
         expect.iprint = max(self.verbose - 1, 0)
         expect.solve(True, kmps.center == 0)
+        _print('hereo3')
         if spin_symmetry == 'su2':
             dmr = expect.get_1pdm_spatial(self.n_sites)
             dm = np.array(dmr).copy()
@@ -1566,6 +1569,10 @@ class MYTDDMRG:
                     dt_s = t_sample0[1]
                     t_sample = list( np.linspace(tinit, round(tmax/dt_s)*dt_s,
                                                  round((tmax-tinit)/dt_s)+1) )
+                else:
+                    raise ValueError('When t_sample is a length 2 list or tuple, ' +
+                                     'the first element must be either \'steps\' ' +
+                                     'or \'delta\'.')
             else:
                 raise ValueError('The value of t_sample0 is non-conforming to the ' +
                                  'available options.')
