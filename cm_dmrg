@@ -174,21 +174,17 @@ if MAIN_PROCESS:
         assert len(orbs.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
                'array must be a two-dimensional array (a matrix).'
         assert (orbs.shape[0] == n_mo and
-                orbs.shape[1] == n_mo), \
-               'The shape of the Hartree-Fock orbitals array loaded from ' + \
-               str(inputs['orb_path']) + ' is inconsistent with the number of MO bases (' + \
-               str(n_mo) + '). The shape of the loaded orbitals array is ' + \
-               str(orbs.shape) + ', instead of ' + str((n_mo, n_mo)) + '. Some ' + \
-               'reasons may be that the basis set or the molecular species used ' + \
-               'to obtain the above HF orbitals is different than what is used ' + \
-               'for this simulation.'
+                orbs.shape[1] <= n_mo), \
+               'The orbitals array loaded from ' + inputs['orb_path'] + \
+               ' contains more orbitals (' + str(orbs.shape[1]) + \
+               ') than the number of AOs (' + str(n_mo) + ').'
     orbs_shape = orbs.shape
     print_section('The coefficients and symmetries of core orbitals')
     analyze(mol, orbs[:,0:inputs['nCore']])
     print_section('The coefficients and symmetries of active (site) orbitals')
     analyze(mol, orbs[:,inputs['nCore']:inputs['nCore']+inputs['nCAS']])
     print_section('The coefficients and symmetries of unused orbitals')
-    analyze(mol, orbs[:,inputs['nCore']+inputs['nCAS']:mol.nao])
+    analyze(mol, orbs[:,inputs['nCore']+inputs['nCAS']:])
 
 
     #==== Get the integrals ====#

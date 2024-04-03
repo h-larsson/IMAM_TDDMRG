@@ -199,7 +199,7 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
     natocc, natorb_ = symm.eigh(rdm0, osym)
     natocc = natocc.real
     natorb = orb @ natorb_
-    rdm0_ao = (natorb * natocc) @ natorb.conj().T
+    rdm0_ao = (natorb * natocc) @ natorb.conj().T     # rdm0_ao is the RDM in pseudo-AO rep.
 
     #==== Calculate and print hole density ====#
     k = 0

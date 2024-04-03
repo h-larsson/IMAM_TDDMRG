@@ -151,7 +151,7 @@ def analyze_multipole(mol, orbs):
     print(hline)
 
     #==== Multipole values ====#
-    for i in range(0, mol.nao):
+    for i in range(0, orbs.shape[1]):
         dpole = np.einsum('j, xjk, k -> x', orbs[:,i], dpole_ao, orbs[:,i])
         qpole = np.einsum('j, xyjk, k -> xy', orbs[:,i], qpole_ao, orbs[:,i])
         print('%5d  ' % (i+1), end='')
@@ -190,8 +190,8 @@ def analyze_population(mol, orbs, qtype='low'):
     ovl_half = U @ (np.diag( np.sqrt(es) ) @ U.conj().T)
 
     #==== Calculate atomic populations ====#
-    q = np.zeros((mol.nao, mol.natm))
-    for i in range(0, mol.nao):
+    q = np.zeros((orbs.shape[1], mol.natm))
+    for i in range(0, orbs.shape[1]):
         #==== Density matrix ====#
         P = np.outer(orbs[:,i], orbs[:,i])
 
@@ -230,7 +230,7 @@ def analyze_population(mol, orbs, qtype='low'):
         print(hline)
 
         #== Population values ==#
-        for i in range(0, mol.nao):
+        for i in range(0, orbs.shape[1]):
             print('%5d  ' % (i+1), end='')
             for j in range(j1, j2+1):
                 print('%11.6f' % q[i,j], end='')

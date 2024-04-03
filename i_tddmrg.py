@@ -232,20 +232,20 @@ class MYTDDMRG:
 
         if spin_symmetry == 'su2':
             n_mo = orbs.shape[1]
-            assert orbs.shape[0] == orbs.shape[1]
+            #OLDassert orbs.shape[0] == orbs.shape[1]
         elif spin_symmetry == 'sz':
             n_mo = orbs.shape[2]
-            assert orbs.shape[1] == orbs.shape[2]
-        assert n_mo == self.mol.nao
+            #OLDassert orbs.shape[1] == orbs.shape[2]
+        assert n_mo <= self.mol.nao
         n_occ = n_core + n_sites
         n_virt = n_mo - n_occ
 
         if spin_symmetry == 'su2':
             assert len(orbs.shape) == 2, \
                 'If SU2 symmetry is invoked, orbs must be a 2D array.'
-            orbs_c = np.zeros((2, n_mo, n_core))
-            orbs_s = np.zeros((2, n_mo, n_sites))
-            orbs_v = np.zeros((2, n_mo, n_virt))
+            orbs_c = np.zeros((2, orbs.shape[0], n_core))
+            orbs_s = np.zeros((2, orbs.shape[0], n_sites))
+            orbs_v = np.zeros((2, orbs.shape[0], n_virt))
             for i in range(0,2):
                 orbs_c[i,:,:] = orbs[:, 0:n_core]
                 orbs_s[i,:,:] = orbs[:, n_core:n_occ]
