@@ -32,6 +32,7 @@ Derived from:
 from ipsh import ipsh
 
 import os, time, glob
+from humanfriendly import format_timespan
 import numpy as np
 import scipy.linalg
 from scipy.linalg import eigvalsh, eigh
@@ -1777,6 +1778,11 @@ class MYTDDMRG:
         
 
         #==== Begin the time evolution ====#
+        t_begin_tevo = time.time()
+        logbook.update({'t_begin_tevo':t_begin_tevo})
+        _print('Overhead time = ' + format_timespan(t_begin_tevo-logbook['t_start'],
+                                                    max_units=5))
+        
         if t_sample is not None:
             issampled = [False] * len(t_sample)
         if save_npy:
@@ -1955,7 +1961,12 @@ class MYTDDMRG:
                     issampled[i_sp] = True
                     i_sp += 1
 
-                    
+
+        t_end_tevo = time.time()
+        logbook.update({'t_end_tevo':t_end_tevo})
+        _print('Time evolution takes ' + format_timespan(t_end_tevo-t_begin_tevo, max_units=5))
+
+        
         #==== Print max min imaginary parts (for debugging) ====#
         if t_sample is not None:
             if self.mpi is None or self.mpi.rank == 0:

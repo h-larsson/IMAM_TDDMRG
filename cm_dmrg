@@ -23,7 +23,7 @@ logbook = {}
 ######################
 
 
-from IMAM_TDDMRG.utils import util_complex_type, util_logbook
+from IMAM_TDDMRG.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG
 from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder, \
@@ -68,8 +68,9 @@ _print('-----------------------------------------')
 _print('')    
 
 
-if MAIN_PROCESS:
-    t_start = time.time()
+
+t_start = time.time()
+logbook.update({'t_start':t_start})
 
 
 #==== Git information ====#
@@ -415,34 +416,37 @@ if inputs['do_timeevo']:
     logbook = \
         obj.time_propagate(logbook,
                            inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
-                       inputs['tinit'], inputs['te_inmps_dir'], inputs['te_inmps_fname'],
-                       inputs['te_inmps_cpx'], inputs['te_inmps_multi'], inputs['exp_tol'], 
-                       inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
-                       inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
-                       inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
-                       inputs['te_save_2pdm'], inputs['prefix'],
-                       inputs['save_txt'], inputs['save_npy'], inputs['te_in_singlet_embed'][0],
-                       inputs['te_in_singlet_embed'][1], inputs['mrci'], inputs['bo_pairs'])
+                           inputs['tinit'], inputs['te_inmps_dir'], inputs['te_inmps_fname'],
+                           inputs['te_inmps_cpx'], inputs['te_inmps_multi'], inputs['exp_tol'], 
+                           inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
+                           inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
+                           inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
+                           inputs['te_save_2pdm'], inputs['prefix'],
+                           inputs['save_txt'], inputs['save_npy'], inputs['te_in_singlet_embed'][0],
+                           inputs['te_in_singlet_embed'][1], inputs['mrci'], inputs['bo_pairs'])
     _print('\n')
 
 
 
 #==== Dump some information to logbook ====#
 logbook.update(inputs)      # 1)
-with open(inputs['prefix'] + '.lb', 'wb') as f:
-    try:
-        pickle.dump(logbook, f)
-    except TypeError:
-        for key in logbook:
-            print(key, type(logbook[key]))
-        raise TypeError('The types of some keys are not compatible with pickle.')
+if MAIN_PROCESS:
+    with open(inputs['prefix'] + '.lb', 'wb') as f:
+        try:
+            pickle.dump(logbook, f)
+        except TypeError:
+            for key in logbook:
+                print(key, type(logbook[key]))
+            raise TypeError('The types of some keys are not compatible with pickle.')
 # 1) Content of inputs is appended near the end of the program to account for the actual
 #    values of some inputs that were assigned with a default value of 'DEFINE_LATER'.
-
+if hasMPI:
+    MPI.barrier()
+    
 
 #==== Wrapping up ====#
-if MAIN_PROCESS:
-    t_fin = time.time()
+t_fin = time.time()
+logbook.update({'t_final':t_fin})
 _print('Total computational time = ' + format_timespan(t_fin-t_start, max_units=5))
 
 
