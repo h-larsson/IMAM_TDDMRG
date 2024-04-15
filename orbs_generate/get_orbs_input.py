@@ -59,6 +59,10 @@ def get_inputs(inp_file):
         inputs['conv_tol'] = conv_tol
     except NameError:
         inputs['conv_tol'] = defvals.def_conv_tol
+    try:
+        inputs['canonicalize'] = canonicalize
+    except NameError:
+        inputs['canonicalize'] = defvals.def_canonicalize
 
         
     #==== CAS parameters ====#
@@ -124,6 +128,10 @@ def get_inputs(inp_file):
             inputs['sweep_tol'] = sweep_tol
         except NameError:
             inputs['sweep_tol'] = defvals.def_sweep_tol
+        try:
+            inputs['b2_extra'] = b2_extra
+        except NameError:
+            inputs['b2_extra'] = defvals.def_b2_extra
 
     elif inputs['source'] == 'dft':
         inputs['xc'] = xc

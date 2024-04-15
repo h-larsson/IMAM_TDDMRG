@@ -328,7 +328,7 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
       orbitals having the largest dipole vector magnitude.
     '''
 
-    assert drc == 'cw' or drc == 'ccw'
+    #assert drc == 'cw' or drc == 'ccw'
     if anchor is not None: assert len(anchor) == 2
     
     #==== Construct two vectors defining the orbitals ordering plane ====#

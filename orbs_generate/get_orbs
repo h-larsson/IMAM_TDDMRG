@@ -118,8 +118,9 @@ elif inputs['source'] == 'casscf':
         mol, inputs['nCAS'], inputs['nelCAS'], init_orbs_, inputs['frozen'], 
         inputs['ss'], inputs['ss_shift'], inputs['twosz'], inputs['wfnsym'], inputs['natorb'], 
         inputs['init_basis'], inputs['state_average'], inputs['sa_weights'],
-        inputs['sort_out'], True, 2, inputs['conv_tol'], inputs['fcisolver'],
-        inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads, inputs['set_cas_sym'])
+        inputs['sort_out'], True, 2, inputs['conv_tol'], inputs['canonicalize'], 
+        inputs['fcisolver'], inputs['max_bond_dim'], inputs['sweep_tol'], dmrg_nthreads,
+        inputs['set_cas_sym'], inputs['b2_extra'])
     orbs = outs['orbs']
     occs = outs['occs']
     try:

@@ -62,8 +62,8 @@ def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False, init_orb=Non
 def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=None, 
                     twosz=None, wfnsym=None, natorb=False, init_basis=None,
                     state_average=False, sa_weights=None, sort_out=None, save_rdm=True,
-                    verbose=2, conv_tol=1.0E-7, fcisolver=None, maxM=None, sweep_tol=1.0E-7,
-                    dmrg_nthreads=1, set_cas_sym=None):
+                    verbose=2, conv_tol=1.0E-7, canon=True, fcisolver=None, maxM=None,
+                    sweep_tol=1.0E-7, dmrg_nthreads=1, set_cas_sym=None, b2_extra=None):
     '''
     Input parameters:
     ----------------
@@ -175,6 +175,10 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
         mc.fcisolver = DMRGCI(mf.mol, maxM=maxM, tol=sweep_tol, num_thrds=dmrg_nthreads,
                               memory = 7)
         mc.internal_rotation = True
+        if b2_extra is not None:
+            assert isinstance(b2_extra, list)
+            print('Block2 extra keyword = ', b2_extra)
+            mc.fcisolver.block_extra_keyword = b2_extra
     
         #====   Use the callback function to catch some   ====#
         #==== quantities from inside the iterative solver ====#
@@ -221,6 +225,7 @@ def get_casscf_orbs(mol, nCAS, nelCAS, init_mo, frozen=None, ss=None, ss_shift=N
             mc.fix_spin_(ss=ss)
 
     #==== Run CASSCF ====#
+    mc.canonicalization = canon
     mc.verbose = 4
     mc.kernel(init_mo0)
     orbs = mc.mo_coeff
