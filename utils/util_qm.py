@@ -1,4 +1,5 @@
 import numpy as np
+from pyscf import symm
 from block2 import SU2, SZ
 from gfdmrg import orbital_reorder
 from IMAM_TDDMRG.utils.util_print import _print
@@ -322,14 +323,14 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
       All dipole vectors are measured relative to the geometric center.
     anchor:
       A tuple of two elements, the first one being either "first" or "last", and
-      the second one being an integer that specifies the orbital index to be used
-      as the anchor. "first" ("last") means that the anchor orbitals is placed at 
-      the left (right) most site. If not specified, the anchor is taken to be the 
+      the second one being a 1-base integer that specifies the orbital index to be
+      used as the anchor. "first" ("last") means that the anchor orbitals is placed 
+      at the left (right) most site. If not specified, the anchor is taken to be the 
       orbitals having the largest dipole vector magnitude.
     '''
 
     #assert drc == 'cw' or drc == 'ccw'
-    if anchor is not None: assert len(anchor) == 2
+    if anchor is not None: assert len(anchor) == 2 and anchor[1] >= 1
     
     #==== Construct two vectors defining the orbitals ordering plane ====#
     a = pts[0,:] - pts[2,:]
@@ -363,7 +364,7 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
     if anchor is None:
         anchor0 = id_maxdip
     else:
-        anchor0 = anchor[1]
+        anchor0 = anchor[1] - 1
     if verb >= 2:
         print('Largest dipole magnitude index (default anchor) = ', id_maxdip)
         print('Anchor index = ', anchor0)
@@ -440,6 +441,7 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
 
     #==== Print analysis ====#
     if verb >= 2:
+        osym = symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, orbs)
         print('%3s  %10s  %9s %9s %9s   %9s' %
                   ('No.', 'Rel. angle', 'Ord. x', 'Ord. y', 'Ord. z',
                    'Magn.'))
@@ -454,15 +456,16 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
                     raise ValueError(f'The relative angle at j = {j} ' +
                                      'is larger than 1')
             agl0 = np.arccos(t)
-            print('%3d) %10.4f  %9.4f %9.4f %9.4f   %9.4f' %
-                  (j, np.degrees(agl0), dip[0,j], dip[1,j], dip[2,j],
-                   np.linalg.norm(dip[:,j])))
+            print('%3d) %10.4f  %9.4f %9.4f %9.4f   %9.4f  %5s' %
+                  (j+1, np.degrees(agl0), dip[0,j], dip[1,j], dip[2,j],
+                   np.linalg.norm(dip[:,j]), osym[j]))
             
     return order_id
 #################################################
 
 
 #################################################
-#def orbital_reorder_mrci_circ():
-    
+def orbital_reorder_mrci_circ():
+    raise NotImplementedError('The function orbital_reorder_mrci_circ is' + 
+                              'not implemented yet.')
 #################################################

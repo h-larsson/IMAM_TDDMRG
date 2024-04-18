@@ -27,7 +27,8 @@ from IMAM_TDDMRG.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
 from IMAM_TDDMRG.i_tddmrg import MYTDDMRG
 from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder, \
-    orbital_reorder_dip, orbital_reorder_mrci, orbital_reorder_mrci_dip
+    orbital_reorder_dip, orbital_reorder_mrci, orbital_reorder_mrci_dip, \
+    orbital_reorder_circ, orbital_reorder_mrci_circ
 from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning, print_section, \
     print_mrci_warning
 from IMAM_TDDMRG.utils.util_atoms import get_tot_nuc_charge, extract_atoms
@@ -244,15 +245,16 @@ if MAIN_PROCESS:
         else:
             re_idx = orbital_reorder(h1e, g2e, method=ord_method)
 
-    elif isinstance(inputs['orb_order'], (np.ndarray, list, tuple)):
-        #==== Dipole component ====#
-        if inputs['orb_order'][0] == 'dipole':
-            assert len(inputs['orb_order']) == 4
-            _print('Orbital ordering will be computed based on the dipole ' +
-                   'moment component of the orbitals.')
-            uv = inputs['orb_order'][1:4]
-            i1 = inputs['nCore']
-            i2 = inputs['nCore'] + inputs['nCAS']
+    elif isinstance(inputs['orb_order'], dict):
+        i1 = inputs['nCore']
+        i2 = inputs['nCore'] + inputs['nCAS']
+        
+        #==== Linear ordering ====#
+        if inputs['orb_order']['type'] == 'linear':
+            # orb_order = {'type':'linear', 'direction':(x1,y1,z1)}
+            _print('Orbital ordering will be computed using the linear method')
+            _print('  * direction = ', inputs['orb_order']['direction'])
+            uv = inputs['orb_order']['direction']
             if inputs['mrci'] is not None:
                 re_idx = \
                     orbital_reorder_mrci_dip(mol, orbs[:,i1:i2], uv,
@@ -261,13 +263,34 @@ if MAIN_PROCESS:
             else:
                 re_idx = \
                     orbital_reorder_dip(mol, orbs[:,i1:i2], uv, inputs['verbose_lvl'])
+        #==== Circular ordering ====#
+        elif inputs['orb_order']['type'] == 'circular':
+            # orb_order = {'type':'circular', 'plane':((x1,y1,z1), (x2,y2,z2), (x3,y3,z3)),
+            #             'method':'angle'|'dipole', 'anchor':('first'|'last',i)}
+            # method = ordering method, 'angle' or 'dipole'. Optional.
+            # anchor = a tuple that controls which orbital is at the first or last site, the
+            #          input format is ('first'|'last', i) where i is the 1-base orbital
+            #          index. Optional.
+            cmethod = inputs['orb_order'].get('method', 'angle')
+            anchor = inputs['orb_order'].get('anchor', None)
+            _print('Orbital ordering will be computed using the circular method:')
+            _print('  * plane points = ', inputs['orb_order']['plane'])
+            _print('  * sorting method = ', cmethod)
+            _print('  * anchor = ', anchor)
+            if inputs['mrci'] is not None:
+                re_idx = \
+                    orbital_reorder_mrci_circ()
+            else:
+                re_idx = \
+                    orbital_reorder_circ(mol, orbs[:,i1:i2], np.array(inputs['orb_order']['plane']),
+                                         cmethod, anchor, inputs['verbose_lvl'])
             
-        #==== List, tuple, or array of integers (explicitly typed) ====#
-        else:
-            assert all(isinstance(i, (int, np.int8, np.int16, np.int32, np.int64))
-                       for i in inputs['orb_order'])
-            _print('Orbital ordering is provided directly in the input.')
-            re_idx = np.array(inputs['orb_order'])
+    #==== List, tuple, or array of integers (explicitly typed) ====#
+    elif isinstance(inputs['orb_order'], (np.ndarray, list, tuple)):
+        assert all(isinstance(i, (int, np.int8, np.int16, np.int32, np.int64))
+                   for i in inputs['orb_order'])
+        _print('Orbital ordering is provided directly in the input.')
+        re_idx = np.array(inputs['orb_order'])
             
     #==== Load from an .npy file ====#
     else:
