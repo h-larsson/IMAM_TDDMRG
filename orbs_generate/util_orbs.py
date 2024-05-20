@@ -100,6 +100,7 @@ def sort_irrep(mol, orb, irrep=None):
     idsort = []
     for s in symset:
         idsort = idsort + [i for i in range(0,len(osym)) if osym[i]==s]
+    idsort = idsort + [i for i in range(0,len(osym)) if osym[i] not in symset]
     idsort = np.array(idsort)
     
     return idsort

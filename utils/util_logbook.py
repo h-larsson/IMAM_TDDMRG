@@ -51,3 +51,22 @@ def content(lb):
     for kw in lb:
         uprint.print_i2(kw, ' = ', lb[kw])
 ########################################################
+
+
+########################################################
+def save(logbook, fname, terminate=False, verbose=4):
+    if verbose >= 2:
+        print('Saving logbook file \'' + fname + '\' into the current directory.')
+        
+    with open(inputs['prefix'] + '.lb', 'wb') as f:
+        try:
+            pickle.dump(logbook, f)
+        except TypeError:
+            for key in logbook:
+                print(key, type(logbook[key]))
+            if terminate:
+                raise TypeError('The types of the above keys are not compatible with pickle.')
+            else:
+                uprint.print_warning('The above keys are not saved in the logbook because ' +
+                                     'their types are not compatible with pickle.')
+########################################################

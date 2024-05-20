@@ -104,6 +104,7 @@ from IMAM_TDDMRG.utils.util_qm import make_full_dm
 from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
 from IMAM_TDDMRG.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
 from IMAM_TDDMRG.utils.util_mps import trans_to_singlet_embed
+from IMAM_TDDMRG.utils import util_logbook
 from IMAM_TDDMRG.observables import pcharge, mpole, bond_order
 from IMAM_TDDMRG.phys_const import au2fs
 
@@ -1940,7 +1941,7 @@ class MYTDDMRG:
                         q_print.print_pcharge(tt, qlow)
                     if self.mpi is not None: self.mpi.barrier()
 
-                    #==== ====#
+                    #==== Bond orders ====#
                     if bo_pairs is not None:
                         bo_pairs_ = tuple( [ (bo_pairs[i][0]-1,bo_pairs[i][1]-1) for i in
                                              range(0,len(bo_pairs)) ] )  # Transform to 0-base indices.
@@ -1960,6 +1961,11 @@ class MYTDDMRG:
 
                     issampled[i_sp] = True
                     i_sp += 1
+
+                #==== Update logbook file ====#
+                if self.mpi is None or self.mpi.rank == 0:
+                    util_logbook.save(logbook, logbook['myname'], False, verbose=3)
+                if self.mpi is not None: self.mpi.barrier()
 
 
         t_end_tevo = time.time()

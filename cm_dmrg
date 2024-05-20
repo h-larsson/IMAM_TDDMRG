@@ -96,6 +96,7 @@ if hasMPI:
 
 WDIR = os.getcwd()
 logbook.update({'workdir':WDIR})
+logbook.update({'myname':inputs['prefix'] + '.lb'})
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
@@ -453,23 +454,22 @@ if inputs['do_timeevo']:
 
 #==== Dump some information to logbook ====#
 logbook.update(inputs)      # 1)
-if MAIN_PROCESS:
-    with open(inputs['prefix'] + '.lb', 'wb') as f:
-        try:
-            pickle.dump(logbook, f)
-        except TypeError:
-            for key in logbook:
-                print(key, type(logbook[key]))
-            raise TypeError('The types of some keys are not compatible with pickle.')
 # 1) Content of inputs is appended near the end of the program to account for the actual
 #    values of some inputs that were assigned with a default value of 'DEFINE_LATER'.
-if hasMPI:
-    MPI.barrier()
-    
 
 #==== Wrapping up ====#
 t_fin = time.time()
 logbook.update({'t_final':t_fin})
+
+#==== Export the logbook ====#
+if MAIN_PROCESS:
+    util_logbook.save(logbook, logbook['myname'], True, verbose=3)   #1
+# 1) No values added to logbook will appear in the exported *.lb file beyond this point.
+#    Add all values you want to be stored in the *.lb file before this point,
+if hasMPI:
+    MPI.barrier()
+    
+
 _print('Total computational time = ' + format_timespan(t_fin-t_start, max_units=5))
 
 
