@@ -17,7 +17,6 @@ inp_file = str(sys.argv[1])
 inputs = cm_inputs.get_inputs(inp_file)
 from IMAM_TDDMRG.utils import util_logbook
 inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
-logbook = {}
 ######################
 #^^^^ Input File ^^^^#
 ######################
@@ -71,6 +70,12 @@ _print('')
 
 
 t_start = time.time()
+try:
+    logbook = util_logbook.read(inputs['prev_logbook'])
+    _print('Starting logbook from a previous one found in ' + inputs['prev_logbook'])
+except:
+    logbook = {}
+    _print('Starting logbook from scratch')
 logbook.update({'t_start':t_start})
 
 
@@ -96,7 +101,7 @@ if hasMPI:
 
 WDIR = os.getcwd()
 logbook.update({'workdir':WDIR})
-logbook.update({'myname':inputs['prefix'] + '.lb'})
+logbook.update({'myname':inputs['prefix'] + '.lb'})    
 if inputs['dump_inputs']:
     print('\nInput parameters:')
     for kw in inputs:
@@ -341,6 +346,7 @@ wsym = swap_pg(molpro_wsym)
 _print('MPS symmetry = ', symm.irrep_id2name(mol.groupname, wsym))
 _print('Core energy = %12.8f Hartree' % ecore)
 logbook.update({'pyscf_osym':osym, 'pyscf_wsym':wsym})
+logbook.update(inputs)
 
 
 if inputs['do_groundstate']:
@@ -366,6 +372,7 @@ if inputs['do_groundstate']:
                        inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'],
                        inputs['mrci'])
     _print('\n')
+logbook.update(inputs)
 
 
 if inputs['do_annihilate']:    
@@ -399,7 +406,8 @@ if inputs['do_annihilate']:
                        inputs['ann_fit_occs'], inputs['ann_fit_bias'], inputs['normalize_annout'], 
                        inputs['save_ann_1pdm'], inputs['ann_out_singlet_embed'], inputs['mrci'])
     _print('\n')
-    
+logbook.update(inputs) 
+
 
 #==== Run the DMRG TD-propagation ====#
 if inputs['do_timeevo']:
@@ -437,11 +445,24 @@ if inputs['do_timeevo']:
                       'available already in this program and for which the use of 1RDM ' +
                       'alone is not enough. If that is not your plan, using \n' +
                       '\'overwrite\' is recommended.')
+    
+    if inputs['mps_act0_dir'] == 'DEFINE_LATER': 
+        inputs['mps_act0_dir'] = inputs['te_inmps_dir']
+    if inputs['mps_act0_fname'] == 'DEFINE_LATER':
+        inputs['mps_act0_fname'] = inputs['te_inmps_fname']
+    if inputs['mps_act0_cpx'] == 'DEFINE_LATER':
+        inputs['mps_act0_cpx'] = inputs['te_inmps_cpx']
+    if inputs['mps_act0_multi'] == 'DEFINE_LATER':
+        inputs['mps_act0_multi'] = inputs['te_inmps_multi']
+    logbook.update(inputs)
+        
     logbook = \
         obj.time_propagate(logbook,
                            inputs['te_max_D'], method, inputs['tmax'], inputs['dt'], 
                            inputs['tinit'], inputs['te_inmps_dir'], inputs['te_inmps_fname'],
-                           inputs['te_inmps_cpx'], inputs['te_inmps_multi'], inputs['exp_tol'], 
+                           inputs['te_inmps_cpx'], inputs['te_inmps_multi'], 
+                           inputs['mps_act0_dir'], inputs['mps_act0_fname'],
+                           inputs['mps_act0_cpx'], inputs['mps_act0_multi'], inputs['exp_tol'], 
                            inputs['te_cutoff'], inputs['te_normalize'], inputs['n_sub_sweeps'],
                            inputs['n_sub_sweeps_init'], inputs['krylov_size'], inputs['krylov_tol'],
                            inputs['te_sample'], inputs['te_save_mps'], inputs['te_save_1pdm'],
@@ -450,12 +471,8 @@ if inputs['do_timeevo']:
                            inputs['te_in_singlet_embed'][1], inputs['mrci'], inputs['bo_pairs'])
     _print('\n')
 
+logbook.update(inputs)
 
-
-#==== Dump some information to logbook ====#
-logbook.update(inputs)      # 1)
-# 1) Content of inputs is appended near the end of the program to account for the actual
-#    values of some inputs that were assigned with a default value of 'DEFINE_LATER'.
 
 #==== Wrapping up ====#
 t_fin = time.time()

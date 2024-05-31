@@ -58,7 +58,7 @@ def save(logbook, fname, terminate=False, verbose=4):
     if verbose >= 2:
         print('Saving logbook file \'' + fname + '\' into the current directory.')
         
-    with open(inputs['prefix'] + '.lb', 'wb') as f:
+    with open(fname, 'wb') as f:
         try:
             pickle.dump(logbook, f)
         except TypeError:

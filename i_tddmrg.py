@@ -1510,14 +1510,15 @@ class MYTDDMRG:
     ##################################################################
     def time_propagate(self, logbook, max_bond_dim: int, method, tmax: float, dt0: float, 
                        tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
-                       inmps_multi=False, exp_tol=1e-6, cutoff=0, normalize=False, 
-                       n_sub_sweeps=2, n_sub_sweeps_init=4, krylov_size=20,
-                       krylov_tol=5.0E-6, t_sample0=None, save_mps='overwrite', 
-                       save_1pdm=False, save_2pdm=False, prefix='te', save_txt=True,
-                       save_npy=False, in_singlet_embed=False, se_nel_site=None, 
-                       mrci_info=None, bo_pairs=None, prefit=False, prefit_bond_dims=None, 
-                       prefit_nsteps=None, prefit_noises=None, prefit_conv_tol=None, 
-                       prefit_cutoff=None, verbosity=6):
+                       inmps_multi=False, mps_act0_dir=None, mps_act0_name=None,
+                       mps_act0_cpx=None, mps_act0_multi=None, exp_tol=1e-6, cutoff=0, 
+                       normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, 
+                       krylov_size=20, krylov_tol=5.0E-6, t_sample0=None, 
+                       save_mps='overwrite', save_1pdm=False, save_2pdm=False, prefix='te', 
+                       save_txt=True, save_npy=False, in_singlet_embed=False, 
+                       se_nel_site=None, mrci_info=None, bo_pairs=None, prefit=False, 
+                       prefit_bond_dims=None, prefit_nsteps=None, prefit_noises=None, 
+                       prefit_conv_tol=None, prefit_cutoff=None, verbosity=6):
         '''
         Coming soon
         '''
@@ -1631,7 +1632,6 @@ class MYTDDMRG:
 
         
         #==== Load the initial MPS ====#
-        _print('Loading initial MPS info from ' + inmps_dir + "/" + inmps_name)
         loadv2 = True
         if loadv2:
             idMPO = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
@@ -1652,13 +1652,46 @@ class MYTDDMRG:
                     mps_type['nroots'] = 2
                 else:
                     mps_type['type'] = 'normal'
-            
+
+            _print('Loading initial MPS info from ' + inmps_dir + "/" + inmps_name)
             mps, mps_info, _ = \
                 loadMPSfromDir(inmps_dir, inmps_name, inmps_cpx, mps_type, idMPO,
                                cached_contraction=True, MPI=self.mpi, 
                                prule=self.prule if self.mpi is not None else None)
+
+            
+            #==== Determine the type of t=0 MPS for autocorrelation ====#
+            #====             (normal, multi, or MRCI)              ====#
+            if mps_act0_dir is None: mps_act0_dir = inmps_dir
+            if mps_act0_name is None: mps_act0_name = inmps_name
+            if mps_act0_cpx is None: mps_act0_cpx = inmps_cpx
+            if mps_act0_multi is None: mps_act0_multi = inmps_multi
+
+            mps_act0_type = {}
+            if mrci_info is not None:
+                assert not mps_act0_multi, 'At the moment MRCI MPS cannot be in multi MPS form.'
+                mps_act0_type.update(
+                    {'type':'mrci', 'nactive2':mrci_info['nactive2'], 
+                     'order':mrci_info['order'], 'n_sites':self.n_sites,
+                     'vacuum':self.hamil.vacuum, 'target':self.target,
+                     'basis':self.hamil.basis})
+            else:
+                if mps_act0_multi:
+                    mps_act0_type['type'] = 'multi'
+                    mps_act0_type['nroots'] = 2
+                else:
+                    mps_act0_type['type'] = 'normal'
+
+            _print('Loading t=0 MPS for autocorrelation info from ' + mps_act0_dir + 
+                   "/" + mps_act0_name)
+            mps_act0, _, _ = \
+                loadMPSfromDir(mps_act0_dir, mps_act0_name, mps_act0_cpx, 
+                               mps_act0_type, idMPO, cached_contraction=True, 
+                               MPI=self.mpi, prule=self.prule if self.mpi is
+                               not None else None)
             #ipsh('After loading mps')
         else:
+            raise NotImplementedError('Use loadv2.')
             inmps_path = inmps_dir + "/" + inmps_name
             mps_info = brs.MPSInfo(0)
             mps_info.load_data(inmps_path)
@@ -1685,14 +1718,19 @@ class MYTDDMRG:
         print_MPO_bond_dims(idMPO, 'Identity_2')
         if self.mpi is not None:
             idMPO = bs.ParallelMPO(idMPO, self.identrule)
-        idN = bs.MovingEnvironment(idMPO, mps, mps, "norm_in")
+        mps_n = mps.deep_copy('mps_norm')                 # 3)
+        idN = bs.MovingEnvironment(idMPO, mps_n, mps_n, "norm_in")
         idN.init_environments()   # NOTE: Why does it have to be here instead of between 'idMe =' and 'acorr =' lines.
         if inmps_cpx and inmps_multi:
-            nrm = bs.ComplexExpect(idN, mps.info.bond_dim, mps.info.bond_dim)
+            nrm = bs.ComplexExpect(idN, mps_n.info.bond_dim, mps_n.info.bond_dim)
         else:
-            nrm = bs.Expect(idN, mps.info.bond_dim, mps.info.bond_dim)
+            nrm = bs.Expect(idN, mps_n.info.bond_dim, mps_n.info.bond_dim)
         nrm_ = nrm.solve(False)
         _print(f'Initial MPS norm = Re: {nrm_.real:11.8f}, Im: {nrm_.imag:11.8f}')
+        # 3) We duplicate mps here to a new identical mps_n rather than using the former
+        #    because the norm calculation above changed the properties of mps such that
+        #    the overlap with initial mps (mps_act0 below) is zero in the beginning, which
+        #    should have been unity.
 
         
         #==== If a change of bond dimension of the initial MPS is requested ====#
@@ -1705,33 +1743,40 @@ class MYTDDMRG:
                         verbose_lvl=self.verbose-1)
 
 
-        #==== Make the initial MPS complex when using hybrid complex ====#
+        #==== Make the input MPS complex when using hybrid complex ====#
         if inmps_cpx:
-            # Just duplicate the initial MPS if it is complex, regardless of
+            # Just duplicate the input MPS if it is complex, regardless of
             # whether it is of multi MPS or normal MPS type. The comp type
             # does not matter either here.
             cmps = mps.deep_copy('mps_t')
-            cmps_t0 = mps.deep_copy('mps_t0')
         else:
-            # If the initial MPS is real (impliying comp=False), then use a
+            # If the input MPS is real (impliying comp=False), then use a
             # multi MPS to transform it to a complex multi MPS.
             cmps = bs.MultiMPS.make_complex(mps, "mps_t")
-            cmps_t0 = bs.MultiMPS.make_complex(mps, "mps_t0")
         _print('Initial canonical form (ortho. center) = ' +
                f'{cmps.canonical_form} ({cmps.center})')
+
+        #==== Make the MPS for autocorrelation's t0 ====#
+        #====   complex when using hybrid complex   ====#
+        if mps_act0_cpx:
+            cmps_act0 = mps_act0.deep_copy('mps_act0')
+        else:
+            cmps_act0 = bs.MultiMPS.make_complex(mps_act0, "mps_act0")
 
 
         #==== Take care of the algorithm type (1- or 2- site) ====#
         if mps.dot != 1: # change to 2dot
             cmps.load_data()
-            cmps_t0.load_data()
+            cmps_act0.load_data()
             if comp == 'hybrid':
                 cmps.canonical_form = 'M' + cmps.canonical_form[1:]
-                cmps_t0.canonical_form = 'M' + cmps_t0.canonical_form[1:]
+                cmps_act0.canonical_form = 'M' + cmps_act0.canonical_form[1:]
+                print('mps canform = ', cmps.canonical_form)
+                print('mps_t0 canform = ', cmps_act0.canonical_form)
             cmps.dot = 2
-            cmps_t0.dot = 2
+            cmps_act0.dot = 2
             cmps.save_data()
-            cmps_t0.save_data()
+            cmps_act0.save_data()
             #ipsh('After checking dot')
         if cmps.dot == 2:
             _print('Algorithm type = 2-site')
@@ -1740,7 +1785,7 @@ class MYTDDMRG:
 
 
         #==== Initial setups for autocorrelation ====#
-        idME = bs.MovingEnvironment(idMPO, cmps_t0, cmps, "acorr")
+        idME = bs.MovingEnvironment(idMPO, cmps_act0, cmps, "acorr")
             
         
         #==== Initial setups for time evolution ====#
@@ -1837,7 +1882,7 @@ class MYTDDMRG:
             #acorr_t = 1.0
             acorr_t = acorr.solve(False)
             if it == 0:
-                normsqs = abs(acorr_t)
+                normsqs = nrm_.real    # abs(acorr_t)
             elif it > 0:
                 normsqs = te.normsqs[0]
             acorr_t = acorr_t / np.sqrt(normsqs)

@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 import scipy.linalg
 from pyscf import scf, symm, lo
 from IMAM_TDDMRG.utils.util_print import print_matrix
@@ -108,7 +109,7 @@ def sort_irrep(mol, orb, irrep=None):
 
 
 ##########################################################################
-def ortho_project(mol, a, b, ortho_thr=1E-8, verbose=2):
+def ortho_project(mol, a, b, ortho='svd', ortho_thr=1E-8, verbose=2):
     '''
     This function projects columns of b onto the orthogonal space of columns of a.
     Then it removes the ensuing linear dependent vectors from among the result of
@@ -138,9 +139,7 @@ def ortho_project(mol, a, b, ortho_thr=1E-8, verbose=2):
     cc = cc0[:,nn > 1E-8]
     
     #==== Perform orthogonolization and remove linear dependence ====#
-    ortho = 'svd'     # 1)
-    # 1) ortho = 'ovl' is not recommended at the moment because the correct way 
-    #    of removing linear dependent vectors is not yet implemented.
+    #ortho = 'svd'
     if ortho == 'svd':
         # Here, the SVD is performed directly within the non-orthogonal AO basis.
         # To do this, a SVD decomposition is peformed on S^(1/2).C,
@@ -166,7 +165,16 @@ def ortho_project(mol, a, b, ortho_thr=1E-8, verbose=2):
                 else np.hstack((o, iovl12 @ U[:,0:nsym]))
             n_ortho += nsym
         c = o[:,0:n_ortho]
+    elif ortho == 'lowdin':
+        raise NotImplementedError("ortho = 'lowdin' is not available at the moment because " + \
+                                  "the correct way of removing linear dependent vectors " + \
+                                  "is not yet implemented. Use ortho = 'svd'.")
+        c = vec_lowdin(cc, ovl, ortho_thr)
+        n_ortho = c.shape[1]
     elif ortho == 'ovl':
+        raise NotImplementedError("ortho = 'ovl' is not available at the moment because " + \
+                                  "the correct way of removing linear dependent vectors " + \
+                                  "is not yet implemented. Use ortho = 'svd'.")
         so = cc.T @ ovl @ cc
         e, v = scipy.linalg.eigh(so)
         v = v[:, np.abs(e) > ortho_thr]
@@ -181,3 +189,27 @@ def ortho_project(mol, a, b, ortho_thr=1E-8, verbose=2):
     return c
 ##########################################################################
 
+
+##########################################################################
+def lowdin(s, thr=1e-15):
+    ''' new basis is |mu> c^{lowdin}_{mu i} '''
+    # I am not sure the code below works in producing orthogonal vectors when s
+    # is not invertible, that is, when some elements of e are zero. The reason
+    # being when you calculate s^(-1/2) by using w . e^(-1/2) . w^T where w is
+    # v removing columns corresponding to zero eigenvalues, the resulting s^(-1/2)
+    # is not the inverse of s^(1/2), which is needed for the output of the
+    # orthogonalization to be orthogonal.
+    e, v = scipy.linalg.eigh(s)
+    idx = e > thr
+    return np.dot(v[:,idx]/np.sqrt(e[idx]), v[:,idx].conj().T)
+##########################################################################
+
+
+##########################################################################
+def vec_lowdin(c, s=1, thr=1e-15):
+    ''' lowdin orth for the metric c.T*s*c and get x, then c*x'''
+    #u, w, vh = np.linalg.svd(c)
+    #return np.dot(u, vh)
+    # svd is slower than eigh
+    return np.dot(c, lowdin(reduce(np.dot, (c.conj().T,s,c)), thr))
+##########################################################################

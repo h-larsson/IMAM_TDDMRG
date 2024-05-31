@@ -326,6 +326,22 @@ def get_inputs(inp_file):
         except NameError:
             inputs['te_inmps_multi'] = defvals.def_te_inmps_multi
         try:
+            inputs['mps_act0_dir'] = mps_act0_dir
+        except NameError:
+            inputs['mps_act0_dir'] = 'DEFINE_LATER'
+        try:
+            inputs['mps_act0_fname'] = mps_act0_fname
+        except NameError:
+            inputs['mps_act0_fname'] = 'DEFINE_LATER'
+        try:
+            inputs['mps_act0_cpx'] = mps_act0_cpx
+        except NameError:
+            inputs['mps_act0_cpx'] = 'DEFINE_LATER'
+        try:
+            inputs['mps_act0_multi'] = mps_act0_multi
+        except NameError:
+            inputs['mps_act0_multi'] = 'DEFINE_LATER'
+        try:
             inputs['te_method'] = te_method
         except NameError:
             inputs['te_method'] = defvals.def_te_method
