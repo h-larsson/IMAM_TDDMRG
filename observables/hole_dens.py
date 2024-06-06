@@ -4,27 +4,92 @@ from pyscf import symm, tools
 from IMAM_TDDMRG.phys_const import rad2deg, ang2bohr
 from IMAM_TDDMRG.utils import util_atoms, util_print, util_general
 
-
-
 EXT1 = '.tpl'
 EXT2 = '.tvl.cube'
 
+
 ####################################################
-def eval_plane(rdm0, uvec, disp, trans, bound1, bound2, roll=0.0, mol=None, tdir=None, 
+def eval_xyplane(rdm0, z, boundx, boundy, xyorig=(0.0, 0.0), mol=None, tdir=None, 
+                 orb=None, nCore=None, nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
+                 prefix='plane_hole', print_cart=False, simtime_thr=1E-11, verbose=2,
+                 logbook=None):
+
+    assert len(xyorig) == 2
+    orig = (xyorig[0], xyorig[1], 0.0)
+    eval_plane(rdm0, np.array((0.0, 0.0, 1.0)), z, orig, boundx, boundy, 0.0, mol, tdir, orb, nCore,
+               nCAS, nelCAS, tnorm0, tnorm1, prefix, print_cart, simtime_thr, verbose,
+               logbook)
+####################################################
+
+
+####################################################
+def eval_xzplane(rdm0, y, boundx, boundz, xzorig=(0.0, 0.0), mol=None, tdir=None, 
+                 orb=None, nCore=None, nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
+                 prefix='plane_hole', print_cart=False, simtime_thr=1E-11, verbose=2,
+                 logbook=None):
+
+    assert len(xzorig) == 2
+    orig = (xzorig[0], 0.0, xzorig[1])
+    boundz0 = (-boundz[2], boundz[1], -boundz[0])
+    eval_plane(rdm0, (0.0, 1.0, 0.0), y, orig, boundz0, boundx, 0.0, mol, tdir, orb, 
+               nCore, nCAS, nelCAS, tnorm0, tnorm1, prefix, print_cart, simtime_thr, 
+               verbose, logbook)
+####################################################
+
+
+####################################################
+def eval_yzplane(rdm0, x, boundy, boundz, yzorig=(0.0, 0.0), mol=None, tdir=None, 
+                 orb=None, nCore=None, nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
+                 prefix='plane_hole', print_cart=False, simtime_thr=1E-11, verbose=2,
+                 logbook=None):
+
+    assert len(yzorig) == 2
+    orig = (0.0, yzorig[0], yzorig[1])
+    boundz0 = (-boundz[2], boundz[1], -boundz[0])
+    eval_plane(rdm0, (1.0, 0.0, 0.0), x, orig, boundz0, boundy, 0.0, mol, tdir, orb, 
+               nCore, nCAS, nelCAS, tnorm0, tnorm1, prefix, print_cart, simtime_thr, 
+               verbose, logbook)
+####################################################
+
+
+####################################################
+def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=None, 
                orb=None, nCore=None, nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
                prefix='plane_hole', print_cart=False, simtime_thr=1E-11, verbose=2,
                logbook=None):
 
     '''
-    bound1 = (ax1l, nax1, ax1r)
-    bound2 = (ax2l, nax2, ax2r)
     nelCAS:
-       Number of active electrons in the time-dependent wavefunction (the wavefunction the 
-       cation RDM1 loaded from tdir is calculated from).
+       Number of active electrons in the time-dependent wavefunction (the wavefunction  
+       that the cation RDM1 loaded from tdir is calculated from).
     orb:
        Active orbitals.
+    uvec:
+      The unit vector pointing from the origin and that is perpendicular to the 
+      evaluation plane.
+    disp:
+      Distance in angstrom of the evaluation plane from origin.
+    orig:
+      Define a new origin (in angstrom) where uvec and disp are defined instead of the one 
+      inferred from atomic coordinates.
+    bound1: 
+      The x coordinate of the evaluation points. Given as a tuple of (xl, nx, xr)
+      where xl and xr are the limits of the axis and nx is the number of points
+      on this axis.
+    bound2:
+      The y coordinate of the evaluation points. It uses the same format as bound1.
+    roll:
+      The amount of rotation in degrees of the evaluation plane around uvec.
+
+    Detailed description:
+      The evaluation plane is obtained by rotating a plane parallel to the xy-plane but 
+      shifted at z=disp by <roll> degrees around the z axis, then rotating by alpha
+      degrees around y axis, and finally rotating by beta degrees around z axis. Alpha
+      is the angle between the projection of uvec on xy-plane and the x axis. Beta is 
+      the angle between uvec and z-axis. The rotated plane is then uniformly shifted 
+      along the vector orig.
     '''
-    
+
     assert len(uvec) == 3
     assert np.linalg.norm(uvec) > 1E-12
     
@@ -56,12 +121,14 @@ def eval_plane(rdm0, uvec, disp, trans, bound1, bound2, roll=0.0, mol=None, tdir
     rot = util_general.rotmat(alpha, beta, roll)
 
     #==== Get evaluation points on the plane ====#
+    print('alpha = %.4f' % alpha)
+    print('beta = %.4f' % beta)
     coords = np.zeros((nax1*nax2, 3))
     co = 0
     for i1 in range(nax1):
         for i2 in range(nax2):
             c = np.array( [ax1[i1], ax2[i2], ax3] )
-            coords[co,:] = rot @ c + trans
+            coords[co,:] = rot @ c + orig
             co += 1
 
     #==== Evaluate active orbitals at the above printing range ====#

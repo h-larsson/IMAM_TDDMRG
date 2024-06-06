@@ -694,7 +694,7 @@ class MYTDDMRG:
                 occs = occs[self.idx]
             mps_info.set_bond_dimension_using_occ(
                 bond_dims[0], b2.VectorDouble(occs), bias=bias)
-        
+            
         mps = bs.MPS(self.n_sites, 0, 2)   # The 3rd argument controls the use of one/two-site algorithm.
         mps.initialize(mps_info)
         mps.random_canonicalize()
@@ -1703,10 +1703,6 @@ class MYTDDMRG:
             _print('The input MPS is a singlet embedded MPS.')
             nel_t0 = se_nel_site + self.nel_core
         else:
-            assert mps_info.target.n == self.nel_site, \
-            f'The number of active space electrons from the quantum number label ' + \
-            f'({mps_info.target.n}) does not match the one specified in the input file ' + \
-            f'({self.nel_site}).'
             nel_t0 = self.nel_site + self.nel_core
         _print('Quantum number information:')
         _print(' - Initial MPS = ', mps_info.target)
