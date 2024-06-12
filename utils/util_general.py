@@ -146,7 +146,7 @@ def timestat(prefix, dt, dfiles, av1=None, av2=None, save_dir='.'):
         for fpath in fpaths[1:]:
             print('\nD = ', Ds)
             print('   File = ', fpath)
-            step_cost0, tmax = util_general.extract_timing(fpath, tinit, dt)
+            step_cost0, tmax = extract_timing(fpath, tinit, dt)
             print('')
             if len(step_cost0) > 0:
                 print('   Longest step cost = %.3f' % np.max(step_cost0))
