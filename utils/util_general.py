@@ -70,3 +70,52 @@ def rotmat(a, b, c):
     return rota @ rotb @ rotc
 
 #######################################################
+
+
+#######################################################
+def extract_timing(fpath, tinit, dt, tmax=None, tthr=1E-12, dtthr=1E-10):
+
+    step_cost = []
+    with open(fpath, 'r') as df:        
+        time_iline = -1000
+        iline = 0
+        inrange = False
+        dtmatch = False
+        step_size = None
+        tt_ = -1E4
+        substep_cost = []
+        for line in df:
+            words = line.split()
+            if len(words) >= 0:
+                if 'Time point :' in line:
+                    ic = int(words[3])
+                    if inrange and dtmatch:
+                        if sum(substep_cost) > substep_thr:
+                            step_cost += [sum(substep_cost)]
+                            tlast = tt
+                            print('   Time, step size = %.8f  %.8f' % (tt, step_size))
+                            print('   Sub step cost =', end='')
+                            for tx in substep_cost: print('  %.3f' % tx, end='')
+                            print('')
+                            print('   Cost for this step = %.3f' % step_cost[-1])
+                            substep_cost = []
+                    print('Time point', ic)
+                elif 'TD-PROPAGATION' in line:
+                    tt = float(words[4])
+                    if tmax is None:
+                        inrange = tt >= tinit-tthr
+                    else:
+                        inrange = tt >= tinit-tthr and tt <= tmax+tthr
+                    step_size = tt - tt_
+                    dtmatch = abs(step_size-dt) < dtthr
+                    tt_ = tt
+                elif 'Time sweep =' in line and inrange:
+                    tcost = float(words[3])
+                    time_iline = iline
+                elif  '| Tread' in line and iline == time_iline+1 and dtmatch and \
+                      inrange:
+                    substep_cost += [tcost]
+            iline += 1
+            
+    return step_cost, tlast
+#######################################################
