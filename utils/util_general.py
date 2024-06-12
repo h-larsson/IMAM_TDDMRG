@@ -76,6 +76,7 @@ def rotmat(a, b, c):
 def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
                    dtthr=1E-10):
 
+    tlast = None
     step_cost = []
     with open(fpath, 'r') as df:        
         time_iline = -1000
