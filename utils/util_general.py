@@ -73,7 +73,8 @@ def rotmat(a, b, c):
 
 
 #######################################################
-def extract_timing(fpath, tinit, dt, tmax=None, tthr=1E-12, dtthr=1E-10):
+def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
+                   dtthr=1E-10):
 
     step_cost = []
     with open(fpath, 'r') as df:        
