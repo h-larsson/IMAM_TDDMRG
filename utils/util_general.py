@@ -73,7 +73,7 @@ def rotmat(a, b, c):
 
 
 #######################################################
-def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
+def extract_timing(fpath, tinit, dt=None, tmax=None, substep_thr=1E-10, tthr=1E-12,
                    dtthr=1E-10):
 
     tlast = None
@@ -95,6 +95,7 @@ def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
                         if sum(substep_cost) > substep_thr:
                             step_cost += [sum(substep_cost)]
                             tlast = tt
+                            dtlast = step_size
                             print('   Time, step size = %.8f  %.8f' % (tt, step_size))
                             print('   Sub step cost =', end='')
                             for tx in substep_cost: print('  %.3f' % tx, end='')
@@ -109,7 +110,10 @@ def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
                     else:
                         inrange = tt >= tinit-tthr and tt <= tmax+tthr
                     step_size = tt - tt_
-                    dtmatch = abs(step_size-dt) < dtthr
+                    if dt is not None:
+                        dtmatch = abs(step_size-dt) < dtthr
+                    else:
+                        dtmatch = True
                     tt_ = tt
                 elif 'Time sweep =' in line and inrange:
                     tcost = float(words[3])
@@ -119,12 +123,12 @@ def extract_timing(fpath, tinit, dt, tmax=None, substep_thr=1E-10, tthr=1E-12,
                     substep_cost += [tcost]
             iline += 1
             
-    return step_cost, tlast
+    return step_cost, tlast, dtlast
 #######################################################
 
 
 #######################################################
-def timestat(prefix, dt, dfiles, av1=None, av2=None, save_dir='.'):
+def timestat(prefix, dfiles, dt=None, av1=None, av2=None, save_dir='.'):
     '''
     dfiles:
        A dictionary whose element is in the following format
@@ -144,16 +148,16 @@ def timestat(prefix, dt, dfiles, av1=None, av2=None, save_dir='.'):
         tinit = fpaths[0]
         step_cost[Ds] = np.array([])
         for fpath in fpaths[1:]:
-            print('\nD = ', Ds)
+            print('\nSimulation ID = ', Ds)
             print('   File = ', fpath)
-            step_cost0, tmax = extract_timing(fpath, tinit, dt)
+            step_cost0, tmax, dtlast = extract_timing(fpath, tinit, dt)
             print('')
             if len(step_cost0) > 0:
                 print('   Longest step cost = %.3f' % np.max(step_cost0))
                 print('   Shortest step cost = %.3f' % np.min(step_cost0))
             print('   Number of recorded time points = ', len(step_cost0))
             step_cost[Ds] = np.hstack( (step_cost[Ds], np.array(step_cost0)) )
-            tinit = tmax + dt
+            if tmax is not None: tinit = tmax + dtlast
     
         print('')
         print('Total number of recorded time points = ', len(step_cost[Ds]))
@@ -170,7 +174,7 @@ def timestat(prefix, dt, dfiles, av1=None, av2=None, save_dir='.'):
         tmf.write(f'Statistics between the {av1:d}-th and {av2:d}-th data series:\n')
         
         # column title
-        tmf.write('%11s  ' % 'D')
+        tmf.write('%11s  ' % 'Sim. ID')
         for Ds in step_cost.keys():
             tmf.write('  %10s' % Ds)
         tmf.write('\n')
@@ -215,4 +219,12 @@ def timestat(prefix, dt, dfiles, av1=None, av2=None, save_dir='.'):
                 else:
                     tmf.write('  %10s' % ' ')
             tmf.write('\n')
+
+        # Total time
+        tmf.write('\n')
+        tmf.write('#%7s  ' % 'Total')
+        for Ds in step_cost.keys():
+            tmf.write('  %10.3f' % np.sum(step_cost[Ds]))
+        tmf.write('\n')
+        
 #######################################################
