@@ -11,6 +11,8 @@ def_inp_ecp = None
 def_inp_symmetry = 'c1'
 def_mrci = None
 
+def_gs_inmps_fname = 'mps_info.bin'
+def_gs_inmps_dir = None
 def_gs_steps = 50
 def_gs_noise = [1E-3]*4 + [1E-4]*4 + [0.0]
 def_gs_dav_tols = [1E-2]*2 + [1E-3]*2 + [1E-6]*500

@@ -649,7 +649,9 @@ class MYTDDMRG:
     #################################################
     def dmrg(self, logbook_in, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, 
              cutoff=1E-14, occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
-             save_1pdm=False, flip_spect=False, mrci_info=None):
+             save_1pdm=False, flip_spect=False, mrci_info=None, inmps_dir=None,
+             inmps_name='mps_info.bin'):
+        
         """Ground-State DMRG."""
         logbook = logbook_in.copy()
 
@@ -671,38 +673,60 @@ class MYTDDMRG:
         logbook.update({'gs:qnumber:mult':self.target.multiplicity})
         logbook.update({'gs:qnumber:pg':self.target.pg})
 
-
-        # MPS type (general or occupation-rectricted)
-        if mrci_info is not None:
-            assert mrci_info['order'] in [1, 2, 3]
-            assert mrci_info['nactive2'] <= self.n_sites
-            mps_info = brs.MRCIMPSInfo(self.n_sites, 0, mrci_info['nactive2'], mrci_info['order'],
-                                       self.hamil.vacuum, self.target, self.hamil.basis)
-        else:
-            mps_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, self.target, self.hamil.basis)
         
-        mps_info.tag = 'KET'
-        if occs is None:
-            if self.verbose >= 2:
-                _print("Using FCI INIT MPS")
-            mps_info.set_bond_dimension(bond_dims[0])
-        else:
-            if self.verbose >= 2:
-                _print("Using occupation number INIT MPS")
-            if self.idx is not None:
-                #ERR occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
-                occs = occs[self.idx]
-            mps_info.set_bond_dimension_using_occ(
-                bond_dims[0], b2.VectorDouble(occs), bias=bias)
-            
-        mps = bs.MPS(self.n_sites, 0, 2)   # The 3rd argument controls the use of one/two-site algorithm.
-        mps.initialize(mps_info)
-        mps.random_canonicalize()
+        # MPS type (general or occupation-rectricted)
+        if inmps_dir is not None:
+            idMPO_ = bs.SimplifiedMPO(bs.IdentityMPO(self.hamil), bs.RuleQC(), True, True)
+            if self.mpi is not None:
+                idMPO_ = bs.ParallelMPO(idMPO_, self.identrule)
+                
+            complex_mps = (comp == 'full')
+            if mrci_info is not None:
+                assert mrci_info['order'] in [1, 2, 3]
+                assert mrci_info['nactive2'] <= self.n_sites
+                mps_type = {'type':'mrci', 'nactive2':mrci_info['nactive2'], 'order':mrci_info['order'],
+                            'n_sites':self.n_sites, 'vacuum':self.hamil.vacuum, 'target':self.target,
+                            'basis':self.hamil.basis}
+            else:
+                mps_type = {'type':'normal'}
 
-        mps.save_mutable()
-        mps.deallocate()
-        mps_info.save_mutable()
-        mps_info.deallocate_mutable()
+            _print('Guess MPS for ground state DMRG will start from an old MPS located in + \n  ' +
+                   inmps_dir + '/' + inmps_name)
+            mps, mps_info, _ = \
+                    loadMPSfromDir(inmps_dir, inmps_name, complex_mps, mps_type, idMPO_,
+                                   cached_contraction=True, MPI=self.mpi, 
+                                   prule=self.prule if self.mpi is not None else None)
+        else:
+            if mrci_info is not None:
+                assert mrci_info['order'] in [1, 2, 3]
+                assert mrci_info['nactive2'] <= self.n_sites
+                mps_info = brs.MRCIMPSInfo(self.n_sites, 0, mrci_info['nactive2'], mrci_info['order'],
+                                           self.hamil.vacuum, self.target, self.hamil.basis)
+            else:
+                mps_info = brs.MPSInfo(self.n_sites, self.hamil.vacuum, self.target, self.hamil.basis)
+            
+            mps_info.tag = 'KET'
+            if occs is None:
+                if self.verbose >= 2:
+                    _print("Using FCI INIT MPS")
+                mps_info.set_bond_dimension(bond_dims[0])
+            else:
+                if self.verbose >= 2:
+                    _print("Using occupation number INIT MPS")
+                if self.idx is not None:
+                    #ERR occs = self.fcidump.reorder(VectorDouble(occs), VectorUInt16(self.idx))
+                    occs = occs[self.idx]
+                mps_info.set_bond_dimension_using_occ(
+                    bond_dims[0], b2.VectorDouble(occs), bias=bias)
+                
+            mps = bs.MPS(self.n_sites, 0, 2)   # The 3rd argument controls the use of one/two-site algorithm.
+            mps.initialize(mps_info)
+            mps.random_canonicalize()
+            
+            mps.save_mutable()
+            mps.deallocate()
+            mps_info.save_mutable()
+            mps_info.deallocate_mutable()
         
 
         # MPO

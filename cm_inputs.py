@@ -187,6 +187,15 @@ def get_inputs(inp_file):
     inputs['do_groundstate'] = do_groundstate
     if inputs['do_groundstate'] == True:
         inputs['D_gs'] = D_gs
+
+        try:
+            inputs['gs_inmps_dir'] = gs_inmps_dir
+        except NameError:
+            inputs['gs_inmps_dir'] = defvals.def_gs_inmps_dir
+        try:
+            inputs['gs_inmps_fname'] = gs_inmps_fname
+        except NameError:
+            inputs['gs_inmps_fname'] = defvals.def_gs_inmps_fname
         try:
             inputs['gs_noise'] = gs_noise
         except NameError:

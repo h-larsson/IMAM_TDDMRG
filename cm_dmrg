@@ -370,7 +370,7 @@ if inputs['do_groundstate']:
                        inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
                        inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
                        inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'],
-                       inputs['mrci'])
+                       inputs['mrci'], inputs['gs_inmps_dir'], inputs['gs_inmps_fname'])
     _print('\n')
 logbook.update(inputs)
 
