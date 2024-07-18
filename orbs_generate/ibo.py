@@ -258,7 +258,9 @@ def analyze(ibo, oiao, mol=None, iboc=None, print_ibo=False, print_oiao=False,
 
 ##########################################################################
 def identify_atom(oiao, nmax=2, mol=None, logbook=None):
-
+    '''
+    atom is 1-based.
+    '''
     if mol is None:
         mol = util_atoms.mole(logbook)
 
@@ -276,7 +278,7 @@ def identify_atom(oiao, nmax=2, mol=None, logbook=None):
         idsort = np.argsort(-ovl_a)
         overlap[i] = ovl_a[idsort[0:nmax]]
         max_label = [mol.ao_labels(fmt=False)[idsort[j]] for j in range(nmax)]
-        atom[i] = [max_label[j][0] for j in range(nmax)]
+        atom[i] = [(max_label[j][0]+1) for j in range(nmax)]
         label[i] = [max_label[j][1] for j in range(nmax)]
         
     return atom, label, np.array(overlap)

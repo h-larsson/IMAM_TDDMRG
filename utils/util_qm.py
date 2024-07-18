@@ -427,7 +427,7 @@ def orbital_reorder_circ(mol, orbs, pts, method='angle', anchor=None, verb=4):
         if anchor[0] == 'first':
             order_id = np.roll(order_id, -anchor_pos)
         elif anchor[0] == 'last':
-            order_id = np.roll(order_id, len(orb_id)-(anchor_pos+1))
+            order_id = np.roll(order_id, len(order_id)-(anchor_pos+1))
         else:
             raise ValueError('Bad value of anchor[0]. It must be either ' + 
                              '"first" or "last".')
