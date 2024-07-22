@@ -945,9 +945,9 @@ class MYTDDMRG:
     #################################################
     def annihilate(self, logbook_in, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
                    pg, inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
-                   outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, 
-                   cutoff=1E-14, occs=None, bias=1.0, outmps_normal=True, save_1pdm=False,
-                   out_singlet_embed=False, mrci_info=None, mps_tag=None):
+                   outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, cutoff=1E-14, occs=None,
+                   bias=1.0, outmps_normal=True, save_1pdm=False, out_singlet_embed=False, 
+                   out_cpx=False, mrci_info=None, mps_tag=None):
         """
         aorb can be int, numpy.ndarray, or 'nat<n>' where n is an integer'
         """
@@ -1334,7 +1334,12 @@ class MYTDDMRG:
                             'ann:qnumber:pg':rkets.info.target.pg,
                             'ann:canonical_form':rkets.canonical_form,
                             'ann:center':rkets.center})
+
             
+        #==== Conversion to full complex MPS ====#
+        if out_cpx:
+            assert comp != 'full'
+            rkets = self.b2driver.mps_change_complex(rkets, "CPX")
             
         #==== Save the output MPS ====#
         _print('')
@@ -1864,12 +1869,6 @@ class MYTDDMRG:
                 _print('>>> TD-PROPAGATION TIME = %10.5f <<<' %tt)
             t = time.perf_counter()
 
-            #if it == 2:
-            #if it >= 0:
-                #_print('ipsh at it = ', it)
-                #ipsh('IPython invoked before it=2')
-                #quit()
-
             if it != 0: # time zero: no propagation
                 dt_ = ts[it] - ts[it-1]
                 _print('    DELTA_T stepped from the previous time point = %10.5f <<<' % dt_)
@@ -1880,8 +1879,22 @@ class MYTDDMRG:
                     te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1
 
-                #if it == 1:
-                #    ipsh()
+                #if te.normalize_mps:
+                #    _print('Normalizing the evolving MPS')
+                #    icent = te.me.ket.center
+                #    #OLD if te.me.ket.dot == 2 and te.me.ket.center == te.me.ket.n_sites-1:
+                #    if te.me.ket.dot == 2:
+                #        if te.me.ket.center == te.me.ket.n_sites-2:
+                #            icent += 1
+                #        elif te.me.ket.center == 0:
+                #            pass
+                #    assert te.me.ket.tensors[icent] is not None
+                #    
+                #    te.me.ket.load_tensor(icent)
+                #    te.me.ket.tensors[icent].normalize()
+                #    te.me.ket.save_tensor(icent)
+                #    te.me.ket.unload_tensor(icent)
+                     
 
                 if comp == 'full':
                     _print(("T = %10.5f <E> = (%20.15f, %20.15f) <Norm^2> = %20.15f") %

@@ -37,6 +37,7 @@ def_ann_fit_bias = 1.0
 def_normalize_annout = True
 def_save_ann_1pdm = False
 def_ann_out_singlet_embed = False
+def_ann_out_cpx = False
 
 def_te_inmps_fname = 'ANN_KET'
 def_te_method = 'tdvp'

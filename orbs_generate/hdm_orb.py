@@ -175,7 +175,8 @@ def correction(borb, orb_av, nav, ortho='svd', ortho_thr=1E-8, corb=None, mol=No
     corb:
       Core orbital.
     borb:
-      Base active orbital (no core orbital).
+      Base active orbital (no core orbital). Usually, there are nelCAS/2 base
+      orbital, where nelCAS is the number of active electrons.
     orb_av:
       Average natural charge orbital (no core orbital).
     nav:

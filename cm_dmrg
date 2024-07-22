@@ -404,7 +404,8 @@ if inputs['do_annihilate']:
                        inputs['ann_inmps_fname'], inputs['ann_outmps_dir'], inputs['ann_outmps_fname'], 
                        inputs['ann_orb_thr'], inputs['ann_sp'], inputs['ann_fit_cutoff'], 
                        inputs['ann_fit_occs'], inputs['ann_fit_bias'], inputs['normalize_annout'], 
-                       inputs['save_ann_1pdm'], inputs['ann_out_singlet_embed'], inputs['mrci'])
+                       inputs['save_ann_1pdm'], inputs['ann_out_singlet_embed'], inputs['ann_out_cpx'],
+                       inputs['mrci'])
     _print('\n')
 logbook.update(inputs) 
 

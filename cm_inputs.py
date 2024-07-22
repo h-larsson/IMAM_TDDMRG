@@ -307,6 +307,10 @@ def get_inputs(inp_file):
             inputs['ann_out_singlet_embed'] = ann_out_singlet_embed
         except NameError:
             inputs['ann_out_singlet_embed'] = defvals.def_ann_out_singlet_embed
+        try:
+            inputs['ann_out_cpx'] = ann_out_cpx
+        except NameError:
+            inputs['ann_out_cpx'] = defvals.def_ann_out_cpx
 
     #==== Time evolution parameters ====#
     inputs['do_timeevo'] = do_timeevo
