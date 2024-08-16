@@ -9,6 +9,10 @@ from util_orbs import sort_orbs
 ##########################################################################
 def get_rhf_orbs(mol, save_rdm=True, conv_tol=1.0E-7, natorb=False, init_orb=None): 
     '''
+    Calculates canonical Hartree-Fock orbitals. For closed-shell systems, RHF calculation 
+    is performed. For open-shell systems, ROHF calculation is performed. UHF for open-shell
+    systems is not yet supported.
+   
     Input parameters:
     ----------------
 

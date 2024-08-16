@@ -441,7 +441,7 @@ class MYTDDMRG:
                                             iprint=1)
         #self.te_mpo = self.b2driver.get_conventional_qc_mpo(self.fcidump,
         #                                                 MPOAlgorithmTypes.Conventional)
-        _print('TE_MPO algo type = ', MPOAlgorithmTypes.Conventional)
+        #_print('TE_MPO algo type = ', MPOAlgorithmTypes.Conventional)
         
         if self.mpi is not None:
             self.te_mpo = bs.ParallelMPO(self.te_mpo, self.prule)
@@ -1015,7 +1015,7 @@ class MYTDDMRG:
             mpo = self.mpo_orig
         if self.mpi is not None:
             mpo = bs.ParallelMPO(mpo, self.prule)
-        print_MPO_bond_dims(mpo, 'Hamiltonian')
+        #debug print_MPO_bond_dims(mpo, 'Hamiltonian')  # the printed bonddim is different from MPO contruction step.
 
 
         #==== Load the input MPS ====#
@@ -1647,17 +1647,17 @@ class MYTDDMRG:
         #==== Prepare Hamiltonian MPO ====#
         if self.mpi is not None:
             self.mpi.barrier()
-        if self.mpo_orig is None:
-            mpo = bs.MPOQC(self.hamil, b2.QCTypes.Conventional)
-            mpo = bs.SimplifiedMPO(mpo, bs.RuleQC(), True, True,
-                                   b2.OpNamesSet((b2.OpNames.R, b2.OpNames.RD)))
-            self.mpo_orig = mpo
-        else:
-            mpo = self.mpo_orig
-        #need? mpo = IdentityAddedMPO(mpo) # hrl: alternative
-        if self.mpi is not None:
-            mpo = bs.ParallelMPO(mpo, self.prule)
-        print_MPO_bond_dims(mpo, 'Hamiltonian')
+        #if self.mpo_orig is None:
+        #    mpo = bs.MPOQC(self.hamil, b2.QCTypes.Conventional)
+        #    mpo = bs.SimplifiedMPO(mpo, bs.RuleQC(), True, True,
+        #                           b2.OpNamesSet((b2.OpNames.R, b2.OpNames.RD)))
+        #    self.mpo_orig = mpo
+        #else:
+        #    mpo = self.mpo_orig
+        ##need? mpo = IdentityAddedMPO(mpo) # hrl: alternative
+        #if self.mpi is not None:
+        #    mpo = bs.ParallelMPO(mpo, self.prule)
+        #debug print_MPO_bond_dims(self.te_mpo, 'Hamiltonian')   # the printed bonddim is different from MPO contruction step.
 
         
         #==== Load the initial MPS ====#

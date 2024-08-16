@@ -8,8 +8,8 @@ from IMAM_TDDMRG.orbs_generate import util_orbs
 #######################################################################
 #######################################################################
 def average(rdm_ref, imtype='ignore', mol=None, tdir=None, orb_a=None, nCore=None,
-           nCAS=None, nelCAS=None, logbook=None, simtime_thr=1E-11, tnorm1=True,
-           verbose=3):
+            nCAS=None, nelCAS=None, logbook=None, simtime_thr=1E-11, tnorm1=True,
+            verbose=3):
 
     '''
     Input parameters
