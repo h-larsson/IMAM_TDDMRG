@@ -1842,9 +1842,13 @@ class MYTDDMRG:
         elif method == b2.TETypes.RK4:
             te = bs.TimeEvolution(me, b2.VectorUBond([max_bond_dim]), method,
                                   n_sub_sweeps_init)
+        elif method == b2.TETypes.RK4PP:
+            te = bs.TDDMRG(me, b2.VectorUBond([max_bond_dim]))
+            te.n_sub_sweeps = n_sub_sweeps_init
         te.cutoff = cutoff                    # for tiny systems, this is important
         te.iprint = verbosity
-        te.normalize_mps = normalize
+        if method != b2.TETypes.RK4PP:
+            te.normalize_mps = normalize
         te.hermitian = True       # bcause CPX
         
 
@@ -1878,6 +1882,9 @@ class MYTDDMRG:
                 elif method == b2.TETypes.TangentSpace:
                     te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1
+                elif method == b2.TETypes.RK4PP:
+                    te.solve(1, dt_, cmps.center == 0, tol=exp_tol)
+                    te.n_sub_sweeps = n_sub_sweeps
 
                 #if te.normalize_mps:
                 #    _print('Normalizing the evolving MPS')

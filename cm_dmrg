@@ -426,9 +426,11 @@ if inputs['do_timeevo']:
         method = TETypes.TangentSpace
     elif inputs['te_method'] == 'rk4':
         method = TETypes.RK4
+    elif inputs['te_method'] == 'rk4pp':
+        method = TETypes.RK4PP
     else:
-        raise ValueError('The possible choice for te_method is either \'tdvp\' or ' +
-                         '\'rk4\', while the current value is \'' + inputs['te_method'] +
+        raise ValueError('The possible choice for te_method is either \'tdvp\', \'rk4\' ' +
+                         'or \'rk4pp\', while the current value is \'' + inputs['te_method'] +
                          '\'.')
     if inputs['te_inmps_dir'] == 'DEFINE_LATER':
         inputs['te_inmps_dir'] = scratch
