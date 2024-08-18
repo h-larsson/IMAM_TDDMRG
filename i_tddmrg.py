@@ -1883,6 +1883,7 @@ class MYTDDMRG:
                     te.solve(2, +1j * dt_ / 2, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = 1
                 elif method == b2.TETypes.RK4PP:
+                    _print('WARNING: TSTPP method is invoked. This method is not well-tested.')
                     te.solve(1, dt_, cmps.center == 0, tol=exp_tol)
                     te.n_sub_sweeps = n_sub_sweeps
 
