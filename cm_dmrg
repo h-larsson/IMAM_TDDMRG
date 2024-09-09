@@ -333,7 +333,7 @@ obj = MYTDDMRG(mol, inputs['nelCAS'], scratch, inputs['memory'],
 obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, inputs['nelCAS'], inputs['twos'], molpro_wsym, 
                      molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
-                     idx=re_idx, save_fcidump=None)
+                     idx=re_idx, save_fcidump='FCIDUMP')
 
 
 #==== Print symmetries ====#

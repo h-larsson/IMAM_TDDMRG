@@ -418,8 +418,8 @@ class MYTDDMRG:
         #==== Save self.fcidump ====#
         if save_fcidump is not None:
             if self.mpi is None or self.mpi.rank == 0:
-                self.fcidump.orb_sym = b2.VectorUInt8(orb_sym)
-                self.fcidump.write(save_fcidump)
+                #self.fcidump.orb_sym = b2.VectorUInt8(self.orb_sym)
+                self.fcidump.write(self.scratch + '/' + save_fcidump)
             if self.mpi is not None:
                 self.mpi.barrier()
 
