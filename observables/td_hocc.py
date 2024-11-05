@@ -4,11 +4,11 @@ from IMAM_TDDMRG.utils import util_atoms, util_general, util_qm, util_print
 from IMAM_TDDMRG.observables import extract_time
 
 
-EXT1 = '.toc'
+EXT1 = '.thoc'
 
 
 ####################################################
-def calc(orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
+def calc(orbx, rpdm, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
          prefix='occup', simtime_thr=1E-11, logbook=None):
 
     if mol is None:
@@ -37,6 +37,16 @@ def calc(orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None
     #==== Construct the time array ====#
     tt, _, _, pdm_dir = util_general.extract_tevo(tdir)
     idsort = np.argsort(tt)
+
+    #==== Occupation in the reference PDM ====#
+    assert rpdm.shape == (2, nCAS, nCAS), 'The shape of rpdm is ' + str(rpdm.shape) + \
+        ', which is inconsistent with nCAS = ' + str(nCAS) + '.'
+    rpdm_full = np.sum( util_qm.make_full_dm(nCore, rpdm), axis=0 )
+    rocc = np.diag(orb_o[0:nOcc,:].T @ rpdm_full @ orb_o[0:nOcc,:]).real
+    # The virtual part of orb_o is not needed above because including them, rpdm_full
+    # will need to be appended with zero blocks to include the virtual basis, and the
+    # as a result, the virtual part of orb_o will be multiplied with theser zero
+    # blocks.
     
     #==== Begin printing occupation numbers ====#
     with open(prefix + EXT1, 'w') as ouf:
@@ -70,11 +80,7 @@ def calc(orbx, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None
                 pdm_full[nCore:nOcc, nCore:nOcc] = pdm_full[nCore:nOcc, nCore:nOcc] * nelCAS / tr
                 
                 #== Calculate orbital occupations ==#
-                occ_orb = np.diag(orb_o[0:nOcc,:].T @ pdm_full @ orb_o[0:nOcc,:]).real
-                # The virtual part of orb_o is not needed above because including them, pdm_full
-                # will need to be appended with zero blocks to include the virtual basis, and the
-                # as a result, the virtual part of orb_o will be multiplied with theser zero
-                # blocks.
+                occ_orb = rocc - np.diag(orb_o[0:nOcc,:].T @ pdm_full @ orb_o[0:nOcc,:]).real
                 print('     Sum of orbital occupations = ', np.sum(occ_orb))
                 
                 #== Print time ==#

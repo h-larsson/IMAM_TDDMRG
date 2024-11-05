@@ -23,6 +23,7 @@ def_gs_bias = 1.0
 def_gs_outmps_fname = 'GS_MPS_INFO'
 def_save_gs_1pdm = False
 def_flip_spectrum = False
+def_gs_out_cpx = False
 
 def_ann_orb_thr = 1.0E-12
 def_ann_inmps_fname = 'GS_MPS_INFO'

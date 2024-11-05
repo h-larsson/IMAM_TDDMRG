@@ -332,7 +332,7 @@ obj = MYTDDMRG(mol, inputs['nelCAS'], scratch, inputs['memory'],
                omp_threads=n_threads, mpi=MPI)
 obj.verbose = inputs['verbose_lvl']
 obj.init_hamiltonian(pg, nsites, inputs['nelCAS'], inputs['twos'], molpro_wsym, 
-                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-12, 
+                     molpro_osym, e_core=ecore, h1e=h1e, g2e=g2e, orbs=orbs, tol=1E-11, 
                      idx=re_idx, save_fcidump='FCIDUMP')
 
 
@@ -370,7 +370,8 @@ if inputs['do_groundstate']:
                        inputs['gs_dav_tols'], inputs['gs_conv_tol'], inputs['gs_cutoff'], 
                        inputs['gs_occs'], inputs['gs_bias'], inputs['gs_outmps_dir'], 
                        inputs['gs_outmps_fname'], inputs['save_gs_1pdm'], inputs['flip_spectrum'],
-                       inputs['mrci'], inputs['gs_inmps_dir'], inputs['gs_inmps_fname'])
+                       inputs['mrci'], inputs['gs_inmps_dir'], inputs['gs_inmps_fname'],
+                       inputs['gs_out_cpx'])
     _print('\n')
 logbook.update(inputs)
 

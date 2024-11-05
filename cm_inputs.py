@@ -240,6 +240,10 @@ def get_inputs(inp_file):
             inputs['flip_spectrum'] = flip_spectrum
         except NameError:
             inputs['flip_spectrum'] = defvals.def_flip_spectrum
+        try:
+            inputs['gs_out_cpx'] = gs_out_cpx
+        except NameError:
+            inputs['gs_out_cpx'] = defvals.def_gs_out_cpx
     
     #==== Annihilation operation parameters ====#
     inputs['do_annihilate'] = do_annihilate

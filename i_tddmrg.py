@@ -650,7 +650,7 @@ class MYTDDMRG:
     def dmrg(self, logbook_in, bond_dims, noises, n_steps=30, dav_tols=1E-5, conv_tol=1E-7, 
              cutoff=1E-14, occs=None, bias=1.0, outmps_dir0=None, outmps_name='GS_MPS_INFO',
              save_1pdm=False, flip_spect=False, mrci_info=None, inmps_dir=None,
-             inmps_name='mps_info.bin'):
+             inmps_name='mps_info.bin', out_cpx=False):
         
         """Ground-State DMRG."""
         logbook = logbook_in.copy()
@@ -818,7 +818,13 @@ class MYTDDMRG:
         print_mpole(e_dpole, n_dpole, e_qpole, n_qpole)
         logbook.update({'gs:e_dipole':e_dpole, 'gs:n_dipole':n_dpole,
                         'gs:e_quadpole':e_qpole, 'gs:n_quadpole':n_qpole})
-        
+
+        #==== Conversion to full complex MPS ====#
+        if out_cpx:
+            assert comp != 'full'
+            _print('Converting the converged GS MPS to a complex MPS ...')
+            mps = self.b2driver.mps_change_complex(mps, "CPX")
+            
         #==== Save the output MPS ====#
         #OLD mps.save_data()
         #OLD mps_info.save_data(self.scratch + "/GS_MPS_INFO")
@@ -1339,6 +1345,7 @@ class MYTDDMRG:
         #==== Conversion to full complex MPS ====#
         if out_cpx:
             assert comp != 'full'
+            _print('Converting the converged MPS to a complex MPS ...')
             rkets = self.b2driver.mps_change_complex(rkets, "CPX")
             
         #==== Save the output MPS ====#

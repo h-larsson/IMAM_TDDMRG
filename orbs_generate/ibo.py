@@ -340,7 +340,7 @@ def iao_pcharge(oiao, rdm, mol=None, orb=None, nCore=None, nCAS=None, nelCAS=Non
     atomid = np.array( [atom[i][0] for i in range(niao)] )
     q = np.zeros(mol.natm)
     for ia in range(mol.natm):
-        q[ia] = mol.atom_charge(ia) - np.sum(occ_orb[atomid == ia])
+        q[ia] = mol.atom_charge(ia) - np.sum(occ_orb[atomid-1 == ia])
 
     return q
 ##########################################################################
