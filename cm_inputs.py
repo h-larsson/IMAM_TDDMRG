@@ -289,6 +289,8 @@ def get_inputs(inp_file):
             inputs['gs_conv_tol'] = defvals.def_gs_conv_tol
 
         # gs_cutoff:
+        #   States with eigenvalue below this number will be discarded, even when
+        #   the bond dimension is large enough to keep this state.
         try:
             inputs['gs_cutoff'] = gs_cutoff
         except NameError:
@@ -466,6 +468,8 @@ def get_inputs(inp_file):
             inputs['ann_fit_steps'] = defvals.def_ann_fit_steps
 
         # ann_fit_cutoff:
+        #   States with eigenvalue below this number will be discarded, even when
+        #   the bond dimension is large enough to keep this state.
         try:
             inputs['ann_fit_cutoff'] = ann_fit_cutoff
         except NameError:
@@ -524,107 +528,270 @@ def get_inputs(inp_file):
             inputs['ann_out_cpx'] = defvals.def_ann_out_cpx
 
     #==== Time evolution parameters ====#
+    # do_timeevo:
+    #   True or False. If True, time evolution simulation using TDDMRG will be
+    #   performed.
     inputs['do_timeevo'] = do_timeevo
+    
     if inputs['do_timeevo'] == True:
+        # te_max_D:
+        #   The maximum bond dimension of the time-evolving MPS in the TDDMRG
+        #   simulation.
         inputs['te_max_D'] = te_max_D
+
+        # tmax:
+        #   The maximum time up to which the time evolution is run.
         inputs['tmax'] = tmax
+
+        # dt:
+        #   The time step for time evolution in atomic unit of time.
         inputs['dt'] = dt
+
+        # tinit:
+        #   The initial time at which the time evolution starts. It only affects
+        #   the time points printed at which observables are calculated and printed.
+        #   It does not affect the simulation.
         try:
             inputs['tinit'] = tinit
         except NameError:
             inputs['tinit'] = defvals.def_tinit
+
+        # te_inmps_dir:
+        #   The path to the directory containing the MPS files of the initial MPS
+        #   from which the time evolution starts.
         try:
             inputs['te_inmps_dir'] = te_inmps_dir
         except NameError:
             inputs['te_inmps_dir'] = 'DEFINE_LATER'
+
+        # te_inmps_fname:
+        #   The file name of the info file of the initial MPS from which the time
+        #   evolution starts. te_inmps_fname must be located under te_inmps_dir.
         try:
             inputs['te_inmps_fname'] = te_inmps_fname
         except NameError:
             inputs['te_inmps_fname'] = defvals.def_te_inmps_fname
+
+        # te_inmps_cpx:
+        #   True or False. Set it to True if the initial MPS is complex, and
+        #   False if the initial MPS is real. When restarting a TDDMRG simulation,
+        #   regardless of the value of complex_MPS_type, this input must be set to
+        #   True since the last MPS from the previous TDDMRG is complex. This
+        #   input must also be set to True if the initial MPS is not from a
+        #   previous TDDMRG simulation but complex_MPS_type is 'full', e.g. from
+        #   an annihilation calculation with complex_MPS_type = 'full'.
         try:
             inputs['te_inmps_cpx'] = te_inmps_cpx
         except NameError:
             inputs['te_inmps_cpx'] = defvals.def_te_inmps_cpx
+
+        # te_inmps_multi:
+        #   True or False. Set it to True if the initial MPS is in state-average
+        #   format, for example, when restarting from a previous TDDMRG simulation
+        #   where complex_MPS_type = 'hybrid'. Set it to False otherwise.
         try:
             inputs['te_inmps_multi'] = te_inmps_multi
         except NameError:
             inputs['te_inmps_multi'] = defvals.def_te_inmps_multi
+
+        # mps_act0_dir:
+        #   The path to the directory containing the MPS files of the MPS used as
+        #   the state at t=0 for the computation of autocorrelation function.
         try:
             inputs['mps_act0_dir'] = mps_act0_dir
         except NameError:
             inputs['mps_act0_dir'] = 'DEFINE_LATER'
+
+        # mps_act0_fname:
+        #   The file name of the info file of the MPS used as the state at t=0
+        #   for the computation of autocorrelation function. This file must be
+        #   located under the mps_act0_dir directory.
         try:
             inputs['mps_act0_fname'] = mps_act0_fname
         except NameError:
             inputs['mps_act0_fname'] = 'DEFINE_LATER'
+
+        # mps_act0_cpx:
+        #   True or False. It has the same meaning as te_inmps_cpx except for
+        #   the MPS used as the state at t=0 for the computation of autocorrelation
+        #   function.
         try:
             inputs['mps_act0_cpx'] = mps_act0_cpx
         except NameError:
             inputs['mps_act0_cpx'] = 'DEFINE_LATER'
+
+        # mps_act0_multi:
+        #   True or False. It has the same meaning as te_inmps_multi except for
+        #   the MPS used as the state at t=0 for the computation of autocorrelation
+        #   function.
         try:
             inputs['mps_act0_multi'] = mps_act0_multi
         except NameError:
             inputs['mps_act0_multi'] = 'DEFINE_LATER'
+
+        # te_method:
+        #   The time propagation method. The available options are 'rk4' and 'tdvp'.
+        #   'rk4' is stands for the time-step targeting (TST) method, while 'tdvp'
+        #   stands for the time-dependent variational principle method (TDVP).
         try:
             inputs['te_method'] = te_method
         except NameError:
             inputs['te_method'] = defvals.def_te_method
+
+        # exp_tol:
         try:
             inputs['exp_tol'] = exp_tol
         except NameError:
             inputs['exp_tol'] = defvals.def_exp_tol
+
+        # te_cutoff:
+        #   States with eigenvalue below this number will be discarded, even when
+        #   the bond dimension is large enough to keep this state.
         try:
             inputs['te_cutoff'] = te_cutoff
         except NameError:
             inputs['te_cutoff'] = defvals.def_te_cutoff
+
+        # krylov_size:
+        #   The size of Krylov subspace used to approximate the action of a matrix
+        #   exponential on a vector in TDVP propagation. Meaningless if
+        #   te_method = 'rk4'.
         try:
             inputs['krylov_size'] = krylov_size
         except NameError:
             inputs['krylov_size'] = defvals.def_krylov_size
+
+        # krylov_tol:
+        #   A threshold used to set the accuracy of the Krylov subspace method in
+        #   approximating the action of a matrix exponential on a vector in TDVP
+        #   propagation.
         try:
             inputs['krylov_tol'] = krylov_tol
         except NameError:
             inputs['krylov_tol'] = defvals.def_krylov_tol
+
+        # n_sub_sweeps:
+        #   The number of sweeps in a TST propagation used to improve the
+        #   renormalized basis in each time step.
         try:
             inputs['n_sub_sweeps'] = n_sub_sweeps
         except NameError:
             inputs['n_sub_sweeps'] = defvals.def_n_sub_sweeps
+
+        # n_sub_sweeps_init:
+        #   The number of sweeps in the first time step of a TST propagation used
+        #   to improve the renormalized basis in each time step.
         try:
             inputs['n_sub_sweeps_init'] = n_sub_sweeps_init
         except NameError:
             inputs['n_sub_sweeps_init'] = defvals.def_n_sub_sweeps_init
+
+        # te_normalize:
+        #   True or False. If True, the MPS will be normalized after every time
+        #   step.
         try:
             inputs['te_normalize'] = te_normalize
         except NameError:
             inputs['te_normalize'] = defvals.def_te_normalize
+
+        # te_sample:
+        #   The sampling time points around which the observables will be
+        #   calculated and printed. It accepts three formats: a numpy vector of
+        #   monotonically increasing time points, a tuple of the form
+        #   ('steps', n) with n an integer, and a tuple of the form ('delta', d)
+        #   with d a float. The ('steps', n) format is used to choose sampling 
+        #   time points using a fixed interval n. n = 1 means that the observables
+        #   are calculated and printed exactly every time step. n = 2 means that
+        #   the observables are calculated and printed at every second time step.
+        #   The ('delta', d) format is used to choose sampling time points at a
+        #   fixed time interval. d = 0.01 means that the sampling time points are
+        #   separated by 0.01 a.u. of time.
+        #   Note that sampling times only tell the program approximately around
+        #   which time points should observables be calculated. The actual time
+        #   points when the observables are printed are those determined by dt
+        #   which are the the closest to a particular te_sample. For example, if
+        #   the only sampling time point is 12.6 and two propagation time points
+        #   around it is 12.0 and 13.0, then the observables will be printed at
+        #   t = 13.0. This means that the ('steps', n) format produces sampling 
+        #   time points that are exactly a subset of the propagation time points.
+        #   If dt contains non-uniform time steps, however, the ('steps', n)
+        #   format will produce sampling time points which are not uniformly
+        #   spaced (uniform spacing might desired for Fourier transform). To
+        #   exact subset of the propagation time points which are not uniformly
+        #   ensure uniformly spaced sampling points that are also the spaced (as
+        #   is usually true because the first few time steps should typically be
+        #   really short compared to at the later times), one can do
+        #     dt = [DT/m]*m + [DT/n]*n + [DT]
+        #     te_sample = ('delta', p*dt[-1])
+        #   where m, n, and p are integers, while DT is a floating point.
         try:
             inputs['te_sample'] = te_sample
         except NameError:
             inputs['te_sample'] = defvals.def_te_sample
+
+        # te_save_mps:
+        #   Determines how often the instantaneous MPS should be saved. The
+        #   available options are:
+        #     1) 'overwrite'. MPS files are saved at the sampling time points
+        #        under the folder <prefix>.mps_t where <prefix> is the value of
+        #        prefix input. These MPS files overwrite the MPS files saved in
+        #        the previous sampling time point.
+        #     2) 'sampled'. MPS files are saved at every sampling time points.
+        #        This option can lead to a huge space taken up by the MPS files.
+        #        This option is usually used if you want to use these
+        #        instantaneous MPS for later analyses that are not available
+        #        already in this program and for which the use of 1RDM alone is
+        #        not enough. If that is not your plan, using 'overwrite\' is 
+        #        recommended.
+        #     3) 'no'. MPS files will not be saved.
+        #   Regardless of the value of te_save_mps, the instantaneous MPS can be
+        #   saved 'on-demand' by using probe files.
         try:
             inputs['te_save_mps'] = te_save_mps
         except NameError:
             inputs['te_save_mps'] = defvals.def_te_save_mps
+
+        # te_save_1pdm:
+        #   True or False. If True, the 1-electron RDM is saved at every
+        #   sampling time points under the folder <prefix>.sample where <prefix>
+        #   is the value of prefix input.
         try:
             inputs['te_save_1pdm'] = te_save_1pdm
         except NameError:
             inputs['te_save_1pdm'] = defvals.def_te_save_1pdm
+
+        # te_save_2pdm:
         try:
             inputs['te_save_2pdm'] = te_save_2pdm
         except NameError:
             inputs['te_save_2pdm'] = defvals.def_te_save_2pdm
+
+        # save_txt:
         try:
             inputs['save_txt'] = save_txt
         except NameError:
             inputs['save_txt'] = defvals.def_save_txt
+
+        # save_npy:
         try:
             inputs['save_npy'] = save_npy
         except NameError:
             inputs['save_npy'] = defvals.def_save_npy
+
+        # te_in_singlet_embed:
+        #   A 2-entry tuple of the form (True|False, n). Specify this input
+        #   with the first entry set to True if the initial MPS is in singlet-
+        #   embedding format, and n (second entry) set to the actual number of
+        #   active electrons in the system. Due to the singlet-embedded form,
+        #   the number of electrons in the initial MPS is adjusted so that the
+        #   total spin can be zero.
         try:
             inputs['te_in_singlet_embed'] = te_in_singlet_embed
         except NameError:
             inputs['te_in_singlet_embed'] = defvals.def_te_in_singlet_embed
+
+        # bo_pairs:
+        #   Lowdin bond order.
         try:
             inputs['bo_pairs'] = bo_pairs
         except NameError:
