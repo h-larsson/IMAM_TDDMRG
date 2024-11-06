@@ -71,10 +71,16 @@ def get_inputs(inp_file):
     inputs['inp_basis'] = inp_basis
 
     # wfn_sym:
-    #   
+    #   The irrep of the wave function associated with the chosen value for 'inp_symmetry'
+    #   input. It accepts both the literal form, e.g. Ag, B1, B2, A', A", as well as the
+    #   integer form in PySCF notation where the trivial irrep is equal to 0. To get the
+    #   complete list of the integer index equivalence of each irrep, consult the PySCF
+    #   source file <pyscf_root>/pyscf/symm/param.py.
     inputs['wfn_sym'] = wfn_sym
 
     # prev_logbook:
+    #   The path to an existing logbook. This is used when you want to use the values of
+    #   several input parameters from another simulation.
     try:
         inputs['prev_logbook'] = prev_logbook
     except NameError:
@@ -82,9 +88,10 @@ def get_inputs(inp_file):
     
     # complex_MPS_type (optional):
     #   The complex type of MPS in the calculation. The possible options are 'hybrid'
-    #   and 'full' with default being 'hybird', which is faster than 'full'. Ideally,
-    #   for ground state and annihilation tasks, the choice of complex type should not
-    #   matter. For time evolution, the results will differ depending on the bond
+    #   and 'full' with default being 'hybird', which is faster than 'full'.
+    #   For ground state and annihilation tasks, the choice of complex type should not
+    #   matter. If they differ, then at least one of the simulations has not converged
+    #   yet. For time evolution, the results will differ depending on the bond
     #   dimension. The two complex types should give identical time evolution dynamics
     #   when the bond dimension reaches convergence.
     try:
@@ -162,10 +169,20 @@ def get_inputs(inp_file):
     #       is 0-based.
     #    2) A list of 0-based integers. This is basically the hard-coded version of
     #       option one above.
-    #    3) A list of the form ['dipole', <u_x>, <u_y>, <u_z>]. Here, the ordering will
-    #       be calculated from the component of the dipole moments of the orbitals in
-    #       the direction specified by the vector [u_x, u_y, u_z]. This vector does not
-    #       need to be normalized.
+    #    3) A library of the form
+    #         a) {'type':'linear', 'direction':(x, y, z)}, or
+    #         b) {'type':'circular', 'plane':<3x3 matrix>}
+    #       The a) format is for ordering based on a line in 3D space. In this ordering,
+    #       the orbitals are ordered according to the projection of their dipole moments
+    #       in the direction specified by the 'direction' key. x, y, and z specifies the
+    #       direction vector for the projection. The a) format is best used for molecules
+    #       whose one of the dimenions is clearly longer than the other.
+    #       The b) format is for circular ordering, best for molecules exhibiting some
+    #       form of circularity in shape, e.g. aromatic molecules. The value for 'plane'
+    #       is a 3x3 numpy matrix. This matrix specifies the coordinates of three points
+    #       in space with which the plane of the circular ordering is defined. The rows
+    #       of this matrix correspond to the three points, while the columns
+    #       correrspond to their x, y, and z Cartesian components.
     #    4) A string 'genetic', the genetic algorithm, which is also the default.
     #    5) A string 'fiedler', the Fiedler algorithm.
     try:
@@ -174,143 +191,333 @@ def get_inputs(inp_file):
         inputs['orb_order'] = defvals.def_orb_order
         
     #==== CAS parameters ====#
+    # nCore:
+    #   The number of core orbitals.
     inputs['nCore'] = nCore
+
+    # nCAS:
+    #   The number of active orbitals.
     inputs['nCAS'] = nCAS
+
+    # nelCAS:
+    #   The number of active electrons occupying the active orbitals.
     inputs['nelCAS'] = nelCAS
+
+    # twos:
+    #   The result of 2*S where S is the total spin quantum number of the wave function.
     inputs['twos'] = twos
+
+    # mrci:
+    #  If given the format-conforming value, then it prompts an MRCI calculation using
+    #  MPS. The format is a library with two entries, 'nactive2' and 'order'. 'nactive2'
+    #  specifies the number of the excitation orbitals. 'nactive2':10 means that the
+    #  last 10 orbitals of the nCAS active orbitals are considered to be the excitation
+    #  orbitals. 'order' specifies the excitation order. Currently, the available options
+    #  for 'order' is 1, 2, and 3, representing single, single-double, and single-double-
+    #  triple excitations, respectively.
     try:
         inputs['mrci'] = mrci
     except:
         inputs['mrci'] = defvals.def_mrci
 
     #==== Ground state parameters ====#
+    # do_groundstate:
+    #   True or False. If True, a groundstate DMRG calculation will be performed.
     inputs['do_groundstate'] = do_groundstate
+
     if inputs['do_groundstate'] == True:
+        # D_gs:
+        #   A list containing the schedule of the bond dimensions during DMRG
+        #   iterations. For example, [100]*2 + [200*4] + [300], means that the first two
+        #   iterations use a max bond dimension of 100, the next four use 200 max bond
+        #   dimension, and beyond that it uses the max bond dimension of 300 until
+        #   convergence or maximum iteration number is reached, whichever is earlier.
         inputs['D_gs'] = D_gs
 
+        # gs_inmps_dir:
+        #   One of the three ways to construct a guess MPS for macro iterations. If it is set to
+        #   a valid directory path, then the guess MPS is constructed using MPS files located under
+        #   this directory. The default of the three ways is a randomly generated MPS having the
+        #   prescribed maximum bond dimension.
         try:
             inputs['gs_inmps_dir'] = gs_inmps_dir
         except NameError:
             inputs['gs_inmps_dir'] = defvals.def_gs_inmps_dir
+
+        # gs_inmps_fname:
+        #   The file name of the info file of the MPS to be used to start the ground state DMRG
+        #   iterations. This file should be inside the folder specified through gs_inmps_dir.
+        #   This input must be present if gs_inmps_dir is present.
         try:
             inputs['gs_inmps_fname'] = gs_inmps_fname
         except NameError:
             inputs['gs_inmps_fname'] = defvals.def_gs_inmps_fname
+
+        # gs_noise:
+        #   A list containing the schedule of the noise applied during ground state iterations.
+        #   A nonzero noise can be used to prevent the MPS from getting trapped in a local
+        #   minimum. Its format follows the same convention as D_gs.
         try:
             inputs['gs_noise'] = gs_noise
         except NameError:
             inputs['gs_noise'] = defvals.def_gs_noise
+
+        # gs_dav_tols:
+        #   A list containing the schedule of the tolerances to terminate the Davidson/micro
+        #   iterations for diagonlizing the effective Hamiltonian. Typically, it starts from a
+        #   large value such as 0.01 and decrease until e.g. 1E-7. Its format follows the same
+        #   convention as D_gs.
         try:
             inputs['gs_dav_tols'] = gs_dav_tols
         except NameError:
             inputs['gs_dav_tols'] = defvals.def_gs_dav_tols
+
+        # gs_steps:
+        #   The maximum number of macro iterations in the ground state calculation. Use this
+        #   or gs_conv_tol to determine when to terminate the macro iteration.
         try:
             inputs['gs_steps'] = gs_steps       # Maximum number of iteration steps
         except NameError:
             inputs['gs_steps'] = defvals.def_gs_steps
+
+        # gs_conv_tol:
+        #   The energy difference tolerance when the macro iterations should stop. Use this
+        #   or gs_steps to determine when to terminate the macro iteration.
         try:
             inputs['gs_conv_tol'] = gs_conv_tol
         except NameError:
             inputs['gs_conv_tol'] = defvals.def_gs_conv_tol
+
+        # gs_cutoff:
         try:
             inputs['gs_cutoff'] = gs_cutoff
         except NameError:
             inputs['gs_cutoff'] = defvals.def_gs_cutoff
+
+        # gs_occs:
+        #   One of the three ways to construct a guess MPS for macro iterations. If it is set,
+        #   then the guess MPS is constructed in such a way that its orbital occupancies are
+        #   equal to gs_occs. It is a vector of nCAS floating point numbers. gs_occs is
+        #   meaningless if gs_inmps_dir is set.
         try:
             inputs['gs_occs'] = gs_occs
         except NameError:
             inputs['gs_occs'] = defvals.def_gs_occs
+
+        # gs_bias:
+        #   A floating point number used to shift/bias the occupancies of active orbitals
+        #   used to construct the guess MPS for macro iterations. If gs_bias is set, the
+        #   given initial occupancies will be modified so that high occupancies are
+        #   reduce by an gs_bias while low occupancies are increased by gs_bias. Only
+        #   meaningful when gs_occs is given.
         try:
             inputs['gs_bias'] = gs_bias
         except NameError:
             inputs['gs_bias'] = defvals.def_gs_bias
+
+        # gs_outmps_dir:
+        #   The path to the directory in which the MPS files of the final ground state
+        #   MPS will be saved for future use.
         try:
             inputs['gs_outmps_dir'] = gs_outmps_dir
         except NameError:
             inputs['gs_outmps_dir'] = 'DEFINE_LATER'
+
+        # gs_outmps_fname:
+        #   The file name of the info file of the final ground state MPS This input must
+        #   be present if gs_outmps_dir is present.
         try:
             inputs['gs_outmps_fname'] = gs_outmps_fname
         except NameError:
             inputs['gs_outmps_fname'] = defvals.def_gs_outmps_fname
+
+        # save_gs_1pdm:
+        #   True or False. If True, the one-particle RDM of the final ground state MPS
+        #   will be saved under gs_outmps_dir with a filename GS_1pdm.npy.
         try:
             inputs['save_gs_1pdm'] = save_gs_1pdm
         except NameError:
             inputs['save_gs_1pdm'] = defvals.def_save_gs_1pdm
+
+        # flip_spectrum:
+        #   True or False. If True, the macro iterations will seek the highest energy
+        #   of the Hamiltonian. It is implemented by running the same iterations as when
+        #   this input is False but with a -1 multiplied into the Hamiltonian.
         try:
             inputs['flip_spectrum'] = flip_spectrum
         except NameError:
             inputs['flip_spectrum'] = defvals.def_flip_spectrum
+
+        # gs_out_cpx:
+        #   True or False. If True, the final ground state MPS will be converted to a
+        #   full complex MPS where the tensor elements are purely real complex numbers.
+        #   If True and complex_MPS_type is 'full', the program will be aborted.
         try:
             inputs['gs_out_cpx'] = gs_out_cpx
         except NameError:
             inputs['gs_out_cpx'] = defvals.def_gs_out_cpx
     
     #==== Annihilation operation parameters ====#
+    # do_annihilate:
+    #   True or False. If True, the program will calculate the annihilation of an electron
+    #   from an orbital in the given input MPS.
     inputs['do_annihilate'] = do_annihilate
+
     if inputs['do_annihilate'] == True:
+        # ann_sp:
+        #   True or False. The spin projection of the annihilated electron, True means alpha
+        #   electron, otherwise, beta electron.
         inputs['ann_sp'] = ann_sp
+
+        # ann_orb:
+        #   Specifies which orbital from which an electron is annihilated. It accepts an
+        #   integer ranging from 0 to nCAS-1 and a nCAS-long vector. If it is given an
+        #   integer, the program annihilates electron from the (ann_orb+1)-th orbital of
+        #   the site. For example, ann_orb=2 means that the an electron will be annihilated
+        #   from the third active orbital. If ann_orb is given a vector, the program will
+        #   annihilate an electron from the orbital represented by the linear combination
+        #   of the site orbitals where the expansion coefficients are contained in ann_orb.
+        #   Note that small elements of ann_orb vector can cause execution error, therefore
+        #   user should set small elements of ann_orb vector to exactly zero before running
+        #   the program. Usually the threshold is 1E-5, that is, in this case do
+        #          ann_orb[np.abs(ann_orb) < 1.0E-5] = 0.0
+        #   The final ann_orb vector must be normalized. When ann_orb is a vector, the
+        #   irrep of orbitals with large expansion coefficients must be the same. If
+        #   classification between large and small coefficients is not possible (e.g. due
+        #   to low contrast of these coefficients), then set inp_symmetry to a point group
+        #   with less symmetries. Ultimately, inp_symmetry = 'C1' should cover
+        #   ann_orb vector of no symmetry.
         inputs['ann_orb'] = ann_orb
+
+        # D_ann_fit:
+        #   A list containing the schedule of the bond dimensions during the fitting
+        #   iterations. Its format follows the same convention as D_gs.
         inputs['D_ann_fit'] = D_ann_fit
+
+        # ann_inmps_dir:
+        #   The path to the directory containing the MPS files of the input MPS on
+        #   which the annihilation operator will be applied.
         try:
             inputs['ann_inmps_dir'] = ann_inmps_dir
         except NameError:
             inputs['ann_inmps_dir'] = 'DEFINE_LATER'
+
+        # ann_inmps_fname:
+        #   The file name of the info file of the input MPS on which the annihilation
+        #   operator will be applied. ann_inmps_fname must be located under
+        #   ann_inmps_dir.
         try:
             inputs['ann_inmps_fname'] = ann_inmps_fname
         except NameError:
             inputs['ann_inmps_fname'] = defvals.def_ann_inmps_fname
+
+        # ann_outmps_dir:
+        #   The path to the directory containing the MPS files of the output MPS.
         try:
             inputs['ann_outmps_dir'] = ann_outmps_dir
         except NameError:
             inputs['ann_outmps_dir'] = 'DEFINE_LATER'
+
+        # ann_outmps_fname:
+        #   The file name of the info file of the output MPS. ann_outmps_fname must
+        #   be located under ann_outmps_dir.
         try:
             inputs['ann_outmps_fname'] = ann_outmps_fname
         except NameError:
             inputs['ann_outmps_fname'] = defvals.def_ann_outmps_fname
+
+        # ann_orb_thr:
+        #   The threshold for determining the irrep of the orbital represented by
+        #   ann_orb in vector form. The irrep of the annihilated orbital is
+        #   equal to the irreps of orbitals whose absolute value of coefficient
+        #   is higher than ann_orb_thr. This implies that the irrep of these
+        #   large-coefficient orbitals must all be the same.
         try:
             inputs['ann_orb_thr'] = ann_orb_thr
         except NameError:
             inputs['ann_orb_thr'] = defvals.def_ann_orb_thr
+            
         #OLD try:
         #OLD     inputs['ann_fit_margin'] = ann_fit_margin
         #OLD except NameError:
         #OLD     inputs['ann_fit_margin'] = defvals.def_ann_fit_margin
+
+        # ann_fit_noise:
+        #   A list containing the schedule of the noise applied during fitting iterations.
+        #   A nonzero noise can be used to prevent the MPS from getting trapped in a local
+        #   minimum. Its format follows the same convention as D_gs.
         try:
             inputs['ann_fit_noise'] = ann_fit_noise
         except NameError:
             inputs['ann_fit_noise'] = defvals.def_ann_fit_noise
+
+        # ann_fit_tol:
+        #   A threshold to determine when fitting iterations should stop.
         try:
             inputs['ann_fit_tol'] = ann_fit_tol
         except NameError:
             inputs['ann_fit_tol'] = defvals.def_ann_fit_tol
+
+        # ann_fit_steps:
+        #   The maximum number of iteration for the fitting iterations.
         try:
             inputs['ann_fit_steps'] = ann_fit_steps
         except NameError:
             inputs['ann_fit_steps'] = defvals.def_ann_fit_steps
+
+        # ann_fit_cutoff:
         try:
             inputs['ann_fit_cutoff'] = ann_fit_cutoff
         except NameError:
             inputs['ann_fit_cutoff'] = defvals.def_ann_fit_cutoff
+
+        # ann_fit_occs:
+        #   If it is set, the guess MPS for fitting iterations is constructed in such a way
+        #   that its orbital occupancies are equal to ann_fit_occs. It is a vector of nCAS
+        #   floating point numbers.
         try:
             inputs['ann_fit_occs'] = ann_fit_occs
         except NameError:
             inputs['ann_fit_occs'] = defvals.def_ann_fit_occs
+
+        # ann_fit_bias:
+        #   A floating point number used to shift/bias the occupancies of active orbitals
+        #   used to construct the guess MPS for fitting iterations. If ann_fit_bias is set,
+        #   the given initial occupancies will be modified so that high occupancies are
+        #   reduce by an ann_fit_bias while low occupancies are increased by ann_fit_bias.
+        #   Only meaningful when ann_fit_occs is given.
         try:
             inputs['ann_fit_bias'] = ann_fit_bias
         except NameError:
             inputs['ann_fit_bias'] = defvals.def_ann_fit_bias
+
+        # normalize_annout:
+        #   True or False. If True, the output MPS after annihilation is normalized.
         try:
             inputs['normalize_annout'] = normalize_annout
         except NameError:
             inputs['normalize_annout'] = defvals.def_normalize_annout
+
+        # save_ann_1pdm:
+        #   True or False. If True, the one-particle RDM of the output MPS will be saved
+        #   under ann_outmps_dir with a filename ANN_1pdm.npy.
         try:
             inputs['save_ann_1pdm'] = save_ann_1pdm
         except NameError:
             inputs['save_ann_1pdm'] = defvals.def_save_ann_1pdm
+
+        # ann_out_singlet_embed:
+        #   True or False. If True, the output MPS will be converted to a singlet-
+        #   embedding representation.
         try:
             inputs['ann_out_singlet_embed'] = ann_out_singlet_embed
         except NameError:
             inputs['ann_out_singlet_embed'] = defvals.def_ann_out_singlet_embed
+
+        # ann_out_cpx:
+        #   True or False. If True, the final output MPS will be converted to a full
+        #   complex MPS where the tensor elements are purely real complex numbers.
+        #   If True and complex_MPS_type is 'full', the program will be aborted.
         try:
             inputs['ann_out_cpx'] = ann_out_cpx
         except NameError:
