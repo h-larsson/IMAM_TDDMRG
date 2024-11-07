@@ -55,14 +55,6 @@ def get_inputs(inp_file):
     inputs = {}
 
     #==== General parameters ====#
-    # inp_coordinates:
-    #   A python multiline string that specifies the cartesian coordinates of the atoms in
-    #   the molecule. The format is as follows
-    #   '''
-    #      <Atom1>  <x1>  <y1>  <z1>;
-    #      <Atom2>  <x2>  <y2>  <z2>;
-    #      ...
-    #   '''
     inputs['inp_coordinates'] = inp_coordinates
 
     # inp_basis:

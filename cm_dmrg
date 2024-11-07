@@ -170,14 +170,14 @@ logbook.update({'nvir':nvir, 'nsites':nsites})
 #==== Obtain the site orbitals ====#
 if MAIN_PROCESS:
     if inputs['orb_path'] is defvals.def_orb_path:
-        #==== Run HF on the neutral molecule if HF orbitals are not given ====#
+        #==== Run HF on the molecule ====#
         _print('>>>> Running Hartree-Fock to get the site orbitals <<<<')
         mf = scf.RHF(mol)
         mf.kernel()
         orbs = mf.mo_coeff
         _print('2-e integral shape, size = ', mf._eri.shape, mf._eri.size)
     else:
-        #==== Load the HF orbitals of the neutral ====#
+        #==== Load the orbitals ====#
         _print('Loading site orbitals from ' + inputs['orb_path'] + '.')
         orbs = np.load(inputs['orb_path'])
         assert len(orbs.shape) == 2, 'The loaded Hartree-Fock orbitals ' + \
