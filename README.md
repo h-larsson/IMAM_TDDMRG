@@ -16,7 +16,7 @@ The program views the variable `rdm` as an intermediate variable, and hence will
 
 ## Ground state DMRG
 
-This task computes the ground state energy using DMRG algorithm and optionally saves the final ground state MPS. The Python script below shows an example of a simple ground state calculation using TDDMRG-CM
+This task computes the ground state energy using DMRG algorithm and optionally saves the final ground state MPS. The Python script below shows an example of a simple ground state calculation of the water molecule using TDDMRG-CM
 ```python
 
 complex_MPS_type = 'hybrid'
@@ -45,8 +45,85 @@ if do_groundstate:
 do_annihilate = False
 do_timeevo = False
 ```
-Here, it is assumed that some orbitals have previously been calculated and is stored in a numpy file `H2O.orb.npy` under a directory called `H2O.orbitals`. 
+Here, it is assumed that some orbitals have previously been calculated and is stored in a numpy file `H2O.orb.npy` under a directory called `H2O.orbitals`. The output of this calculation contains a line that shows the final ground state energy
+```
+ Ground state energy =   -75.6321361960
+```
+Some of the first micro iterations in the last macro iteration (denoted by `Sweep = ...`) should look like
+```
+Sweep =   13 | Direction = backward | Bond dimension =  400 | Noise =  0.00e+00 | Dav threshold =  1.00e-06
+ <-- Site =   21-  22 .. 
+     1     1     0   -23.55266604     6.60e-11
+Mmps =    3 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 2.87e+05 Tdav = 0.01 T = 0.01
+ <-- Site =   20-  21 .. 
+     1     1     0   -23.55266604     4.84e-09
+Mmps =   10 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 1.10e+07 Tdav = 0.01 T = 0.02
+ <-- Site =   19-  20 .. 
+     1     1     0   -23.55266604     7.50e-08
+Mmps =   35 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 2.52e+08 Tdav = 0.00 T = 0.02
+ <-- Site =   18-  19 .. 
+     1     1     0   -23.55266604     1.82e-07
+Mmps =  121 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 3.58e+09 Tdav = 0.01 T = 0.03
+ <-- Site =   17-  18 .. 
+     1     1     0   -23.55266604     1.85e-07
+Mmps =  272 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 1.22e+10 Tdav = 0.01 T = 0.03
+ <-- Site =   16-  17 .. 
+     1     1     0   -23.55266604     2.31e-08
+Mmps =  300 Ndav =   1 E =    -75.6321228238 Error = 0.00e+00 FLOPS = 6.48e+09 Tdav = 0.07 T = 0.10
+ <-- Site =   15-  16 .. 
+     1     1     0   -23.55266604     1.81e-07
+Mmps =  400 Ndav =   1 E =    -75.6321228238 Error = 3.42e-36 FLOPS = 9.76e+09 Tdav = 0.13 T = 0.20
+ <-- Site =   14-  15 .. 
+     1     1     0   -23.55266604     1.01e-05
+     2     2     0   -23.55266688     1.62e-07
+Mmps =  400 Ndav =   2 E =    -75.6321236676 Error = 6.80e-08 FLOPS = 1.15e+10 Tdav = 0.42 T = 0.49
+ <-- Site =   13-  14 .. 
+     1     1     0   -23.55266607     1.01e-04
+     2     2     0   -23.55267583     2.45e-06
+     3     3     0   -23.55267608     1.15e-07
+Mmps =  400 Ndav =   3 E =    -75.6321328628 Error = 1.03e-06 FLOPS = 1.37e+10 Tdav = 0.86 T = 0.95
+ <-- Site =   12-  13 .. 
+     1     1     0   -23.55266602     7.89e-05
+     2     2     0   -23.55267307     1.28e-06
+     3     3     0   -23.55267319     4.00e-08
+```
+Note that the bond dimensions between the sites from the last site (the sites are denoted by `<-- Site = ...` increases up to 400 and stays constant afterwards. This is because the bond dimension schedule (`D_gs`) has been set to be stay at 400 starting from the 9-th macro iteration, while the snippet above shows the 13-th macro iteration.
 
+At the end of the calculation, several standard quantum chemical quantities are printed, such as orbital occupancies, multipole moments, and bond orders of some significant bonds
+```
+  *** Molecular orbitals occupations (alpha, beta) ***
+      (1: 1.000000, 1.000000)   (2: 0.992726, 0.992726)   (3: 0.978261, 0.978261)   (4: 0.983232, 0.983232)   (5: 0.984666, 0.984666)   
+      (6: 0.874688, 0.874688)   (7: 0.128726, 0.128726)   (8: 0.007474, 0.007474)   (9: 0.007739, 0.007739)   (10: 0.008092, 0.008092)   
+      (11: 0.010468, 0.010468)   (12: 0.004504, 0.004504)   (13: 0.002122, 0.002122)   (14: 0.003201, 0.003201)   (15: 0.001472, 0.001472)   
+      (16: 0.002814, 0.002814)   (17: 0.000417, 0.000417)   (18: 0.001585, 0.001585)   (19: 0.002015, 0.002015)   (20: 0.001541, 0.001541)   
+      (21: 0.001332, 0.001332)   (22: 0.001224, 0.001224)   (23: 0.000875, 0.000875)   (24: 0.000826, 0.000826)   
+ 
+  *** Atomic Mulliken populations ***
+      (O1: -0.208497)   (H2: -0.895751)   (H3: -0.895751)   
+ 
+  *** Atomic Lowdin populations ***
+      (O1: -0.323605)   (H2: -0.838198)   (H3: -0.838198)   
+ 
+  *** Mulliken bond orders ***
+     Atom A    Atom B    Bond order
+          1         2      0.432747
+          1         3      0.432747
+          2         3      0.544548
+   Note: Only bonds for which the bond order is larger than 0.1 are printed.
+ 
+  *** Lowdin bond orders ***
+     Atom A    Atom B    Bond order
+          1         2      1.070878
+          1         3      1.070878
+          2         3      0.491485
+   Note: Only bonds for which the bond order is larger than 0.1 are printed.
+ 
+  *** Multipole moment components ***
+                        x            y            z            xx           yy           zz           xy           yz           xz     
+     Electronic     -0.000000     0.000000     1.205392   -10.886958   -19.493712   -14.278275    -0.000000     0.000000    -0.000000
+     Nuclear         0.000000     0.000000     0.003779     0.000000     4.401159     1.629298     0.000000     0.000000     0.000000
+     Total           0.000000     0.000000     1.209172   -10.886958   -15.092553   -12.648977     0.000000     0.000000     0.000000
+```
 
 ## Annihilation operator
 
