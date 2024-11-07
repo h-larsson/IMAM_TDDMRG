@@ -951,7 +951,7 @@ class MYTDDMRG:
     #################################################
     def annihilate(self, logbook_in, aorb, fit_bond_dims, fit_noises, fit_conv_tol, fit_n_steps, 
                    pg, inmps_dir0=None, inmps_name='GS_MPS_INFO', outmps_dir0=None,
-                   outmps_name='ANN_KET', aorb_thr=1.0E-12, alpha=True, cutoff=1E-14, occs=None,
+                   outmps_name='ANN_MPS_INFO', aorb_thr=1.0E-12, alpha=True, cutoff=1E-14, occs=None,
                    bias=1.0, outmps_normal=True, save_1pdm=False, out_singlet_embed=False, 
                    out_cpx=False, mrci_info=None, mps_tag=None):
         """
@@ -1545,7 +1545,7 @@ class MYTDDMRG:
 
     ##################################################################
     def time_propagate(self, logbook, max_bond_dim: int, method, tmax: float, dt0: float, 
-                       tinit=0.0, inmps_dir0=None, inmps_name='ANN_KET', inmps_cpx=False,
+                       tinit=0.0, inmps_dir0=None, inmps_name='ANN_MPS_INFO', inmps_cpx=False,
                        inmps_multi=False, mps_act0_dir=None, mps_act0_name=None,
                        mps_act0_cpx=None, mps_act0_multi=None, exp_tol=1e-6, cutoff=0, 
                        normalize=False, n_sub_sweeps=2, n_sub_sweeps_init=4, 

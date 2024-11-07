@@ -184,9 +184,9 @@ if MAIN_PROCESS:
                'array must be a two-dimensional array (a matrix).'
         assert (orbs.shape[0] == n_mo and
                 orbs.shape[1] <= n_mo), \
-               'The orbitals array loaded from ' + inputs['orb_path'] + \
-               ' contains more orbitals (' + str(orbs.shape[1]) + \
-               ') than the number of AOs (' + str(n_mo) + ').'
+                'The shape of the loaded orbital is ' + str(orbs.shape) + \
+                ', while the number of AO from the chosen basis is ' + \
+                str(n_mo) + '.'
     orbs_shape = orbs.shape
     print_section('The coefficients and symmetries of core orbitals')
     analyze(mol, orbs[:,0:inputs['nCore']])

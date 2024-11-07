@@ -27,7 +27,7 @@ def_gs_out_cpx = False
 
 def_ann_orb_thr = 1.0E-12
 def_ann_inmps_fname = 'GS_MPS_INFO'
-def_ann_outmps_fname = 'ANN_KET'
+def_ann_outmps_fname = 'ANN_MPS_INFO'
 #OLD def_ann_fit_margin = 150
 def_ann_fit_noise = [1e-5]*4 + [1E-6]*4 + [0.0]
 def_ann_fit_tol = 1E-7
@@ -40,7 +40,7 @@ def_save_ann_1pdm = False
 def_ann_out_singlet_embed = False
 def_ann_out_cpx = False
 
-def_te_inmps_fname = 'ANN_KET'
+def_te_inmps_fname = 'ANN_MPS_INFO'
 def_te_method = 'tdvp'
 def_tinit = 0.0
 def_te_inmps_cpx = False

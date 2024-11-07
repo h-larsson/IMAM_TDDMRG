@@ -16,10 +16,36 @@ The program views the variable `rdm` as an intermediate variable, and hence will
 
 ## Ground state DMRG
 
-This task computes the ground state energy and optionally saves the final ground state MPS using DMRG algorithm. 
+This task computes the ground state energy using DMRG algorithm and optionally saves the final ground state MPS. The Python script below shows an example of a simple ground state calculation using TDDMRG-CM
 ```python
+
+complex_MPS_type = 'hybrid'
 prefix = 'H2O'
+inp_coordinates = \
+            '''
+            O   0.000   0.000   0.107;
+            H   0.000   0.785  -0.427;
+            H   0.000  -0.785  -0.427;
+            '''
+inp_basis = 'cc-pvdz'
+inp_symmetry = 'C2v'
+wfn_sym = 'A1'
+orb_path = './H2O.orbitals/H2O.orb.npy'
+
+nCore = 1
+nCAS = 23
+nelCAS = 10
+twos = 0
+
+do_groundstate = True
+if do_groundstate:
+    D_gs = [100]*4 + [250]*4 + [400]
+    gs_outmps_dir = './' + prefix + '.gs-mps'
+
+do_annihilate = False
+do_timeevo = False
 ```
+Here, it is assumed that some orbitals have previously been calculated and is stored in a numpy file `H2O.orb.npy` under a directory called `H2O.orbitals`. 
 
 
 ## Annihilation operator
@@ -35,16 +61,6 @@ prefix = 'H2O'
 
 
 ## Input parameters
-
-##### `prefix`
-abc
-
-##### `memory`
-def
-
-##### `complex_MPS_type`
-
-
 
 
 
@@ -163,11 +179,11 @@ def
     <li>A string that specifies the path of a <code>*.npy</code> file containig a 1D array (vector) of integers representing the orbital index. These indices is 0-based.</li>
     <li>A list of 0-based integers. This is basically the hard-coded version of the first option above.</li>
     <li>A library of the form
-      <ol type="a">
+      <ol type="i">
 	<li><code>{'type':'linear', 'direction':(x, y, z)}</code>, or</li>
 	<li><code>{'type':'circular', 'plane':&lt3x3 matrix&gt}</code></li>
       </ol>
-      The a) format is for ordering based on a line in 3D space. In this ordering, the orbitals are ordered according to the projection of their dipole moments in the direction specified by the <code>'direction'</code> key. <code>x</code>, <code>y</code>, and <code>z</code> specifies the direction vector for the projection. The a) format is best used for molecules whose one of the dimenions is clearly longer than the other. The b) format is for circular ordering, best for molecules exhibiting some form of circularity in shape, e.g. aromatic molecules. The value for <code>'plane'</code> is a 3x3 numpy matrix. This matrix specifies the coordinates of three points in space with which the plane of the circular ordering is defined. The rows of this matrix correspond to the three points, while the columns correrspond to their <code>x</code>, <code>y</code>, and <code>z</code> Cartesian components.
+      The i format is for ordering based on a line in 3D space. In this ordering, the orbitals are ordered according to the projection of their dipole moments in the direction specified by the <code>'direction'</code> key. <code>x</code>, <code>y</code>, and <code>z</code> specifies the direction vector for the projection. The i format is best used for molecules whose one of the dimenions is clearly longer than the other. The ii format is for circular ordering, best for molecules exhibiting some form of circularity in shape, e.g. aromatic molecules. The value for <code>'plane'</code> is a 3x3 numpy matrix. This matrix specifies the coordinates of three points in space with which the plane of the circular ordering is defined. The rows of this matrix correspond to the three points, while the columns correrspond to their <code>x</code>, <code>y</code>, and <code>z</code> Cartesian components.
     </li>
     <li>A string 'genetic', the genetic algorithm.</li>
     <li>A string 'fiedler', the Fiedler algorithm.</li>
