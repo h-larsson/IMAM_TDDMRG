@@ -21,14 +21,14 @@ This task computes the ground state energy using DMRG algorithm and optionally s
 
 complex_MPS_type = 'hybrid'
 prefix = 'H2O'
-inp_coordinates = \
+atoms = \
             '''
             O   0.000   0.000   0.107;
             H   0.000   0.785  -0.427;
             H   0.000  -0.785  -0.427;
             '''
-inp_basis = 'cc-pvdz'
-inp_symmetry = 'C2v'
+basis = 'cc-pvdz'
+group = 'C2v'
 wfn_sym = 'A1'
 orb_path = '/<absolute>/<path>/<to>/<orbital>/H2O.orb.npy'
 
@@ -138,9 +138,9 @@ GS_PATH = '..'
 prev_logbook = GS_PATH + '/H2O.lb'
 complex_MPS_type = 'logbook'
 
-inp_coordinates = 'logbook'
-inp_basis = 'logbook'
-inp_symmetry = 'logbook'
+atoms = 'logbook'
+basis = 'logbook'
+group = 'logbook'
 wfn_sym = 'logbook'
 orb_path = 'logbook'
 orb_order = 'logbook:orb_order_id'
@@ -168,7 +168,7 @@ The input file above extensively utilizes the logbook file created from the prev
 GS_PATH = '..'
 prev_logbook = GS_PATH + '/H2O.lb'
 ```
-which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `inp_basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
+which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
 
 The parameter `nCAS` is given an explicitly typed value instead of the string `'logbook'` even though the loaded logbook has an information about it. This is because `nCAS` is used further down for constructing `ann_orb`. This is an example of exceptions in which you should not use the value from a logbook file.
 
@@ -233,7 +233,35 @@ Near the beginning, you can find the information about the quantum numbers of th
   - Output MPS =  < N=7 S=1/2 PG=2 >
   - Output MPS multiplicity =  2
 ```
-`N`, `S`, and `PG` stand for the number of electros, the total spin, and irrep type of the MPS. Here, we see that the input MPS has 8 active electrons, is a singlet state, and has the $A_1$ (ID 0) irrep. The annihilated orbital is defined to have `-1` number of electrons. In particular, its irrep is equal to `2`, which corresponds to the $B_1$ irrep of the $C_{2v}$ point group. Also note that the two orbitals, HOMO and LUMO+5, making up the linear combination of the annihilated orbital, have the same symmetry. This is necessary, otherwise an error will occur. If you need to have an annihilated orbital that is a linear combination of site orbitals of different irreps, then you need to choose an appropriate point group for input parameter `inp_symmetry` that identifies the orbitals in the linear combination as belonging to the same point group. The output MPS has 7 electrons, a total spin of one-half, and irrep type of $B_1$. The irrep of the output MPS can be determined through the irrep direct product property.
+`N`, `S`, and `PG` stand for the number of electros, the total spin, and irrep type of the MPS. Here, we see that the input MPS has 8 active electrons, is a singlet state, and has the $A_1$ (ID 0) irrep. The annihilated orbital is defined to have `-1` number of electrons. In particular, its irrep is equal to `2`, which corresponds to the $B_1$ irrep of the $C_{2v}$ point group. Also note that the two orbitals, HOMO and LUMO+5, making up the linear combination of the annihilated orbital, have the same symmetry. This is necessary, otherwise an error will occur. If you need to have an annihilated orbital that is a linear combination of site orbitals of different irreps, then you need to choose an appropriate point group for input parameter `group` that identifies the orbitals in the linear combination as belonging to the same point group. The output MPS has 7 electrons, a total spin of one-half, and irrep type of $B_1$. The irrep of the output MPS can be determined through the irrep direct product property.
+
+In the input file for annihilation operator task above, the bond dimension schedule has been given values that initially increase from `100` to `800` and then decrease to the final value of `400`. The overshot to the maximum value of `800` instead of increasing and stopping at the final desired value of `400` allows the MPS fitting algorithm to search for the minimum (the solution output MPS) in a larger Hilbert space. Repeating the simulation with a bond dimension schedule that exhibits no overshot as `D_ann_fit = [100]*4 + [300]*4 + [400]` results in a less accurate output MPS as demonstrated by the final electron number of `3.49999942 * 2 = 6.99999884` that is less close to the proper value of 7 than previously. See occupancy table below.
+```
+ Occupations after annihilation:
+ ---------------------------------------------------------------------------------------------------
+  No.    Alpha MO occ.    Beta MO occ.    Irrep / ID    aorb coeff     Alpha natorb occ.   Beta natorb occ.
+ ---------------------------------------------------------------------------------------------------
+   ...
+   ...
+   21       0.00061854      0.00061854        A1 / 0    0.00000000            0.00001882         0.00001882
+   22       0.00078963      0.00078963        B2 / 3    0.00000000            0.00001841         0.00001841
+ ---------------------------------------------------------------------------------------------------
+  Sum       3.49999942      3.49999942                                        3.49999942         3.49999942
+ ---------------------------------------------------------------------------------------------------
+ ```
+
+The output MPS above has a non-zero total spin (non-singlet) as necessitated by the odd number of electrons it has. In MPS framework, it is possible to represent a non-singlet MPS as a singlet MPS, this is referred to as singlet-embedding. In TDDMRG-CM, to convert the non-singlet output MPS of annihilation operator task, singlet embedding can be switched on using the `ann_out_singlet_embed` input parameter.
+```
+...
+...
+do_annihilate = True
+if do_annihilate:
+    ...
+    ann_out_singlet_embed = True
+```
+Using singlet-embedded MPS for a non-singlet MPS for time evolution using TDDMRG is highly recommended as has been shown in [this publication](https://arxiv.org/abs/2409.05959v2).
+
+As also shown in the cited publication above, using full complex MPS type in TDDMRG time evolution rather than the hybrid one is much more favorable due to the faster convergence with bond dimension. Performing ground state and annihilation operator calculations in the full complex mode where the MPSs are complex is possible by setting `complex_MPS_type = 'full'`. While this should yield exactly the same results, this is redundant since these calculations do not necessitate a complex wave function. A much more efficient way is to convert the output MPS from annihilation task run in a `'hybrid'` mode to a full complex MPS form. This is done by setting `ann_out_cpx = True`.
 
 
 ## Time Evolution
@@ -253,7 +281,7 @@ Near the beginning, you can find the information about the quantum numbers of th
 
 #==== General parameters ====#
 <details>
-  <summary><code>inp_coordinates</code></summary>
+  <summary><code>atoms</code></summary>
   A python multiline string that specifies the cartesian coordinates of the atoms in the molecule. The format is as follows
   
   ```
@@ -264,13 +292,13 @@ Near the beginning, you can find the information about the quantum numbers of th
 </details>
 
 <details>
-  <summary><code>inp_basis</code></summary>
+  <summary><code>basis</code></summary>
   The name of the Gaussian basis set.
 </details>
 
 <details>
   <summary><code>wfn_sym</code></summary>
-  The irrep of the wave function associated with the chosen value for <code>inp_symmetry</code> input. It accepts both the literal form e.g. <code>'Ag'</code>, <code>'B1'</code>, <code>'B2'</code>, <code>"'A'"</code>, <code>'"A"'</code>, as well as the integer form in PySCF notation where the trivial irrep is equal to 0. To get the complete list of the integer index equivalence of each irrep, consult the PySCF source file <code>&ltpyscf_root&gt/pyscf/symm/param.py</code>.
+  The irrep of the wave function associated with the chosen value for <code>group</code> input. It accepts both the literal form e.g. <code>'Ag'</code>, <code>'B1'</code>, <code>'B2'</code>, <code>"'A'"</code>, <code>'"A"'</code>, as well as the integer form in PySCF notation where the trivial irrep is equal to 0. To get the complete list of the integer index equivalence of each irrep, consult the PySCF source file <code>&ltpyscf_root&gt/pyscf/symm/param.py</code>.
 </details>
 
 <details>
@@ -334,14 +362,14 @@ Near the beginning, you can find the information about the quantum numbers of th
 </details>
 
 <details>
-  <summary><code>inp_ecp</code> (optional)</summary>
+  <summary><code>ecp</code> (optional)</summary>
   <strong>Default</strong>: <code>None</code>
   <br>
   The effective core potential (ECP) on each atom. The format follows pyscf format for ECP. If not specified, no ECP will be used.
 </details>
 
 <details>
-  <summary><code>inp_symmetry</code> (optional)</summary>
+  <summary><code>group</code> (optional)</summary>
   <strong>Default</strong>: <code>'C1'</code>
   <br>
   A string that specifies the point group symmetry of the molecule.
@@ -351,7 +379,7 @@ Near the beginning, you can find the information about the quantum numbers of th
   <summary><code>orb_path</code> (optional)</summary>
   <strong>Default</strong>: Hartee-Fock canonical orbitals using the chosen AO basis set and geometry.
   <br>
-  Specifies the site orbitals. It accepts the path to a <code>*.npy</code> file that stores a 2D array (matrix) of the AO coefficients of the orbitals, where the rows refer to the AO index and the columns refer to the orbital index. The AO used to expand the orbitals should be the same as the AO chosen for the <code>inp_basis</code> parameter. It also accepts <code>None</code>, for which case the program will treat it as if <code>orb_path</code> is not present (hence, will fall back to the default value).
+  Specifies the site orbitals. It accepts the path to a <code>*.npy</code> file that stores a 2D array (matrix) of the AO coefficients of the orbitals, where the rows refer to the AO index and the columns refer to the orbital index. The AO used to expand the orbitals should be the same as the AO chosen for the <code>basis</code> parameter. It also accepts <code>None</code>, for which case the program will treat it as if <code>orb_path</code> is not present (hence, will fall back to the default value).
 </details>
 
 <details>
@@ -469,8 +497,8 @@ do_annihilate:
     The final ann_orb vector must be normalized. When ann_orb is a vector, the
     irrep of orbitals with large expansion coefficients must be the same. If
     classification between large and small coefficients is not possible (e.g. due
-    to low contrast of these coefficients), then set inp_symmetry to a point group
-    with less symmetries. Ultimately, inp_symmetry = 'C1' should cover
+    to low contrast of these coefficients), then set group to a point group
+    with less symmetries. Ultimately, group = 'C1' should cover
     ann_orb vector of no symmetry.
   D_ann_fit:
     A list containing the schedule of the bond dimensions during the fitting

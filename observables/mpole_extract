@@ -17,15 +17,15 @@ dump_inputs = True
 prefix = 'Acetylene-chloro'
 
 #== System ==#
-inp_coordinates = \
+atoms = \
     \'''        # remove the leading '\'
      H    0.000    0.000    -2.926;
      C    0.000    0.000    -1.862;
      C    0.000    0.000    -0.653;
     Cl    0.000    0.000     1.060; 
     \'''        # remove the leading '\'
-inp_basis = '6-31g'
-inp_symmetry = 'c2v'
+basis = '6-31g'
+group = 'c2v'
 orb_path = '/data/iwahyutama/Computations/IMAM_TDDMRG/Orbitals_DFT/Acetylene-chloro' + \
            '/B3LYP_6-31g_C2v/Acetylene-chloro.orb.npy'
 
@@ -55,8 +55,8 @@ if inputs['sample_dir'] == 'DEFINE_LATER':
 
     
 #==== Setting up the system ====#
-mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=inputs['inp_ecp'],
-            symmetry=inputs['inp_symmetry'])
+mol = gto.M(atom=inputs['atoms'], basis=inputs['basis'], ecp=inputs['ecp'],
+            symmetry=inputs['group'])
 dpole_ao = mol.intor('int1e_r').reshape(3,mol.nao,mol.nao)
 qpole_ao = mol.intor('int1e_rr').reshape(3,3,mol.nao,mol.nao)
 nocc = inputs['nCore'] + inputs['nCAS']

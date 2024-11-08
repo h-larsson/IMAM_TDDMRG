@@ -344,8 +344,8 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
 
             
 ###==== Setting up the system ====#
-#mol = gto.M(atom=inp_coordinates, basis=inp_basis, ecp=inp_ecp,
-#            symmetry=inp_symmetry)
+#mol = gto.M(atom=atoms, basis=basis, ecp=ecp,
+#            symmetry=group)
 #na, nb = mol.nelec
 #n_mo = mol.nao
 #nocc = nCore + nCAS

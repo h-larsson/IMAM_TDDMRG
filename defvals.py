@@ -7,8 +7,8 @@ def_complex_MPS_type = 'hybrid'
 def_dump_inputs = False
 def_orb_path = None
 def_orb_order = 'genetic'
-def_inp_ecp = None
-def_inp_symmetry = 'c1'
+def_ecp = None
+def_group = 'c1'
 def_mrci = None
 
 def_gs_inmps_fname = 'mps_info.bin'

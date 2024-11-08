@@ -9,8 +9,8 @@ def get_inputs(inp_file):
     inputs = {}
 
     #==== General parameters ====#
-    inputs['inp_coordinates'] = inp_coordinates
-    inputs['inp_basis'] = inp_basis
+    inputs['atoms'] = atoms
+    inputs['basis'] = basis
     inputs['orb_path'] = orb_path
     inputs['nCore'] = nCore
     inputs['nCAS'] = nCAS
@@ -28,13 +28,13 @@ def get_inputs(inp_file):
         else:
             inputs['prefix'] = inp_file
     try:
-        inputs['inp_ecp'] = inp_ecp
+        inputs['ecp'] = ecp
     except NameError:
-        inputs['inp_ecp'] = defvals.def_inp_ecp
+        inputs['ecp'] = defvals.def_ecp
     try:
-        inputs['inp_symmetry'] = inp_symmetry
+        inputs['group'] = group
     except NameError:
-        inputs['inp_symmetry'] = defvals.def_inp_symmetry
+        inputs['group'] = defvals.def_group
     try:
         inputs['sample_dir'] = sample_dir
     except NameError:

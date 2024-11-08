@@ -128,20 +128,20 @@ _print('Complex MPS type = ', inputs['complex_MPS_type'])
     
 #==== Setting up the system ====#
 nelCore = 2 * inputs['nCore']
-tot_nq = get_tot_nuc_charge(extract_atoms(inputs['inp_coordinates']))
+tot_nq = get_tot_nuc_charge(extract_atoms(inputs['atoms']))
 charge = tot_nq - nelCore - inputs['nelCAS']
 _print('Total nuclear charge = ', tot_nq)
 _print('System charge = ', charge)
-mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'],
-            ecp=inputs['inp_ecp'], symmetry=inputs['inp_symmetry'],
+mol = gto.M(atom=inputs['atoms'], basis=inputs['basis'],
+            ecp=inputs['ecp'], symmetry=inputs['group'],
             charge=charge, spin=inputs['twos'])
 mol.build()
 n_mo = mol.nao
 pg = mol.groupname.lower()
-_print('Atomic coordinates (in angstrom) = ', inputs['inp_coordinates'])
+_print('Atomic coordinates (in angstrom) = ', inputs['atoms'])
 _print('Point group = ', pg)
 _print('Total number of electrons = ', sum(mol.nelec))
-_print('AO basis set = ', inputs['inp_basis'])
+_print('AO basis set = ', inputs['basis'])
 _print('Number of AO bases = ', mol.nao)
 _print('Number of MO bases = ', n_mo)
 logbook.update({'nelCore':nelCore, 'point_group':pg})

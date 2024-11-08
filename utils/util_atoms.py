@@ -160,10 +160,10 @@ def extract_atoms(s):
 ########################################################
 def mole(logbook):
     nelCore = 2 * logbook['nCore']
-    tot_nq = get_tot_nuc_charge(extract_atoms(logbook['inp_coordinates']))
+    tot_nq = get_tot_nuc_charge(extract_atoms(logbook['atoms']))
     charge = tot_nq - nelCore - logbook['nelCAS']
-    mol = gto.M(atom=logbook['inp_coordinates'], basis=logbook['inp_basis'],
-                ecp=logbook['inp_ecp'], symmetry=logbook['inp_symmetry'],
+    mol = gto.M(atom=logbook['atoms'], basis=logbook['basis'],
+                ecp=logbook['ecp'], symmetry=logbook['group'],
                 charge=charge, spin=logbook['twos'])
     return mol
 ########################################################

@@ -55,15 +55,15 @@ def get_inputs(inp_file):
     inputs = {}
 
     #==== General parameters ====#
-    inputs['inp_coordinates'] = inp_coordinates
+    inputs['atoms'] = atoms
 
-    # inp_basis:
+    # basis:
     #   A library that specifies the atomic orbitals (AO) basis on each atom. The format
     #   follows pyscf format format for AO basis.
-    inputs['inp_basis'] = inp_basis
+    inputs['basis'] = basis
 
     # wfn_sym:
-    #   The irrep of the wave function associated with the chosen value for 'inp_symmetry'
+    #   The irrep of the wave function associated with the chosen value for 'group'
     #   input. It accepts both the literal form, e.g. Ag, B1, B2, A', A", as well as the
     #   integer form in PySCF notation where the trivial irrep is equal to 0. To get the
     #   complete list of the integer index equivalence of each irrep, consult the PySCF
@@ -125,28 +125,28 @@ def get_inputs(inp_file):
     except NameError:
         inputs['verbose_lvl'] = defvals.def_verbose_lvl
 
-    # inp_ecp (optional):
+    # ecp (optional):
     #   The effective core potential (ECP) on each atom. The format follows pyscf
     #   format for ECP. The default is None, which means that no ECP will be used.
     try:
-        inputs['inp_ecp'] = inp_ecp
+        inputs['ecp'] = ecp
     except NameError:
-        inputs['inp_ecp'] = defvals.def_inp_ecp
+        inputs['ecp'] = defvals.def_ecp
 
-    # inp_symmetry (optional):
+    # group (optional):
     #   A string to specifies the point group symmetry of the molecule. The default is
     #   'c1'.
     try:
-        inputs['inp_symmetry'] = inp_symmetry
+        inputs['group'] = group
     except NameError:
-        inputs['inp_symmetry'] = defvals.def_inp_symmetry
+        inputs['group'] = defvals.def_group
 
     # orb_path (optional):
     #   A string to specify the path of the orbitals stored as a *.npy file that is
     #   used to represent the site of the MPS. The *.npy file should contain a 2D
     #   array (matrix) of the AO coefficients of the orbitals, where the rows refer to
     #   the AO index and the columns refer to the orbital index. The AO used to expand
-    #   the orbitals should be the same as the AO chosen for the inp_basis parameter.
+    #   the orbitals should be the same as the AO chosen for the basis parameter.
     #   When ignored, the orbitals will be calculated from the canonical Hartree-Fock
     #   orbitals of the molecule using the chosen AO basis and geometry.
     try:
@@ -378,8 +378,8 @@ def get_inputs(inp_file):
         #   The final ann_orb vector must be normalized. When ann_orb is a vector, the
         #   irrep of orbitals with large expansion coefficients must be the same. If
         #   classification between large and small coefficients is not possible (e.g. due
-        #   to low contrast of these coefficients), then set inp_symmetry to a point group
-        #   with less symmetries. Ultimately, inp_symmetry = 'C1' should cover
+        #   to low contrast of these coefficients), then set group to a point group
+        #   with less symmetries. Ultimately, group = 'C1' should cover
         #   ann_orb vector of no symmetry.
         inputs['ann_orb'] = ann_orb
 
