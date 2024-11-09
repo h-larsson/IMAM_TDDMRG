@@ -1,7 +1,7 @@
 
 import numpy as np
 from scipy.linalg import eigh
-from IMAM_TDDMRG.utils.util_print import _print
+from TDDMRG_CM.utils.util_print import _print
 
 ##########################################################
 def get_atom_range(mol):

@@ -170,6 +170,14 @@ prev_logbook = GS_PATH + '/H2O.lb'
 ```
 which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
 
+Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG-CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
+```
+from TDDMRG_CM.utils import util_logbook
+lb = util_logbook.read('H2O.lb')     # Loading a logbook given its path.
+util_logbook.content(lb)             # Print the content of logbook.
+```
+Note that once loaded using `util_logbook.read`, a logbook is essentially a Python dictionary, so you can perform any manipulations defined for a dictionary on `lb`.
+
 The parameter `nCAS` is given an explicitly typed value instead of the string `'logbook'` even though the loaded logbook has an information about it. This is because `nCAS` is used further down for constructing `ann_orb`. This is an example of exceptions in which you should not use the value from a logbook file.
 
 In the above input for annihilation operator task, an electron is annihilated from an orbital whose coefficient in the basis of the site orbitals are given by `ann_orb`. Since it contains zeros except for the 3rd and 9th elements, which are equal to `np.sqrt(2)`, the annihilation orbital is thus an in-phase, equal-strength superposition between Hartree-Fock HOMO (index `3`) and LUMO+5 (index `9`). The output of annihilation operator task contains the following table in the beginning of the simulation.
@@ -250,7 +258,7 @@ In the input file for annihilation operator task above, the bond dimension sched
  ---------------------------------------------------------------------------------------------------
  ```
 
-The output MPS above has a non-zero total spin (non-singlet) as necessitated by the odd number of electrons it has. In MPS framework, it is possible to represent a non-singlet MPS as a singlet MPS, this is referred to as singlet-embedding. In TDDMRG-CM, to convert the non-singlet output MPS of annihilation operator task, singlet embedding can be switched on using the `ann_out_singlet_embed` input parameter.
+The output MPS above has a non-zero total spin (non-singlet) as necessitated by the odd number of electrons it has. In MPS framework, it is possible to represent a non-singlet MPS as a singlet MPS, this is referred to as singlet-embedding. In TDDMRG-CM, to convert a non-singlet output MPS of annihilation operator task, switch singlet embedding on using the `ann_out_singlet_embed` input parameter.
 ```
 ...
 ...

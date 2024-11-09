@@ -3,9 +3,9 @@
 import sys, os, glob
 import numpy as np
 from pyscf import gto
-from IMAM_TDDMRG.utils.util_qm import make_full_dm
-from IMAM_TDDMRG.utils.util_print import print_td_mpole
-from IMAM_TDDMRG.observables import extract_time, mpole, mpole_inputs
+from TDDMRG_CM.utils.util_qm import make_full_dm
+from TDDMRG_CM.utils.util_print import print_td_mpole
+from TDDMRG_CM.observables import extract_time, mpole, mpole_inputs
 
 
 #============================#
@@ -26,7 +26,7 @@ atoms = \
     \'''        # remove the leading '\'
 basis = '6-31g'
 group = 'c2v'
-orb_path = '/data/iwahyutama/Computations/IMAM_TDDMRG/Orbitals_DFT/Acetylene-chloro' + \
+orb_path = '/data/iwahyutama/Computations/TDDMRG_CM/Orbitals_DFT/Acetylene-chloro' + \
            '/B3LYP_6-31g_C2v/Acetylene-chloro.orb.npy'
 
 #== CAS ==#

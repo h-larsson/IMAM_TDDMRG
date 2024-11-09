@@ -1,4 +1,4 @@
-from IMAM_TDDMRG.observables import observables_defvals as defvals
+from TDDMRG_CM.observables import observables_defvals as defvals
 
 
 #######################################################

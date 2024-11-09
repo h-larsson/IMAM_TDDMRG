@@ -2,7 +2,7 @@ import numpy as np
 from functools import reduce
 import scipy.linalg
 from pyscf import scf, symm, lo
-from IMAM_TDDMRG.utils.util_print import print_matrix
+from TDDMRG_CM.utils.util_print import print_matrix
 
 
 

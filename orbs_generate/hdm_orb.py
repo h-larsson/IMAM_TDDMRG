@@ -1,7 +1,7 @@
 import numpy as np
 from pyscf import symm
-from IMAM_TDDMRG.utils import util_logbook, util_print, util_atoms, util_general
-from IMAM_TDDMRG.orbs_generate import util_orbs
+from TDDMRG_CM.utils import util_logbook, util_print, util_atoms, util_general
+from TDDMRG_CM.orbs_generate import util_orbs
 
 
 

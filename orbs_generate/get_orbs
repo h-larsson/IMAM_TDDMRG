@@ -6,12 +6,12 @@ from humanfriendly import format_timespan
 import numpy as np
 from pyscf import gto
 from pyscf.tools import cubegen
-from IMAM_TDDMRG.orbs_generate.orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
-from IMAM_TDDMRG.orbs_generate.get_orbs_input import get_inputs
-from IMAM_TDDMRG.orbs_generate.util_orbs import sort_similar, sort_irrep
-from IMAM_TDDMRG.orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
-from IMAM_TDDMRG.orbs_generate.local_orbs import localize
-from IMAM_TDDMRG.utils.util_print import print_warning, print_section
+from TDDMRG_CM.orbs_generate.orbs_gen import get_rhf_orbs, get_casscf_orbs, get_dft_orbs
+from TDDMRG_CM.orbs_generate.get_orbs_input import get_inputs
+from TDDMRG_CM.orbs_generate.util_orbs import sort_similar, sort_irrep
+from TDDMRG_CM.orbs_generate.analyze_orbs import analyze, analyze_multipole, analyze_population
+from TDDMRG_CM.orbs_generate.local_orbs import localize
+from TDDMRG_CM.utils.util_print import print_warning, print_section
 
 
 t_start = time.time()

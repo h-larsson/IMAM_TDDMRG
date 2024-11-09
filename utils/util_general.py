@@ -1,7 +1,7 @@
 import os, glob
 import numpy as np
-from IMAM_TDDMRG.observables import extract_time
-from IMAM_TDDMRG.phys_const import rad2deg
+from TDDMRG_CM.observables import extract_time
+from TDDMRG_CM.phys_const import rad2deg
 
 
 #######################################################

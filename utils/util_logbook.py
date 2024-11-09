@@ -1,5 +1,5 @@
 import pickle
-from IMAM_TDDMRG.utils import util_print as uprint
+from TDDMRG_CM.utils import util_print as uprint
 
 
 
@@ -39,6 +39,9 @@ def parse(inputs0):
 
 ########################################################
 def read(path):
+    '''
+    Load a logbook from a logbook file.
+    '''
     with open(path, 'rb') as f:
         logbook = pickle.load(f)
     return logbook

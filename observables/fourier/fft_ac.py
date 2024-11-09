@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.fft import rfft
-from IMAM_TDDMRG.phys_const import au2fs
-from IMAM_TDDMRG.observables.fourier.fft_util import mask as fft_mask
+from TDDMRG_CM.phys_const import au2fs
+from TDDMRG_CM.observables.fourier.fft_util import mask as fft_mask
 
 
 
@@ -10,7 +10,7 @@ from IMAM_TDDMRG.observables.fourier.fft_util import mask as fft_mask
 #==== USAGE EXAMPLE ====#
 #=======================#
 '''
-from IMAM_TDDMRG.observables.fourier import fft_ac
+from TDDMRG_CM.observables.fourier import fft_ac
 
 prefix = 'Acetylene-chloro'
 fft_dir = '.'

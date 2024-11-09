@@ -12,8 +12,8 @@ else:
         rank = 0
     MPI = _MPI()
 
-from IMAM_TDDMRG.phys_const import au2fs
-from IMAM_TDDMRG.utils.util_complex_type import get_complex_type
+from TDDMRG_CM.phys_const import au2fs
+from TDDMRG_CM.utils.util_complex_type import get_complex_type
 
 
 #################################################

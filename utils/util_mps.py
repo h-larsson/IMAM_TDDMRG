@@ -26,7 +26,7 @@
 from ipsh import ipsh
 import numpy as np
 import subprocess, shutil, os
-from IMAM_TDDMRG.utils.util_complex_type import get_complex_type
+from TDDMRG_CM.utils.util_complex_type import get_complex_type
 
 
 spin_symmetry = 'su2'
@@ -60,7 +60,7 @@ except ImportError:
     MPICommunicator = ParallelRuleIdentity = None
     hasMPI = False
         
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter    
+from TDDMRG_CM.utils.util_print import getVerbosePrinter    
 if hasMPI:
     MPI = MPICommunicator()
     r0 = (MPI.rank == 0)

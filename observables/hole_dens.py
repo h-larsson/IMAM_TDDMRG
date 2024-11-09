@@ -1,8 +1,8 @@
 import sys, os, glob
 import numpy as np
 from pyscf import symm, tools
-from IMAM_TDDMRG.phys_const import rad2deg, ang2bohr
-from IMAM_TDDMRG.utils import util_atoms, util_print, util_general
+from TDDMRG_CM.phys_const import rad2deg, ang2bohr
+from TDDMRG_CM.utils import util_atoms, util_print, util_general
 
 EXT1 = '.tpl'
 EXT2 = '.tvl.cube'

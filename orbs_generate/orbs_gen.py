@@ -2,7 +2,7 @@ import numpy as np
 from functools import reduce
 from pyscf import gto, scf, dft, ao2mo, symm, mcscf
 from pyscf.dmrgscf import DMRGCI
-from IMAM_TDDMRG.utils.util_print import print_matrix
+from TDDMRG_CM.utils.util_print import print_matrix
 from util_orbs import sort_orbs
 
 

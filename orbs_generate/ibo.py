@@ -2,11 +2,11 @@ import os, glob
 import numpy as np
 import scipy.linalg
 from pyscf import gto, scf, lo, tools, symm
-from IMAM_TDDMRG.utils import util_logbook, util_qm, util_print, util_atoms, util_general
-from IMAM_TDDMRG.utils import util_print as uprint
-from IMAM_TDDMRG.observables import extract_time
-from IMAM_TDDMRG.orbs_generate import util_orbs, analyze_orbs, local_orbs
-from IMAM_TDDMRG.phys_const import au2fs
+from TDDMRG_CM.utils import util_logbook, util_qm, util_print, util_atoms, util_general
+from TDDMRG_CM.utils import util_print as uprint
+from TDDMRG_CM.observables import extract_time
+from TDDMRG_CM.orbs_generate import util_orbs, analyze_orbs, local_orbs
+from TDDMRG_CM.phys_const import au2fs
 
 
 

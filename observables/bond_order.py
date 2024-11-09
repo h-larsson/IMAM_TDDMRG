@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import eigh
-from IMAM_TDDMRG.observables.pcharge import get_atom_range
+from TDDMRG_CM.observables.pcharge import get_atom_range
 
 
 ##########################################################

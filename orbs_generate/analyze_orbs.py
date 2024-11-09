@@ -1,7 +1,7 @@
 import numpy as np
 from pyscf import gto, symm
 from scipy.linalg import eigh
-from IMAM_TDDMRG.utils.util_print import print_section
+from TDDMRG_CM.utils.util_print import print_section
 
 
 ##########################################################################

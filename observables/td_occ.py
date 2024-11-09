@@ -1,7 +1,7 @@
 import glob
 import numpy as np
-from IMAM_TDDMRG.utils import util_atoms, util_general, util_qm, util_print
-from IMAM_TDDMRG.observables import extract_time
+from TDDMRG_CM.utils import util_atoms, util_general, util_qm, util_print
+from TDDMRG_CM.observables import extract_time
 
 
 EXT1 = '.toc'

@@ -2,7 +2,7 @@ import numpy as np
 from pyscf import symm
 from block2 import SU2, SZ
 from gfdmrg import orbital_reorder
-from IMAM_TDDMRG.utils.util_print import _print
+from TDDMRG_CM.utils.util_print import _print
 
 # Set spin-adapted or non-spin-adapted here
 SpinLabel = SU2

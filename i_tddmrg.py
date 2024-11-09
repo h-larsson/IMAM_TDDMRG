@@ -42,7 +42,7 @@ spin_symmetry = 'su2'
 #spin_symmetry = 'sz'
 
 import block2 as b2
-from IMAM_TDDMRG.utils.util_complex_type import get_complex_type
+from TDDMRG_CM.utils.util_complex_type import get_complex_type
 comp = get_complex_type()
 if comp == 'full':
     bx = b2.cpx
@@ -95,18 +95,18 @@ except ImportError:
 import tools; tools.init(SX)
 #from tools import saveMPStoDir, mkDir
 from tools import mkDir
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter
-from IMAM_TDDMRG.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
-from IMAM_TDDMRG.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order
-from IMAM_TDDMRG.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_bo, \
+from TDDMRG_CM.utils.util_print import getVerbosePrinter
+from TDDMRG_CM.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
+from TDDMRG_CM.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order
+from TDDMRG_CM.utils.util_print import print_autocorrelation, print_td_pcharge, print_td_bo, \
     print_td_mpole
-from IMAM_TDDMRG.utils.util_qm import make_full_dm
-from IMAM_TDDMRG.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
-from IMAM_TDDMRG.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
-from IMAM_TDDMRG.utils.util_mps import trans_to_singlet_embed
-from IMAM_TDDMRG.utils import util_logbook
-from IMAM_TDDMRG.observables import pcharge, mpole, bond_order
-from IMAM_TDDMRG.phys_const import au2fs
+from TDDMRG_CM.utils.util_qm import make_full_dm
+from TDDMRG_CM.utils.util_mps import print_MPO_bond_dims, MPS_fitting, calc_energy_MPS
+from TDDMRG_CM.utils.util_mps import saveMPStoDir, loadMPSfromDir_OLD, loadMPSfromDir
+from TDDMRG_CM.utils.util_mps import trans_to_singlet_embed
+from TDDMRG_CM.utils import util_logbook
+from TDDMRG_CM.observables import pcharge, mpole, bond_order
+from TDDMRG_CM.phys_const import au2fs
 
 if hasMPI:
     MPI = MPICommunicator()

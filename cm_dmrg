@@ -13,26 +13,26 @@ from pyscf import gto, scf, ao2mo, symm
 ######################
 #vvvv Input File vvvv#
 ######################
-from IMAM_TDDMRG import defvals, cm_inputs
+from TDDMRG_CM import defvals, cm_inputs
 inp_file = str(sys.argv[1])
 inputs = cm_inputs.get_inputs(inp_file)
-from IMAM_TDDMRG.utils import util_logbook
+from TDDMRG_CM.utils import util_logbook
 inputs = util_logbook.parse(inputs)     # Extract input values from an existing logbook if desired.
 ######################
 #^^^^ Input File ^^^^#
 ######################
 
 
-from IMAM_TDDMRG.utils import util_complex_type
+from TDDMRG_CM.utils import util_complex_type
 util_complex_type.init(inputs['complex_MPS_type'])
-from IMAM_TDDMRG.i_tddmrg import MYTDDMRG
-from IMAM_TDDMRG.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder, \
+from TDDMRG_CM.i_tddmrg import MYTDDMRG
+from TDDMRG_CM.utils.util_qm import get_CAS_ints, get_syms, orbital_reorder, \
     orbital_reorder_dip, orbital_reorder_mrci, orbital_reorder_mrci_dip, \
     orbital_reorder_circ, orbital_reorder_mrci_circ
-from IMAM_TDDMRG.utils.util_print import getVerbosePrinter, print_warning, print_section, \
+from TDDMRG_CM.utils.util_print import getVerbosePrinter, print_warning, print_section, \
     print_mrci_warning
-from IMAM_TDDMRG.utils.util_atoms import get_tot_nuc_charge, extract_atoms
-from IMAM_TDDMRG.orbs_generate.analyze_orbs import analyze
+from TDDMRG_CM.utils.util_atoms import get_tot_nuc_charge, extract_atoms
+from TDDMRG_CM.orbs_generate.analyze_orbs import analyze
 yn_bools = ('No','Yes')
 
 

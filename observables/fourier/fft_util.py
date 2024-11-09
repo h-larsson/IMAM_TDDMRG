@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.special import erfc
-from IMAM_TDDMRG.phys_const import au2fs
+from TDDMRG_CM.phys_const import au2fs
 
 
 def mask(mtype, t, par1=1.0, par2=0.0, verbose=True):
