@@ -421,12 +421,12 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 # Input parameters for ground state calculation
 <details>
-  <summary><hl4><code>do_groundstate</code></hl4></summary>
+  <summary><h4><code>do_groundstate</code></h4></summary>
   True or False. If True, a groundstate DMRG calculation will be performed.
 </details>
 
 <details>
-  <summary><hl4><code>D_gs</code></hl4></summary>
+  <summary><h4><code>D_gs</code></h4></summary>
   A list containing the schedule of the bond dimensions during DMRG iterations. For example, <code>[100]*2 + [200*4] + [300]</code>, means that the first two iterations use a max bond dimension of 100, the next four use 200 max bond dimension, and beyond that it uses the max bond dimension of 300 until convergence or maximum iteration number is reached, whichever is earlier.
 </details>
 <!--
