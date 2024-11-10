@@ -420,71 +420,118 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 # Input parameters for ground state calculation
+
 <details>
-  <summary><h4><code>do_groundstate</code></h4></summary>
+  <summary><code>do_groundstate</code></summary>
   True or False. If True, a groundstate DMRG calculation will be performed.
 </details>
 
 <details>
-  <summary><h4><code>D_gs</code></h4></summary>
+  <summary><code>D_gs</code></summary>
   A list containing the schedule of the bond dimensions during DMRG iterations. For example, <code>[100]*2 + [200*4] + [300]</code>, means that the first two iterations use a max bond dimension of 100, the next four use 200 max bond dimension, and beyond that it uses the max bond dimension of 300 until convergence or maximum iteration number is reached, whichever is earlier.
 </details>
+
+<details>
+  <summary><code>gs_inmps_dir</code></summary>
+  <strong>Default</strong>:
+  <br>
+  One of the three ways to construct a guess MPS for macro iterations. If it is set to a valid directory path, then the guess MPS is constructed using MPS files located under this directory. The default of the three ways is a randomly generated MPS having the prescribed maximum bond dimension.
+</details>
+
+<details>
+  <summary><code>gs_inmps_fname</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the MPS to be used to start the ground state DMRG iterations. This file should be inside the folder specified through gs_inmps_dir. This input must be present if gs_inmps_dir is present.
+</details>
+
+<details>
+  <summary><code>gs_noise</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A list containing the schedule of the noise applied during ground state iterations. A nonzero noise can be used to prevent the MPS from getting trapped in a local minimum. Its format follows the same convention as D_gs.
+</details>
+
+<details>
+  <summary><code>gs_dav_tols</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A list containing the schedule of the tolerances to terminate the Davidson/micro iterations for diagonlizing the effective Hamiltonian. Typically, it starts from a large value such as 0.01 and decrease until e.g. 1E-7. Its format follows the same convention as D_gs.
+</details>
+
+<details>
+  <summary><code>gs_steps</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The maximum number of macro iterations in the ground state calculation. Use this or gs_conv_tol to determine when to terminate the macro iteration.
+</details>
+
+<details>
+  <summary><code>gs_conv_tol</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The energy difference tolerance when the macro iterations should stop. Use this or gs_steps to determine when to terminate the macro iteration.
+</details>
+
+<details>
+  <summary><code>gs_cutoff</code></summary>
+  <strong>Default</strong>:
+  <br>
+  States with eigenvalue below this number will be discarded, even when the bond dimension is large enough to keep this state.
+</details>
+
+<details>
+  <summary><code>gs_occs</code></summary>
+  <strong>Default</strong>:
+  <br>
+  One of the three ways to construct a guess MPS for macro iterations. If it is set, then the guess MPS is constructed in such a way that its orbital occupancies are equal to gs_occs. It is a vector of nCAS floating point numbers. gs_occs is meaningless if gs_inmps_dir is set.
+</details>
+
+<details>
+  <summary><code>gs_bias</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A floating point number used to shift/bias the occupancies of active orbitals used to construct the guess MPS for macro iterations. If gs_bias is set, the given initial occupancies will be modified so that high occupancies are reduce by an gs_bias while low occupancies are increased by gs_bias. Only meaningful when gs_occs is given.
+</details>
+
+<details>
+  <summary><code>gs_outmps_dir</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The path to the directory in which the MPS files of the final ground state MPS will be saved for future use.
+</details>
+
+<details>
+  <summary><code>gs_outmps_fname</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the final ground state MPS This input must be present if gs_outmps_dir is present.
+</details>
+
+<details>
+  <summary><code>save_gs_1pdm</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the one-particle RDM of the final ground state MPS will be saved under gs_outmps_dir with a filename GS_1pdm.npy.
+</details>
+
+<details>
+  <summary><code>flip_spectrum</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the macro iterations will seek the highest energy of the Hamiltonian. It is implemented by running the same iterations as when this input is False but with a -1 multiplied into the Hamiltonian.
+</details>
+
+<details>
+  <summary><code>gs_out_cpx</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the final ground state MPS will be converted to a full complex MPS where the tensor elements are purely real complex numbers. If True and complex_MPS_type is 'full', the program will be aborted.
+</details>
+
+
+
 <!--
-  gs_inmps_dir:
-    One of the three ways to construct a guess MPS for macro iterations. If it is set to
-    a valid directory path, then the guess MPS is constructed using MPS files located under
-    this directory. The default of the three ways is a randomly generated MPS having the
-    prescribed maximum bond dimension.
-  gs_inmps_fname:
-    The file name of the info file of the MPS to be used to start the ground state DMRG
-    iterations. This file should be inside the folder specified through gs_inmps_dir.
-    This input must be present if gs_inmps_dir is present.
-  gs_noise:
-    A list containing the schedule of the noise applied during ground state iterations.
-    A nonzero noise can be used to prevent the MPS from getting trapped in a local
-    minimum. Its format follows the same convention as D_gs.
-  gs_dav_tols:
-    A list containing the schedule of the tolerances to terminate the Davidson/micro
-    iterations for diagonlizing the effective Hamiltonian. Typically, it starts from a
-    large value such as 0.01 and decrease until e.g. 1E-7. Its format follows the same
-    convention as D_gs.
-  gs_steps:
-    The maximum number of macro iterations in the ground state calculation. Use this
-    or gs_conv_tol to determine when to terminate the macro iteration.
-  gs_conv_tol:
-    The energy difference tolerance when the macro iterations should stop. Use this
-    or gs_steps to determine when to terminate the macro iteration.
-  gs_cutoff:
-    States with eigenvalue below this number will be discarded, even when
-    the bond dimension is large enough to keep this state.
-  gs_occs:
-    One of the three ways to construct a guess MPS for macro iterations. If it is set,
-    then the guess MPS is constructed in such a way that its orbital occupancies are
-    equal to gs_occs. It is a vector of nCAS floating point numbers. gs_occs is
-    meaningless if gs_inmps_dir is set.
-  gs_bias:
-    A floating point number used to shift/bias the occupancies of active orbitals
-    used to construct the guess MPS for macro iterations. If gs_bias is set, the
-    given initial occupancies will be modified so that high occupancies are
-    reduce by an gs_bias while low occupancies are increased by gs_bias. Only
-    meaningful when gs_occs is given.
-  gs_outmps_dir:
-    The path to the directory in which the MPS files of the final ground state
-    MPS will be saved for future use.
-  gs_outmps_fname:
-    The file name of the info file of the final ground state MPS This input must
-    be present if gs_outmps_dir is present.
-  save_gs_1pdm:
-    True or False. If True, the one-particle RDM of the final ground state MPS
-    will be saved under gs_outmps_dir with a filename GS_1pdm.npy.
-  flip_spectrum:
-    True or False. If True, the macro iterations will seek the highest energy
-    of the Hamiltonian. It is implemented by running the same iterations as when
-    this input is False but with a -1 multiplied into the Hamiltonian.
-  gs_out_cpx:
-    True or False. If True, the final ground state MPS will be converted to a
-    full complex MPS where the tensor elements are purely real complex numbers.
-    If True and complex_MPS_type is 'full', the program will be aborted.
 #==== Annihilation operation parameters ====#
 do_annihilate:
   True or False. If True, the program will calculate the annihilation of an electron
