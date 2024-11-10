@@ -132,10 +132,11 @@ ed. A logbook file stores information about the value of many variables (includi
 Since charge migration happens in an ionized state, an important component of TDDMRG-CM is the application of annihilation operator to the MPS of an un-ionized state. The Python script below is an example of input file for annihilation operator task where the input MPS is the ground state MPS calculated above. Before creating this input file for annihilation task, make a directory under the directory of the ground state calculation previously, then create the input file under this new directory.
 ```python
 import numpy as np
+from os.path import abspath
 
 prefix = 'H2O'
-GS_PATH = '..'
-prev_logbook = GS_PATH + '/H2O.lb'
+GS_PATH = '..'        # Relative path of the ground state calculation.
+prev_logbook = abspath(GS_PATH + '/H2O.lb')    # Convert to an absolute path right here---another great thing of having an input file as a Pythons script.
 complex_MPS_type = 'logbook'
 
 atoms = 'logbook'
@@ -158,8 +159,10 @@ if do_annihilate:
     ann_orb = np.zeros(nCAS)
     ann_orb[3] = ann_orb[9] = 1/np.sqrt(2)
     D_ann_fit = [100]*4 + [300]*4 + [500]*4 + [800]*4 + [600]*4 + [400]
-    ann_inmps_dir = GS_PATH + '/H2O.gs-mps'
-    ann_outmps_dir = './' + prefix + '.ann-mps'
+    ann_inmps_dir = abspath(GS_PATH + '/H2O.gs-mps')
+    ann_outmps_dir = abspath('./' + prefix + '.ann-mps')
+    ann_out_singlet_embed = True
+    ann_out_cpx = True
 
 do_timeevo = False
 ```
@@ -177,6 +180,8 @@ lb = util_logbook.read('H2O.lb')     # Loading a logbook given its path.
 util_logbook.content(lb)             # Print the content of logbook.
 ```
 Note that once loaded using `util_logbook.read`, a logbook is essentially a Python dictionary, so you can perform any operations defined for a dictionary on `lb`.
+
+Specifying the absolute path, instead of the relative path, for any input parameters that take a path is strongly recommended. That is why `abspath` has been used several times in the input snippet above. We do not recommend using relative paths because these paths will be registered as is in the logbook file. If this logbook file should be referenced by another simulation located in a different directory, then the relative paths will lead to a wrong place.
 
 The parameter `nCAS` is given an explicitly typed value instead of the string `'logbook'` even though the loaded logbook has an information about it. This is because `nCAS` is used further down for constructing `ann_orb`. This is an example of exceptions in which you should not use the value from a logbook file.
 
@@ -273,6 +278,47 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 ## Time Evolution
+
+```python
+from os.path import abspath
+
+prefix = 'H2O'
+memory = 250.0E9
+dump_inputs = True
+T0_PATH = '..'
+prev_logbook = abspath(T0_PATH + '/H2O.lb')
+complex_MPS_type = 'full'
+
+atoms = 'logbook'
+basis = 'logbook'
+group = 'logbook'
+wfn_sym = 'B1'
+orb_path = 'logbook'
+orb_order = 'logbook:orb_order_id'
+
+nCore = 'logbook'
+nCAS = 'logbook'
+nelCAS = 8
+twos = 0
+
+do_groundstate = False
+do_annihilate = False
+
+do_timeevo = True
+if do_timeevo:
+    te_inmps_dir = abspath(T0_PATH + '/H2O.ann-mps')
+    te_max_D = 600
+    te_inmps_cpx = True
+    tinit = 0.0
+    tmax = 20.0
+    fdt = 0.04
+    dt = [fdt/4]*4 + [fdt/2]*2 + [fdt]
+    te_method = 'tdvp'
+    krylov_size = 5
+    te_sample = ('delta', 5*dt[-1])
+    te_in_singlet_embed = (True, nelCAS-1)
+```
+
 
 
 ## Probe file
