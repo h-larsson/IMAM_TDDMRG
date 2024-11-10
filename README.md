@@ -171,12 +171,12 @@ prev_logbook = GS_PATH + '/H2O.lb'
 which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
 
 Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG-CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
-```
+```python
 from TDDMRG_CM.utils import util_logbook
 lb = util_logbook.read('H2O.lb')     # Loading a logbook given its path.
 util_logbook.content(lb)             # Print the content of logbook.
 ```
-Note that once loaded using `util_logbook.read`, a logbook is essentially a Python dictionary, so you can perform any manipulations defined for a dictionary on `lb`.
+Note that once loaded using `util_logbook.read`, a logbook is essentially a Python dictionary, so you can perform any operations defined for a dictionary on `lb`.
 
 The parameter `nCAS` is given an explicitly typed value instead of the string `'logbook'` even though the loaded logbook has an information about it. This is because `nCAS` is used further down for constructing `ann_orb`. This is an example of exceptions in which you should not use the value from a logbook file.
 
@@ -411,23 +411,25 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 </details>
 
 <details>
-  <summary><code>mrci</code></summary>
+  <summary><code>mrci</code> (optional)</summary>
   <strong>Default</strong>: <code>None</code>
   <br>
   If given the format-conforming value, it prompts an MRCI calculation using MPS. The format is a dictionary with two entries, <code>'nactive2'</code> and <code>'order'</code>. <code>'nactive2'</code> specifies the number of the excitation orbitals. <code>'nactive2':10</code> means that the last 10 orbitals of the nCAS active orbitals are considered to be the excitation orbitals. <code>'order'</code> specifies the excitation order. Currently, the available options for <code>'order'</code> is 1, 2, and 3, representing single, single-double, and single-double-triple excitations, respectively.
 </details>
 
 
-<!--
-#==== Ground state parameters ====#
-do_groundstate:
+
+# Input parameters for ground state calculation
+<details>
+  <summary><hl4><code>do_groundstate</code></hl4></summary>
   True or False. If True, a groundstate DMRG calculation will be performed.
-  D_gs:
-    A list containing the schedule of the bond dimensions during DMRG
-    iterations. For example, [100]*2 + [200*4] + [300], means that the first two
-    iterations use a max bond dimension of 100, the next four use 200 max bond
-    dimension, and beyond that it uses the max bond dimension of 300 until
-    convergence or maximum iteration number is reached, whichever is earlier.
+</details>
+
+<details>
+  <summary><hl4><code>D_gs</code></hl4></summary>
+  A list containing the schedule of the bond dimensions during DMRG iterations. For example, <code>[100]*2 + [200*4] + [300]</code>, means that the first two iterations use a max bond dimension of 100, the next four use 200 max bond dimension, and beyond that it uses the max bond dimension of 300 until convergence or maximum iteration number is reached, whichever is earlier.
+</details>
+<!--
   gs_inmps_dir:
     One of the three ways to construct a guess MPS for macro iterations. If it is set to
     a valid directory path, then the guess MPS is constructed using MPS files located under
