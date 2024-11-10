@@ -281,9 +281,14 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 ## Input parameters
+The definitions of input parameters recognized by TDDMRG-CM are listed below. Some advices to keep in mind:
+<ol>												  
+  <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter if this parameter is needed somewhere else in the input file.</li>
+  <li>Use absolute paths for input parameters recognized by TDDMRG-CM. Consider using `os.path.abspath` to help you resolve the absolute path of a relative path.</li>
+</ol>
 
 
-### General parameters
+### General
 <details>
   <summary><code>atoms</code></summary>
   A python multiline string that specifies the cartesian coordinates of the atoms in the molecule. The format is as follows
@@ -396,8 +401,8 @@ As also shown in the cited publication above, using full complex MPS type in TDD
     <li>A list of 0-based integers. This is basically the hard-coded version of the first option above.</li>
     <li>A dictionary of the form
       <ol type="i">
-	<li><code>{'type':'linear', 'direction':(x, y, z)}</code>, or</li>
-	<li><code>{'type':'circular', 'plane':&lt3x3 matrix&gt}</code></li>
+	  <li><code>{'type':'linear', 'direction':(x, y, z)}</code>, or</li>
+	  <li><code>{'type':'circular', 'plane':&lt3x3 matrix&gt}</code></li>
       </ol>
       The i format is for ordering based on a line in 3D space. In this ordering, the orbitals are ordered according to the projection of their dipole moments in the direction specified by the <code>'direction'</code> key. <code>x</code>, <code>y</code>, and <code>z</code> specifies the direction vector for the projection. The i format is best used for molecules whose one of the dimenions is clearly longer than the other. The ii format is for circular ordering, best for molecules exhibiting some form of circularity in shape, e.g. aromatic molecules. The value for <code>'plane'</code> is a 3x3 numpy matrix. This matrix specifies the coordinates of three points in space with which the plane of the circular ordering is defined. The rows of this matrix correspond to the three points, while the columns correrspond to their <code>x</code>, <code>y</code>, and <code>z</code> Cartesian components.
     </li>
