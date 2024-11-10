@@ -284,9 +284,9 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 The definitions of input parameters recognized by TDDMRG-CM are listed below. Some advices to keep in mind:
 <ol>												  
   <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter if this parameter is needed somewhere else in the input file.</li>
-  <li>Use absolute paths for input parameters recognized by TDDMRG-CM. Consider using `os.path.abspath` to help you resolve the absolute path of a relative path.</li>
+  <li>Use absolute paths for input parameters recognized by TDDMRG-CM. Consider using <code>os.path.abspath</code> to help you resolve the absolute path of a relative path.</li>
 </ol>
-
+These input parameters may be categorized into general input (needed by all three functionalities), ground state, annihilation operation, and time evolution.
 
 ### General
 <details>
@@ -433,98 +433,98 @@ The definitions of input parameters recognized by TDDMRG-CM are listed below. So
 </details>
 
 <details>
-  <summary><code>gs_inmps_dir</code></summary>
+  <summary><code>gs_inmps_dir</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   One of the three ways to construct a guess MPS for macro iterations. If it is set to a valid directory path, then the guess MPS is constructed using MPS files located under this directory. The default of the three ways is a randomly generated MPS having the prescribed maximum bond dimension.
 </details>
 
 <details>
-  <summary><code>gs_inmps_fname</code></summary>
+  <summary><code>gs_inmps_fname</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The file name of the info file of the MPS to be used to start the ground state DMRG iterations. This file should be inside the folder specified through gs_inmps_dir. This input must be present if gs_inmps_dir is present.
 </details>
 
 <details>
-  <summary><code>gs_noise</code></summary>
+  <summary><code>gs_noise</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A list containing the schedule of the noise applied during ground state iterations. A nonzero noise can be used to prevent the MPS from getting trapped in a local minimum. Its format follows the same convention as D_gs.
 </details>
 
 <details>
-  <summary><code>gs_dav_tols</code></summary>
+  <summary><code>gs_dav_tols</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A list containing the schedule of the tolerances to terminate the Davidson/micro iterations for diagonlizing the effective Hamiltonian. Typically, it starts from a large value such as 0.01 and decrease until e.g. 1E-7. Its format follows the same convention as D_gs.
 </details>
 
 <details>
-  <summary><code>gs_steps</code></summary>
+  <summary><code>gs_steps</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The maximum number of macro iterations in the ground state calculation. Use this or gs_conv_tol to determine when to terminate the macro iteration.
 </details>
 
 <details>
-  <summary><code>gs_conv_tol</code></summary>
+  <summary><code>gs_conv_tol</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The energy difference tolerance when the macro iterations should stop. Use this or gs_steps to determine when to terminate the macro iteration.
 </details>
 
 <details>
-  <summary><code>gs_cutoff</code></summary>
+  <summary><code>gs_cutoff</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   States with eigenvalue below this number will be discarded, even when the bond dimension is large enough to keep this state.
 </details>
 
 <details>
-  <summary><code>gs_occs</code></summary>
+  <summary><code>gs_occs</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   One of the three ways to construct a guess MPS for macro iterations. If it is set, then the guess MPS is constructed in such a way that its orbital occupancies are equal to gs_occs. It is a vector of nCAS floating point numbers. gs_occs is meaningless if gs_inmps_dir is set.
 </details>
 
 <details>
-  <summary><code>gs_bias</code></summary>
+  <summary><code>gs_bias</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A floating point number used to shift/bias the occupancies of active orbitals used to construct the guess MPS for macro iterations. If gs_bias is set, the given initial occupancies will be modified so that high occupancies are reduce by an gs_bias while low occupancies are increased by gs_bias. Only meaningful when gs_occs is given.
 </details>
 
 <details>
-  <summary><code>gs_outmps_dir</code></summary>
+  <summary><code>gs_outmps_dir</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The path to the directory in which the MPS files of the final ground state MPS will be saved for future use.
 </details>
 
 <details>
-  <summary><code>gs_outmps_fname</code></summary>
+  <summary><code>gs_outmps_fname</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The file name of the info file of the final ground state MPS This input must be present if gs_outmps_dir is present.
 </details>
 
 <details>
-  <summary><code>save_gs_1pdm</code></summary>
+  <summary><code>save_gs_1pdm</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the one-particle RDM of the final ground state MPS will be saved under gs_outmps_dir with a filename GS_1pdm.npy.
 </details>
 
 <details>
-  <summary><code>flip_spectrum</code></summary>
+  <summary><code>flip_spectrum</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the macro iterations will seek the highest energy of the Hamiltonian. It is implemented by running the same iterations as when this input is False but with a -1 multiplied into the Hamiltonian.
 </details>
 
 <details>
-  <summary><code>gs_out_cpx</code></summary>
+  <summary><code>gs_out_cpx</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the final ground state MPS will be converted to a full complex MPS where the tensor elements are purely real complex numbers. If True and complex_MPS_type is 'full', the program will be aborted.
@@ -545,7 +545,7 @@ The definitions of input parameters recognized by TDDMRG-CM are listed below. So
 
 <details>
   <summary><code>ann_orb</code></summary>
-  Specifies which orbital from which an electron is annihilated. It accepts an integer ranging from 0 to nCAS-1 and a nCAS-long vector. If it is given an integer, the program annihilates electron from the (ann_orb+1)-th orbital of the site. For example, ann_orb=2 means that the an electron will be annihilated from the third active orbital. If ann_orb is given a vector, the program will annihilate an electron from the orbital represented by the linear combination of the site orbitals where the expansion coefficients are contained in ann_orb. Note that small elements of ann_orb vector can cause execution error, therefore user should set small elements of ann_orb vector to exactly zero before running the program. Usually the threshold is 1E-5, that is, in this case do <code>ann_orb[np.abs(ann_orb) &lt 1.0E-5] = 0.0</code>. The final ann_orb vector must be normalized. When ann_orb is a vector, the irrep of orbitals with large expansion coefficients must be the same. If classification between large and small coefficients is not possible (e.g. due to low contrast of these coefficients), then set group to a point group with less symmetries. Ultimately, group = 'C1' should cover ann_orb vector of no symmetry.
+  Specifies which orbital from which an electron is annihilated. It accepts an integer ranging from 0 to nCAS-1 and a nCAS-long vector. If it is given an integer, the program annihilates electron from the (ann_orb+1)-th orbital of the site. For example, ann_orb=2 means that the an electron will be annihilated from the third active orbital. If ann_orb is given a vector, the program will annihilate an electron from the orbital represented by the linear combination of the site orbitals where the expansion coefficients are contained in ann_orb. Note that small elements of ann_orb vector can cause execution error, therefore user should set small elements of ann_orb vector to exactly zero before running the program. Usually the threshold is 1E-5, that is, in this case do <code>ann_orb[np.abs(ann_orb) &lt 1.0E-5] = 0.0</code>. The final ann_orb vector must be normalized. When ann_orb is a vector, the irrep of orbitals with large expansion coefficients must be the same. If classification between large and small coefficients is not possible (e.g. due to low contrast of these coefficients), then set group to a point group with less symmetries. Ultimately, <code>group = 'C1'</code> should cover <code>ann_orb</code> vector of no symmetry.
 </details>
 
 <details>
@@ -554,105 +554,105 @@ The definitions of input parameters recognized by TDDMRG-CM are listed below. So
 </details>
 
 <details>
-  <summary><code>ann_inmps_dir</code></summary>
+  <summary><code>ann_inmps_dir</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The path to the directory containing the MPS files of the input MPS on which the annihilation operator will be applied.
 </details>
 
 <details>
-  <summary><code>ann_inmps_fname</code></summary>
+  <summary><code>ann_inmps_fname</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The file name of the info file of the input MPS on which the annihilation operator will be applied. ann_inmps_fname must be located under ann_inmps_dir.
 </details>
 
 <details>
-  <summary><code>ann_outmps_dir</code></summary>
+  <summary><code>ann_outmps_dir</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The path to the directory containing the MPS files of the output MPS.
 </details>
 
 <details>
-  <summary><code>ann_outmps_fname</code></summary>
+  <summary><code>ann_outmps_fname</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The file name of the info file of the output MPS. ann_outmps_fname must be located under ann_outmps_dir.
 </details>
 
 <details>
-  <summary><code>ann_orb_thr</code></summary>
+  <summary><code>ann_orb_thr</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The threshold for determining the irrep of the orbital represented by ann_orb in vector form. The irrep of the annihilated orbital is equal to the irreps of orbitals whose absolute value of coefficient is higher than ann_orb_thr. This implies that the irrep of these large-coefficient orbitals must all be the same.
 </details>
 
 <details>
-  <summary><code>ann_fit_noise</code></summary>
+  <summary><code>ann_fit_noise</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A list containing the schedule of the noise applied during fitting iterations. A nonzero noise can be used to prevent the MPS from getting trapped in a local minimum. Its format follows the same convention as D_gs.
 </details>
 
 <details>
-  <summary><code>ann_fit_tol</code></summary>
+  <summary><code>ann_fit_tol</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A threshold to determine when fitting iterations should stop.
 </details>
 
 <details>
-  <summary><code>ann_fit_steps</code></summary>
+  <summary><code>ann_fit_steps</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   The maximum number of iteration for the fitting iterations.
 </details>
 
 <details>
-  <summary><code>ann_fit_cutoff</code></summary>
+  <summary><code>ann_fit_cutoff</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   States with eigenvalue below this number will be discarded, even when the bond dimension is large enough to keep this state.
 </details>
 
 <details>
-  <summary><code>ann_fit_occs</code></summary>
+  <summary><code>ann_fit_occs</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   If it is set, the guess MPS for fitting iterations is constructed in such a way that its orbital occupancies are equal to ann_fit_occs. It is a vector of nCAS floating point numbers.
 </details>
 
 <details>
-  <summary><code>ann_fit_bias</code></summary>
+  <summary><code>ann_fit_bias</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   A floating point number used to shift/bias the occupancies of active orbitals used to construct the guess MPS for fitting iterations. If ann_fit_bias is set, the given initial occupancies will be modified so that high occupancies are reduce by an ann_fit_bias while low occupancies are increased by ann_fit_bias. Only meaningful when ann_fit_occs is given.
 </details>
 
 <details>
-  <summary><code>normalize_annout</code></summary>
+  <summary><code>normalize_annout</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the output MPS after annihilation is normalized.
 </details>
 
 <details>
-  <summary><code>save_ann_1pdm</code></summary>
+  <summary><code>save_ann_1pdm</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the one-particle RDM of the output MPS will be saved under ann_outmps_dir with a filename ANN_1pdm.npy.
 </details>
 
 <details>
-  <summary><code>ann_out_singlet_embed</code></summary>
+  <summary><code>ann_out_singlet_embed</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the output MPS will be converted to a singlet- embedding representation.
 </details>
 
 <details>
-  <summary><code>ann_out_cpx</code></summary>
+  <summary><code>ann_out_cpx</code> (optional)</summary>
   <strong>Default</strong>:
   <br>
   True or False. If True, the final output MPS will be converted to a full complex MPS where the tensor elements are purely real complex numbers. If True and complex_MPS_type is 'full', the program will be aborted.
@@ -661,142 +661,185 @@ The definitions of input parameters recognized by TDDMRG-CM are listed below. So
 
 
 
-<!--
-#==== Time evolution parameters ====#
-do_timeevo:
-  True or False. If True, time evolution simulation using TDDMRG will be
-  performed.
-  te_max_D:
-    The maximum bond dimension of the time-evolving MPS in the TDDMRG
-    simulation.
-  tmax:
-    The maximum time up to which the time evolution is run.
-  dt:
-    The time step for time evolution in atomic unit of time.
-  tinit:
-    The initial time at which the time evolution starts. It only affects
-    the time points printed at which observables are calculated and printed.
-    It does not affect the simulation.
-  te_inmps_dir:
-    The path to the directory containing the MPS files of the initial MPS
-    from which the time evolution starts.
-  te_inmps_fname:
-    The file name of the info file of the initial MPS from which the time
-    evolution starts. te_inmps_fname must be located under te_inmps_dir.
-  te_inmps_cpx:
-    True or False. Set it to True if the initial MPS is complex, and
-    False if the initial MPS is real. When restarting a TDDMRG simulation,
-    regardless of the value of complex_MPS_type, this input must be set to
-    True since the last MPS from the previous TDDMRG is complex. This
-    input must also be set to True if the initial MPS is not from a
-    previous TDDMRG simulation but complex_MPS_type is 'full', e.g. from
-    an annihilation calculation with complex_MPS_type = 'full'.
-  te_inmps_multi:
-    True or False. Set it to True if the initial MPS is in state-average
-    format, for example, when restarting from a previous TDDMRG simulation
-    where complex_MPS_type = 'hybrid'. Set it to False otherwise.
-  mps_act0_dir:
-    The path to the directory containing the MPS files of the MPS used as
-    the state at t=0 for the computation of autocorrelation function.
-  mps_act0_fname:
-    The file name of the info file of the MPS used as the state at t=0
-    for the computation of autocorrelation function. This file must be
-    located under the mps_act0_dir directory.
-  mps_act0_cpx:
-    True or False. It has the same meaning as te_inmps_cpx except for
-    the MPS used as the state at t=0 for the computation of autocorrelation
-    function.
-  mps_act0_multi:
-    True or False. It has the same meaning as te_inmps_multi except for
-    the MPS used as the state at t=0 for the computation of autocorrelation
-    function.
-  te_method:
-    The time propagation method. The available options are 'rk4' and 'tdvp'.
-    'rk4' is stands for the time-step targeting (TST) method, while 'tdvp'
-    stands for the time-dependent variational principle method (TDVP).
-  exp_tol:
-  te_cutoff:
-    States with eigenvalue below this number will be discarded, even when
-    the bond dimension is large enough to keep this state.
-  krylov_size:
-    The size of Krylov subspace used to approximate the action of a matrix
-    exponential on a vector in TDVP propagation. Meaningless if
-    te_method = 'rk4'.
-  krylov_tol:
-    A threshold used to set the accuracy of the Krylov subspace method in
-    approximating the action of a matrix exponential on a vector in TDVP
-    propagation.
-  n_sub_sweeps:
-    The number of sweeps in a TST propagation used to improve the
-    renormalized basis in each time step.
-  n_sub_sweeps_init:
-    The number of sweeps in the first time step of a TST propagation used
-    to improve the renormalized basis in each time step.
-  te_normalize:
-    True or False. If True, the MPS will be normalized after every time
-    step.
-  te_sample:
-    The sampling time points around which the observables will be
-    calculated and printed. It accepts three formats: a numpy vector of
-    monotonically increasing time points, a tuple of the form
-    ('steps', n) with n an integer, and a tuple of the form ('delta', d)
-    with d a float. The ('steps', n) format is used to choose sampling 
-    time points using a fixed interval n. n = 1 means that the observables
-    are calculated and printed exactly every time step. n = 2 means that
-    the observables are calculated and printed at every second time step.
-    The ('delta', d) format is used to choose sampling time points at a
-    fixed time interval. d = 0.01 means that the sampling time points are
-    separated by 0.01 a.u. of time.
-    Note that sampling times only tell the program approximately around
-    which time points should observables be calculated. The actual time
-    points when the observables are printed are those determined by dt
-    which are the the closest to a particular te_sample. For example, if
-    the only sampling time point is 12.6 and two propagation time points
-    around it is 12.0 and 13.0, then the observables will be printed at
-    t = 13.0. This means that the ('steps', n) format produces sampling 
-    time points that are exactly a subset of the propagation time points.
-    If dt contains non-uniform time steps, however, the ('steps', n)
-    format will produce sampling time points which are not uniformly
-    spaced (uniform spacing might desired for Fourier transform). To
-    exact subset of the propagation time points which are not uniformly
-    ensure uniformly spaced sampling points that are also the spaced (as
-    is usually true because the first few time steps should typically be
-    really short compared to at the later times), one can do
-      dt = [DT/m]*m + [DT/n]*n + [DT]
-      te_sample = ('delta', p*dt[-1])
-    where m, n, and p are integers, while DT is a floating point.
-  te_save_mps:
-    Determines how often the instantaneous MPS should be saved. The
-    available options are:
-      1) 'overwrite'. MPS files are saved at the sampling time points
-         under the folder <prefix>.mps_t where <prefix> is the value of
-         prefix input. These MPS files overwrite the MPS files saved in
-         the previous sampling time point.
-      2) 'sampled'. MPS files are saved at every sampling time points.
-         This option can lead to a huge space taken up by the MPS files.
-         This option is usually used if you want to use these
-         instantaneous MPS for later analyses that are not available
-         already in this program and for which the use of 1RDM alone is
-         not enough. If that is not your plan, using 'overwrite\' is 
-         recommended.
-      3) 'no'. MPS files will not be saved.
-    Regardless of the value of te_save_mps, the instantaneous MPS can be
-    saved 'on-demand' by using probe files.
-  te_save_1pdm:
-    True or False. If True, the 1-electron RDM is saved at every
-    sampling time points under the folder <prefix>.sample where <prefix>
-    is the value of prefix input.
-  te_save_2pdm:
-  save_txt:
-  save_npy:
-  te_in_singlet_embed:
-    A 2-entry tuple of the form (True|False, n). Specify this input
-    with the first entry set to True if the initial MPS is in singlet-
-    embedding format, and n (second entry) set to the actual number of
-    active electrons in the system. Due to the singlet-embedded form,
-    the number of electrons in the initial MPS is adjusted so that the
-    total spin can be zero.
-  bo_pairs:
-    Lowdin bond order.
-###################################################)
--->
+
+### Time evolution
+
+<details>
+  <summary><code>do_timeevo</code></summary>
+  True or False. If True, time evolution simulation using TDDMRG will be performed.
+</details>
+
+<details>
+  <summary><code>te_max_D</code></summary>
+  The maximum bond dimension of the time-evolving MPS in the TDDMRG simulation.
+</details>
+
+<details>
+  <summary><code>tmax</code></summary>
+  The maximum time up to which the time evolution is run.
+</details>
+
+<details>
+  <summary><code>dt</code></summary>
+  The time step for time evolution in atomic unit of time.
+</details>
+
+<details>
+  <summary><code>tinit</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The initial time at which the time evolution starts. It only affects the time points printed at which observables are calculated and printed. It does not affect the simulation.
+</details>
+
+<details>
+  <summary><code>te_inmps_dir</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The path to the directory containing the MPS files of the initial MPS from which the time evolution starts.
+</details>
+
+<details>
+  <summary><code>te_inmps_fname</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the initial MPS from which the time evolution starts. te_inmps_fname must be located under te_inmps_dir.
+</details>
+
+<details>
+  <summary><code>te_inmps_cpx</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. Set it to True if the initial MPS is complex, and False if the initial MPS is real. When restarting a TDDMRG simulation, regardless of the value of complex_MPS_type, this input must be set to True since the last MPS from the previous TDDMRG is complex. This input must also be set to True if the initial MPS is not from a previous TDDMRG simulation but complex_MPS_type is 'full', e.g. from an annihilation calculation with complex_MPS_type = 'full'.
+</details>
+
+<details>
+  <summary><code>te_inmps_multi</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. Set it to True if the initial MPS is in state-average format, for example, when restarting from a previous TDDMRG simulation where complex_MPS_type = 'hybrid'. Set it to False otherwise.
+</details>
+
+<details>
+  <summary><code>mps_act0_dir</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The path to the directory containing the MPS files of the MPS used as the state at t=0 for the computation of autocorrelation function.
+</details>
+
+<details>
+  <summary><code>mps_act0_fname</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the MPS used as the state at t=0 for the computation of autocorrelation function. This file must be located under the mps_act0_dir directory.
+</details>
+
+<details>
+  <summary><code>mps_act0_cpx</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. It has the same meaning as te_inmps_cpx except for the MPS used as the state at t=0 for the computation of autocorrelation function.
+</details>
+
+<details>
+  <summary><code>mps_act0_multi</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. It has the same meaning as te_inmps_multi except for the MPS used as the state at t=0 for the computation of autocorrelation function.
+</details>
+
+<details>
+  <summary><code>te_method</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The time propagation method. The available options are <code>'rk4'</code> and <code>'tdvp'</code>. <code>'rk4'</code> stands for the time-step targeting (TST) method, while <code>'tdvp'</code> stands for the time-dependent variational principle method (TDVP).
+</details>
+
+<details>
+  <summary><code>te_cutoff</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  States with eigenvalue below this number will be discarded, even when the bond dimension is large enough to keep this state.
+</details>
+
+<details>
+  <summary><code>krylov_size</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The size of Krylov subspace used to approximate the action of a matrix exponential on a vector in TDVP propagation. Meaningless if <code>te_method = 'rk4'</code>.
+</details>
+
+<details>
+  <summary><code>krylov_tol</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  A threshold used to set the accuracy of the Krylov subspace method in approximating the action of a matrix exponential on a vector in TDVP propagation.
+</details>
+
+<details>
+  <summary><code>n_sub_sweeps</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The number of sweeps in a TST propagation used to improve the renormalized basis in each time step.
+</details>
+
+<details>
+  <summary><code>n_sub_sweeps_init</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The number of sweeps in the first time step of a TST propagation used to improve the renormalized basis in each time step.
+</details>
+
+<details>
+  <summary><code>te_normalize</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the MPS will be normalized after every time step.
+</details>
+
+<details>
+  <summary><code>te_sample</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  The sampling time points around which the observables will be calculated and printed. It accepts three formats: a numpy vector of monotonically increasing time points, a tuple of the form <code>('steps', n)</code> with <code>n</code> an integer, and a tuple of the form <code>('delta', d)</code> with <code>d</code> a float. The <code>('steps', n)</code> format is used to choose sampling time points using a fixed interval <code>n</code>. <code>n = 1</code> means that the observables are calculated and printed exactly every time step. <code>n = 2</code> means that the observables are calculated and printed at every second time step. The <code>('delta', d)</code> format is used to choose sampling time points at a fixed time interval. <code>d = 0.01</code> means that the sampling time points are separated by 0.01 a.u. of time. Note that sampling times only tell the program approximately around which time points should observables be calculated. The actual time points when the observables are printed are those determined by dt which are the the closest to a particular te_sample. For example, if the only sampling time point is 12.6 and two propagation time points around it is 12.0 and 13.0, then the observables will be printed at t = 13.0. This means that the <code>('steps', n)</code> format produces sampling  time points that are exactly a subset of the propagation time points. If <code>dt</code> contains non-uniform time steps, however, the <code>('steps', n)</code> format will produce sampling time points which are not uniformly spaced (uniform spacing might desired for Fourier transform). To exact subset of the propagation time points which are not uniformly ensure uniformly spaced sampling points that are also the spaced (as is usually true because the first few time steps should typically be really short compared to at the later times), one can do
+  ```
+  dt = [DT/m]*m + [DT/n]*n + [DT]
+  te_sample = ('delta', p*dt[-1])
+  ```
+  where <code>m</code>, <code>n</code>, and <code>p</code> are integers, while <code>DT</code> is a floating point.
+</details>
+
+<details>
+  <summary><code>te_save_mps</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  Determines how often the instantaneous MPS should be saved. The available options are:
+  <ol>
+    <li><code>'overwrite'</code>. MPS files are saved at the sampling time points under the folder <code>&ltprefix&gt.mps_t</code> where <code>&ltprefix&gt</code> is the value of <code>prefix</code> input. These MPS files overwrite the MPS files saved in the previous sampling time point.</li>
+    <li><code>'sampled'</code>. MPS files are saved at every sampling time points. This option can lead to a huge space taken up by the MPS files. This option is usually used if you want to use these instantaneous MPS for later analyses that are not available already in this program and for which the use of 1RDM alone is not enough. If that is not your plan, using <code>'overwrite\'</code> is recommended.</li>
+    <li><code>'no'</code>. MPS files will not be saved.</li>
+  </ol>
+  Regardless of the value of <code>te_save_mps</code>, the instantaneous MPS can be saved 'on-demand' by using probe files.
+</details>
+
+<details>
+  <summary><code>te_save_1pdm</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the 1-electron RDM is saved at every sampling time points under the folder <code>&ltprefix&gt.sample</code> where <code>&ltprefix&gt</code> is the value of <code>prefix</code> input.
+</details>
+
+<details>
+  <summary><code>te_in_singlet_embed</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  A 2-entry tuple with the first entry being True or False, while the second one is an integer. Specify this input with the first entry set to True if the initial MPS is in singlet-embedding format, and the second entry set to the actual number of active electrons in the system. Due to the singlet-embedded form, the number of electrons in the initial MPS is adjusted so that the total spin can be zero.
+</details>
+
+<details>
+  <summary><code>bo_pairs</code> (optional)</summary>
+  <strong>Default</strong>:
+  <br>
+  Lowdin bond order.
+</details>
+
+
