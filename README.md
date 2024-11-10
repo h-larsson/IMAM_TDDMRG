@@ -275,19 +275,15 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 ## Time Evolution
 
 
-## Logbook - starting a job based on a previous calculation
-
 ## Probe file
+
+
 
 
 ## Input parameters
 
 
-
-
-
-
-#==== General parameters ====#
+### General parameters
 <details>
   <summary><code>atoms</code></summary>
   A python multiline string that specifies the cartesian coordinates of the atoms in the molecule. The format is as follows
@@ -419,7 +415,7 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 
-# Input parameters for ground state calculation
+### Ground state
 
 <details>
   <summary><code>do_groundstate</code></summary>
@@ -531,90 +527,136 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 
+### Annihilation operation
+<details>
+  <summary><code>do_annihilate</code></summary>
+  True or False. If True, the program will calculate the annihilation of an electron from an orbital in the given input MPS.
+</details>
+
+<details>
+  <summary><code>ann_sp</code></summary>
+  True or False. The spin projection of the annihilated electron, True means alpha electron, otherwise, beta electron.
+</details>
+
+<details>
+  <summary><code>ann_orb</code></summary>
+  Specifies which orbital from which an electron is annihilated. It accepts an integer ranging from 0 to nCAS-1 and a nCAS-long vector. If it is given an integer, the program annihilates electron from the (ann_orb+1)-th orbital of the site. For example, ann_orb=2 means that the an electron will be annihilated from the third active orbital. If ann_orb is given a vector, the program will annihilate an electron from the orbital represented by the linear combination of the site orbitals where the expansion coefficients are contained in ann_orb. Note that small elements of ann_orb vector can cause execution error, therefore user should set small elements of ann_orb vector to exactly zero before running the program. Usually the threshold is 1E-5, that is, in this case do <code>ann_orb[np.abs(ann_orb) &lt 1.0E-5] = 0.0</code>. The final ann_orb vector must be normalized. When ann_orb is a vector, the irrep of orbitals with large expansion coefficients must be the same. If classification between large and small coefficients is not possible (e.g. due to low contrast of these coefficients), then set group to a point group with less symmetries. Ultimately, group = 'C1' should cover ann_orb vector of no symmetry.
+</details>
+
+<details>
+  <summary><code>D_ann_fit</code></summary>
+  A list containing the schedule of the bond dimensions during the fitting iterations. Its format follows the same convention as D_gs.
+</details>
+
+<details>
+  <summary><code>ann_inmps_dir</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The path to the directory containing the MPS files of the input MPS on which the annihilation operator will be applied.
+</details>
+
+<details>
+  <summary><code>ann_inmps_fname</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the input MPS on which the annihilation operator will be applied. ann_inmps_fname must be located under ann_inmps_dir.
+</details>
+
+<details>
+  <summary><code>ann_outmps_dir</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The path to the directory containing the MPS files of the output MPS.
+</details>
+
+<details>
+  <summary><code>ann_outmps_fname</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The file name of the info file of the output MPS. ann_outmps_fname must be located under ann_outmps_dir.
+</details>
+
+<details>
+  <summary><code>ann_orb_thr</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The threshold for determining the irrep of the orbital represented by ann_orb in vector form. The irrep of the annihilated orbital is equal to the irreps of orbitals whose absolute value of coefficient is higher than ann_orb_thr. This implies that the irrep of these large-coefficient orbitals must all be the same.
+</details>
+
+<details>
+  <summary><code>ann_fit_noise</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A list containing the schedule of the noise applied during fitting iterations. A nonzero noise can be used to prevent the MPS from getting trapped in a local minimum. Its format follows the same convention as D_gs.
+</details>
+
+<details>
+  <summary><code>ann_fit_tol</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A threshold to determine when fitting iterations should stop.
+</details>
+
+<details>
+  <summary><code>ann_fit_steps</code></summary>
+  <strong>Default</strong>:
+  <br>
+  The maximum number of iteration for the fitting iterations.
+</details>
+
+<details>
+  <summary><code>ann_fit_cutoff</code></summary>
+  <strong>Default</strong>:
+  <br>
+  States with eigenvalue below this number will be discarded, even when the bond dimension is large enough to keep this state.
+</details>
+
+<details>
+  <summary><code>ann_fit_occs</code></summary>
+  <strong>Default</strong>:
+  <br>
+  If it is set, the guess MPS for fitting iterations is constructed in such a way that its orbital occupancies are equal to ann_fit_occs. It is a vector of nCAS floating point numbers.
+</details>
+
+<details>
+  <summary><code>ann_fit_bias</code></summary>
+  <strong>Default</strong>:
+  <br>
+  A floating point number used to shift/bias the occupancies of active orbitals used to construct the guess MPS for fitting iterations. If ann_fit_bias is set, the given initial occupancies will be modified so that high occupancies are reduce by an ann_fit_bias while low occupancies are increased by ann_fit_bias. Only meaningful when ann_fit_occs is given.
+</details>
+
+<details>
+  <summary><code>normalize_annout</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the output MPS after annihilation is normalized.
+</details>
+
+<details>
+  <summary><code>save_ann_1pdm</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the one-particle RDM of the output MPS will be saved under ann_outmps_dir with a filename ANN_1pdm.npy.
+</details>
+
+<details>
+  <summary><code>ann_out_singlet_embed</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the output MPS will be converted to a singlet- embedding representation.
+</details>
+
+<details>
+  <summary><code>ann_out_cpx</code></summary>
+  <strong>Default</strong>:
+  <br>
+  True or False. If True, the final output MPS will be converted to a full complex MPS where the tensor elements are purely real complex numbers. If True and complex_MPS_type is 'full', the program will be aborted.
+</details>
+
+
+
+
 <!--
-#==== Annihilation operation parameters ====#
-do_annihilate:
-  True or False. If True, the program will calculate the annihilation of an electron
-  from an orbital in the given input MPS.
-  ann_sp:
-    True or False. The spin projection of the annihilated electron, True means alpha
-    electron, otherwise, beta electron.
-  ann_orb:
-    Specifies which orbital from which an electron is annihilated. It accepts an
-    integer ranging from 0 to nCAS-1 and a nCAS-long vector. If it is given an
-    integer, the program annihilates electron from the (ann_orb+1)-th orbital of
-    the site. For example, ann_orb=2 means that the an electron will be annihilated
-    from the third active orbital. If ann_orb is given a vector, the program will
-    annihilate an electron from the orbital represented by the linear combination
-    of the site orbitals where the expansion coefficients are contained in ann_orb.
-    Note that small elements of ann_orb vector can cause execution error, therefore
-    user should set small elements of ann_orb vector to exactly zero before running
-    the program. Usually the threshold is 1E-5, that is, in this case do
-           ann_orb[np.abs(ann_orb) < 1.0E-5] = 0.0
-    The final ann_orb vector must be normalized. When ann_orb is a vector, the
-    irrep of orbitals with large expansion coefficients must be the same. If
-    classification between large and small coefficients is not possible (e.g. due
-    to low contrast of these coefficients), then set group to a point group
-    with less symmetries. Ultimately, group = 'C1' should cover
-    ann_orb vector of no symmetry.
-  D_ann_fit:
-    A list containing the schedule of the bond dimensions during the fitting
-    iterations. Its format follows the same convention as D_gs.
-  ann_inmps_dir:
-    The path to the directory containing the MPS files of the input MPS on
-    which the annihilation operator will be applied.
-  ann_inmps_fname:
-    The file name of the info file of the input MPS on which the annihilation
-    operator will be applied. ann_inmps_fname must be located under
-    ann_inmps_dir.
-  ann_outmps_dir:
-    The path to the directory containing the MPS files of the output MPS.
-  ann_outmps_fname:
-    The file name of the info file of the output MPS. ann_outmps_fname must
-    be located under ann_outmps_dir.
-  ann_orb_thr:
-    The threshold for determining the irrep of the orbital represented by
-    ann_orb in vector form. The irrep of the annihilated orbital is
-    equal to the irreps of orbitals whose absolute value of coefficient
-    is higher than ann_orb_thr. This implies that the irrep of these
-    large-coefficient orbitals must all be the same.
-  LD try:
-  LD     inputs['ann_fit_margin'] = ann_fit_margin
-  LD except NameError:
-  LD     inputs['ann_fit_margin'] = defvals.def_ann_fit_margin
-  ann_fit_noise:
-    A list containing the schedule of the noise applied during fitting iterations.
-    A nonzero noise can be used to prevent the MPS from getting trapped in a local
-    minimum. Its format follows the same convention as D_gs.
-  ann_fit_tol:
-    A threshold to determine when fitting iterations should stop.
-  ann_fit_steps:
-    The maximum number of iteration for the fitting iterations.
-  ann_fit_cutoff:
-    States with eigenvalue below this number will be discarded, even when
-    the bond dimension is large enough to keep this state.
-  ann_fit_occs:
-    If it is set, the guess MPS for fitting iterations is constructed in such a way
-    that its orbital occupancies are equal to ann_fit_occs. It is a vector of nCAS
-    floating point numbers.
-  ann_fit_bias:
-    A floating point number used to shift/bias the occupancies of active orbitals
-    used to construct the guess MPS for fitting iterations. If ann_fit_bias is set,
-    the given initial occupancies will be modified so that high occupancies are
-    reduce by an ann_fit_bias while low occupancies are increased by ann_fit_bias.
-    Only meaningful when ann_fit_occs is given.
-  normalize_annout:
-    True or False. If True, the output MPS after annihilation is normalized.
-  save_ann_1pdm:
-    True or False. If True, the one-particle RDM of the output MPS will be saved
-    under ann_outmps_dir with a filename ANN_1pdm.npy.
-  ann_out_singlet_embed:
-    True or False. If True, the output MPS will be converted to a singlet-
-    embedding representation.
-  ann_out_cpx:
-    True or False. If True, the final output MPS will be converted to a full
-    complex MPS where the tensor elements are purely real complex numbers.
-    If True and complex_MPS_type is 'full', the program will be aborted.
 #==== Time evolution parameters ====#
 do_timeevo:
   True or False. If True, time evolution simulation using TDDMRG will be
