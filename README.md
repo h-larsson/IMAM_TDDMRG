@@ -298,6 +298,7 @@ These input parameters may be categorized into general input (needed by all thre
   <Atom2>  <x2>  <y2>  <z2>;
   ...
   ```
+	  
 </details>
 
 <details>
@@ -801,10 +802,12 @@ These input parameters may be categorized into general input (needed by all thre
   <strong>Default</strong>:
   <br>
   The sampling time points around which the observables will be calculated and printed. It accepts three formats: a numpy vector of monotonically increasing time points, a tuple of the form <code>('steps', n)</code> with <code>n</code> an integer, and a tuple of the form <code>('delta', d)</code> with <code>d</code> a float. The <code>('steps', n)</code> format is used to choose sampling time points using a fixed interval <code>n</code>. <code>n = 1</code> means that the observables are calculated and printed exactly every time step. <code>n = 2</code> means that the observables are calculated and printed at every second time step. The <code>('delta', d)</code> format is used to choose sampling time points at a fixed time interval. <code>d = 0.01</code> means that the sampling time points are separated by 0.01 a.u. of time. Note that sampling times only tell the program approximately around which time points should observables be calculated. The actual time points when the observables are printed are those determined by dt which are the the closest to a particular te_sample. For example, if the only sampling time point is 12.6 and two propagation time points around it is 12.0 and 13.0, then the observables will be printed at t = 13.0. This means that the <code>('steps', n)</code> format produces sampling  time points that are exactly a subset of the propagation time points. If <code>dt</code> contains non-uniform time steps, however, the <code>('steps', n)</code> format will produce sampling time points which are not uniformly spaced (uniform spacing might desired for Fourier transform). To exact subset of the propagation time points which are not uniformly ensure uniformly spaced sampling points that are also the spaced (as is usually true because the first few time steps should typically be really short compared to at the later times), one can do
+  
   ```
   dt = [DT/m]*m + [DT/n]*n + [DT]
   te_sample = ('delta', p*dt[-1])
   ```
+  
   where <code>m</code>, <code>n</code>, and <code>p</code> are integers, while <code>DT</code> is a floating point.
 </details>
 
