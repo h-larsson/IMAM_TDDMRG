@@ -173,6 +173,8 @@ prev_logbook = GS_PATH + '/H2O.lb'
 ```
 which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
 
+The input parameters responsible for informing the program where to look for the input MPS are `ann_inmps_dir` (for the directory) and `ann_inmps_fname` (for the filename containing the information about the input MPS). The value assigned to `ann_inmps_fname` must be a file located under the directory path assigned to `ann_inmps_dir`. In the snippet above, only `ann_inmps_dir` is explicitly given. `ann_inmps_fname` is omitted because its default value is `GS_MPS_INFO`, which coincides with the default value for `gs_outmps_fname`, the parameter that controls the filename of MPS info file saved by the ground state task.
+
 Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG-CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
 ```python
 from TDDMRG_CM.utils import util_logbook
@@ -181,7 +183,7 @@ util_logbook.content(lb)             # Print the content of logbook.
 ```
 Note that once loaded using `util_logbook.read`, a logbook is essentially a Python dictionary, so you can perform any operations defined for a dictionary on `lb`.
 
-Specifying the absolute path, instead of the relative path, for any input parameters that take a path is strongly recommended. That is why `abspath` has been used several times in the input snippet above. We do not recommend using relative paths because these paths will be registered as is in the logbook file. If this logbook file should be referenced by another simulation located in a different directory, then the relative paths will lead to a wrong place.
+Specifying the absolute path, instead of the relative path, for any input parameters that take a path is strongly recommended. That is why `abspath` has been used several times in the input snippet above. We do not recommend using relative paths because these paths will be recorded as is in the logbook file. If this logbook file should be referenced by another simulation located in a different directory, the relative paths will lead to wrong places.
 
 The parameter `nCAS` is given an explicitly typed value instead of the string `'logbook'` even though the loaded logbook has an information about it. This is because `nCAS` is used further down for constructing `ann_orb`. This is an example of exceptions in which you should not use the value from a logbook file.
 
@@ -263,7 +265,7 @@ In the input file for annihilation operator task above, the bond dimension sched
  ---------------------------------------------------------------------------------------------------
  ```
 
-The output MPS above has a non-zero total spin (non-singlet) as necessitated by the odd number of electrons it has. In MPS framework, it is possible to represent a non-singlet MPS as a singlet MPS, this is referred to as singlet-embedding. In TDDMRG-CM, to convert a non-singlet output MPS of annihilation operator task, switch singlet embedding on using the `ann_out_singlet_embed` input parameter.
+The output MPS above has a non-zero total spin (non-singlet) as necessitated by the odd number of electrons it has. In MPS framework, it is possible to represent a non-singlet MPS as a singlet MPS, this is referred to as singlet-embedding. As shown in the input script above, to convert a non-singlet output MPS of annihilation operator task, switch singlet embedding on using the `ann_out_singlet_embed` input parameter.
 ```
 ...
 ...
@@ -278,7 +280,7 @@ As also shown in the cited publication above, using full complex MPS type in TDD
 
 
 ## Time Evolution
-
+The MPS resulting from the annihilation operator task above is typically used as the initial state for time evolution tasks using TDDMRG. For the first example, let's simulate a time evolution with singlet-embedding on. So, first create a new directory, for example, as a subdirectory under the annihilation operator simulation using singlet-embedding. The Python script below is a minimal example
 ```python
 from os.path import abspath
 
@@ -318,6 +320,25 @@ if do_timeevo:
     te_sample = ('delta', 5*dt[-1])
     te_in_singlet_embed = (True, nelCAS-1)
 ```
+
+The parameter `complex_MPS_type` is set to `'full'` because the initial state is in full complex representation (due to the use of `ann_out_singlet_embed = True` in the annihilation simulation). `wfn_sym` is set to `'B1'` because $B_1$ the symmetry of the output MPS of the annihilation simulation, this can be checked in the `Quantum number information:` section in the annihilation output. `nelCAS` is given an explicit value of `8` instead of `7`. This is because the initial state is also in singlet-embedding representation. This also affects the value assigned to `twos`, which is `0`.
+
+Parameters for time evolution is given under the `do_timeevo` block. Since entanglement will increase with time, the bond dimension is set to `600` which is higher than that of the initial state. For this example, we chose `tdvp` as the time integrator, another option is `rk4`, which, however, is less efficient than `tdvp`, and the printing interval of time-dependent quantities (see below) is every `5 * 0.04 = 0.2` atomic unit of time. The parameter `te_in_singlet_embed` tells the program that the initial MPS is in singlet-embedding format and that the actual MPS (that is embedded in a larger singlet MPS) has `nelCAS-1 = 7` electrons.
+
+Similar to the case of annihilation task, the time evolution task also defines two input parameters that control the program on where to look for the initial MPS: `te_inmps_dir` (for the directory) and `te_inmps_fname` (for the MPS info file). `te_inmps_fname` is omitted above because its default value is `ANN_MPS_INFO`, which coincides with the default value for `def_ann_outmps_fname`, the parameter that controls the filename of output MPS info file of an annihilation task.
+
+
+
+
+### Time-depedent quantities
+There are three quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charge, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG-CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. By default the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS at a certain future time by using 'probe files'.
+
+
+
+
+
+### Restarting a TDDMRG simulation
+Time evolution simulations using TDDMRG can take days or even weeks on ~50 cores already. For this reason, it is essential that users know how to restart a terminated TDDMRG job. Let's suppose that 
 
 
 
