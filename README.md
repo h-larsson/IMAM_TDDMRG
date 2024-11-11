@@ -4,7 +4,7 @@
 
 TDDMRG-CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG-CM.
 
-To run the program, you need to prepare an input file containing the a list of input parameters with their assigned values (see [the input definitions below](#input-parameters)). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
+To run the program, you need to prepare an input file containing the a list of input parameters with their assigned values. The recognized input parameters are defined [below](#input-parameters). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
 ```python
 import numpy as np
 ...
@@ -91,7 +91,6 @@ Note that the bond dimensions between the sites from the last site (the sites ar
 
 At the end of the calculation, several standard quantum chemical quantities are printed, such as orbital occupancies, multipole moments, and bond orders of some significant bonds
 ```
-  *** Molecular orbitals occupations (alpha, beta) ***
   *** Molecular orbitals occupations (alpha, beta) ***
       (1: 1.000000, 1.000000)   (2: 0.991053, 0.991053)   (3: 0.981319, 0.981319)   (4: 0.983570, 0.983570)   (5: 0.985799, 0.985799)   
       (6: 0.004947, 0.004947)   (7: 0.005064, 0.005064)   (8: 0.006625, 0.006625)   (9: 0.006228, 0.006228)   (10: 0.006486, 0.006486)   
@@ -487,7 +486,7 @@ These input parameters may be categorized into general input (needed by all thre
   <summary><code>mrci</code> (optional)</summary>
   <strong>Default</strong>: <code>None</code>
   <br>
-  If given the format-conforming value, it prompts an MRCI calculation using MPS. The format is a dictionary with two entries, <code>'nactive2'</code> and <code>'order'</code>. <code>'nactive2'</code> specifies the number of the excitation orbitals. <code>'nactive2':10</code> means that the last 10 orbitals of the nCAS active orbitals are considered to be the excitation orbitals. <code>'order'</code> specifies the excitation order. Currently, the available options for <code>'order'</code> is 1, 2, and 3, representing single, single-double, and single-double-triple excitations, respectively.
+  If given the format-conforming value, it prompts an MRCI calculation using MPS. The format is a dictionary with two entries, <code>'nactive2'</code> and <code>'order'</code>. <code>'nactive2'</code> specifies the number of the excitation orbitals. <code>'nactive2':10</code> means that the last 10 orbitals of the nCAS active orbitals are considered to be the excitation orbitals. <code>'order'</code> specifies the excitation order. Currently, the available options for <code>'order'</code> are 1, 2, and 3, representing single, single-double, and single-double-triple excitations, respectively.
 </details>
 
 
@@ -874,7 +873,7 @@ These input parameters may be categorized into general input (needed by all thre
   <br>
   The sampling time points around which the observables will be calculated and printed. It accepts three formats: a numpy vector of monotonically increasing time points, a tuple of the form <code>('steps', n)</code> with <code>n</code> an integer, and a tuple of the form <code>('delta', d)</code> with <code>d</code> a float. The <code>('steps', n)</code> format is used to choose sampling time points using a fixed interval <code>n</code>. <code>n = 1</code> means that the observables are calculated and printed exactly every time step. <code>n = 2</code> means that the observables are calculated and printed at every second time step. The <code>('delta', d)</code> format is used to choose sampling time points at a fixed time interval. <code>d = 0.01</code> means that the sampling time points are separated by 0.01 a.u. of time. Note that sampling times only tell the program approximately around which time points should observables be calculated. The actual time points when the observables are printed are those determined by dt which are the the closest to a particular te_sample. For example, if the only sampling time point is 12.6 and two propagation time points around it is 12.0 and 13.0, then the observables will be printed at t = 13.0. This means that the <code>('steps', n)</code> format produces sampling  time points that are exactly a subset of the propagation time points. If <code>dt</code> contains non-uniform time steps, however, the <code>('steps', n)</code> format will produce sampling time points which are not uniformly spaced (uniform spacing might desired for Fourier transform). To exact subset of the propagation time points which are not uniformly ensure uniformly spaced sampling points that are also the spaced (as is usually true because the first few time steps should typically be really short compared to at the later times), one can do
   
-  ```
+  ```python
   dt = [DT/m]*m + [DT/n]*n + [DT]
   te_sample = ('delta', p*dt[-1])
   ```
