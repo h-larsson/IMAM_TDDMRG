@@ -337,7 +337,7 @@ By default, the time-dependent MPS is also saved at the time points set by `te_s
 save_mps true
 save_1pdm false
 ```
-the program will save the MPS but not the 1pdm when it reaches the 66-th time point. The saved MPS and 1RDM are located under `<prefix>.sample/tevo-66`. Absent of a keyword is interpreted to have a `false` value, that is, had we not typed the second line, it would have the same effect of informing the program to save the MPS but not the 1RDM. Instead of `true`, one can use `t`, `1`, `yes`, or `y`. Likewise, `f`, `0`,  `no`, and `n` have the same effect as a `false`.
+the program will save the MPS but not the 1pdm when it reaches the 66-th time point. The saved MPS and 1RDM are located under `<prefix>.sample/tevo-66`. Absent keywords are interpreted to have a `false` value, e.g., had we not typed the second line in the snippet above, it would have had the same effect of informing the program to save the MPS but not the 1RDM. As for the accepted values, instead of `true`, one can use `t`, `1`, `yes`, or `y`. Likewise, `f`, `0`,  `no`, and `n` have the same effect as a `false`.
 
 
 
@@ -361,7 +361,7 @@ krylov_size = 'logbook'
 te_sample = 'logbook'
 te_in_singlet_embed = 'logbook'
 ```
-and add the following lines under the `do_timeevo` conditional block
+to the existing lines containing the same input parameters, and add the following lines under the `do_timeevo` conditional block.
 ```python
 mps_act0_dir = 'logbook'
 mps_act0_fname = 'logbook'
@@ -381,7 +381,7 @@ The definitions of input parameters recognized by TDDMRG-CM are listed below. So
   <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter is if this parameter is needed somewhere else in the input file.</li>
   <li>Use absolute paths for input parameters recognized by TDDMRG-CM. Consider using <code>os.path.abspath</code> to help you resolve the absolute path of a relative path.</li>
   <li>Don&#39t set the sampling times (through  <code>te_sample</code>) too close one after another (i.e., having too frequent printings of time-dependent quantities) if you set <code>te_save_mps</code> to <code>'overwrite'</code> (the default) or <code>'sample'</code>. As for the <code>'overwrite'</code> option, this increases the risk of corrupting the saved MPS files when the program is terminated (e.g. due to time runout) while a MPS saving process is still ongoing, a complete MPS saving process can span a few minutes. Since, the previous MPS is overwritten, if the current MPS is not successfully saved, you have basically lost ability to restart the simulation. While for <code>'sampled'</code>, too frequent MPS savings can take up a huge space.</li>
-  <li>Even if you follow the previous advice about sampling time, the option <code>'overwrite'</code> is still not totally fail-proof as program termination can happen when a MPS saving is in progress. As a general advice, if your simulation has been running for several days, consider saving the time-dependent MPS at a close future (e.g. 1-2 time steps ahead) using the [proble file](time-dependent-quantities) to serve as a safe checkpoint. Do this again after several days of further program run if it has not finished yet.
+  <li>Even if you follow the previous advice about sampling time, the option <code>'overwrite'</code> is still not totally fail-proof as program termination can still happen when a MPS saving is in progress. As a general advice, if your simulation has been running for several days, consider saving the time-dependent MPS at a close future (e.g. 1-2 sampling time points ahead) using the proble file to serve as a checkpoint and ensure that the MPS saving is completed by making sure that the line <code>The current MPS has been successfully saved under /path/to/probe/file/directory</code> is printed in the output. MPSs saved through probe files will not get overwritten since they are saved in their respective <code>&ltprefix&gt.sample/tevo-*</code> directory. If instead the program terminates during a MPS saving set through a probe file, the previous &#39normally&#39 saved MPS in <code>&ltprefix&gt.mps_t</code> can be used for restart since it does not get overwritten. Do this again after several days of further program run if it has not finished yet.
 </ol>
 These input parameters may be categorized into general input (needed by all three functionalities), ground state, annihilation operation, and time evolution.
 
