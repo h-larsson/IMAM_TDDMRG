@@ -4,7 +4,7 @@
 
 TDDMRG-CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG-CM.
 
-To run the program, you need to prepare an input file. The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
+To run the program, you need to prepare an input file containing the a list of input parameters with their assigned values (see [the input definitions below](#input-parameters)). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
 ```python
 import numpy as np
 ...
@@ -12,7 +12,7 @@ rdm = np.load('../rdm.npy')
 gs_occs = np.diag(rdm)
 ...
 ```
-The program views the variable `rdm` as an intermediate variable, and hence will not be affected by it nor aborts even though it is an unrecognized input variable. The downside of the above input design, however, is that any syntactical error inside the input file is not always indicated with the location where it happens.
+The program views the variable `rdm` as an intermediate variable, and hence will not be affected by it nor aborts even though it is an unrecognized input variable. While allowing for a flexible input value determination, the downside of the above input design, however, is that any syntactical error inside the input file is not always indicated with the location where it happens.
 
 ## Ground state DMRG
 
