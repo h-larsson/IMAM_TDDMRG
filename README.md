@@ -172,7 +172,7 @@ prev_logbook = GS_PATH + '/H2O.lb'
 ```
 which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbook file located under the parent directory to be used as a reference for several input parameters in the current input file. Input parameters assigned with `'logbook'` will take the value of the corresponding input parameters stored in the specified logbook file. For example, in the above input `basis` and `wfn_sym` will be assigned with `'cc-pvdz'` and `'A1'`, respectively. The use of logbook file is highly encouraged since it minimizes accidental errors in providing the correct value to some input parameters.
 
-The input parameters responsible for informing the program where to look for the input MPS are `ann_inmps_dir` (for the directory) and `ann_inmps_fname` (for the filename containing the information about the input MPS). The value assigned to `ann_inmps_fname` must be a file located under the directory path assigned to `ann_inmps_dir`. In the snippet above, only `ann_inmps_dir` is explicitly given. `ann_inmps_fname` is omitted because its default value is `GS_MPS_INFO`, which coincides with the default value for `gs_outmps_fname`, the parameter that controls the filename of MPS info file saved by the ground state task.
+The input parameters responsible for informing the program where to look for the input MPS are `ann_inmps_dir` (for the directory) and `ann_inmps_fname` (for the filename containing the information about the input MPS). The value assigned to `ann_inmps_fname` must be a file located under the directory path assigned to `ann_inmps_dir`. In the snippet above, only `ann_inmps_dir` is explicitly given, while `ann_inmps_fname` is omitted. Its omission means that the program will use its default value, `GS_MPS_INFO`, which coincides with the default value for `gs_outmps_fname`, the parameter that controls the filename of MPS info file saved by the ground state task.
 
 Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG-CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
 ```python
@@ -324,7 +324,7 @@ The parameter `complex_MPS_type` is set to `'full'` because the initial state is
 
 Parameters for time evolution is given under the `do_timeevo` block. Since entanglement will increase with time, the bond dimension is set to `600` which is higher than that of the initial state. For this example, we chose `tdvp` as the time integrator, another option is `rk4`, which, however, is less efficient than `tdvp`, and the printing interval of time-dependent quantities (see below) is every `5 * 0.04 = 0.2` atomic unit of time. The parameter `te_in_singlet_embed` tells the program that the initial MPS is in singlet-embedding format and that the actual MPS (that is embedded in a larger singlet MPS) has `nelCAS-1 = 7` active electrons.
 
-Similar to the case of annihilation task, the time evolution task also defines two input parameters that control the program on where to look for the initial MPS: `te_inmps_dir` (for the directory) and `te_inmps_fname` (for the MPS info file). `te_inmps_fname` is omitted above because its default value is `ANN_MPS_INFO`, which coincides with the default value for `def_ann_outmps_fname`, the parameter that controls the filename of output MPS info file of an annihilation task.
+Similar to the case of annihilation task, the time evolution task also defines two input parameters that control the program on where to look for the initial MPS: `te_inmps_dir` (for the directory) and `te_inmps_fname` (for the MPS info file). `te_inmps_fname` is omitted in the input script above because its default value is `ANN_MPS_INFO`, which coincides with the default value for `ann_outmps_fname`, the parameter that controls the filename of output MPS info file of an annihilation task.
 
 
 
@@ -332,7 +332,7 @@ Similar to the case of annihilation task, the time evolution task also defines t
 ### Time-depedent quantities
 There are four quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charges, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG-CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are printed into `<prefix>.mp`, `<prefix>.<n>.low`, and `<prefix>.ac`, respectively. Here, `n` is an integer starting from 1 that signifies the part number of the Lowdin partial charge files. There can be more than one Lowdin partial charge file depending on the number of atoms in the molecule. While the RDMs are saved in `<prefix>.sample/tevo-<m>` folders where `m` is a time point number. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are also saved into a numpy file, named `<prefix>.mp.npy`, `<prefix>.low.npy`, and `<prefix>.ac.npy`, respectively, for easier use in further analyses.
 
-By default, the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS and 1RDM at a certain future time by using 'probe files'. Probe files must be named `probe-<n>`, here `n`n is the step number. As an example, at present, the time evolution is processing the 60-th time step, if the sampling time points coincide with, e.g. the 61st, 66th, 71st, 76th ... etc time steps (you will know which step numbers tje sampling will be carried  out when you list the content of the `<prefix>.sample` folder), and user creates a probe file under `<prefix>.sample` directory and name it `probe-66`, when the program reaches the 66-th step, it will examine the content of the probe file, and check if any recognized keywords are found. The only recognized keywords to be typed inside a probe file are `save_mps` and `save_1pdm`, which are to be assigned with true or false. For example, if `probe-66` contains
+By default, the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, or when `te_sample = 'overwrite'`, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS and 1RDM at a certain future time by using 'probe files'. Probe files must be named `probe-<n>`, here `n`n is the step number. As an example, at present, the time evolution is processing the 60-th time step, if the sampling time points coincide with, e.g. the 61st, 66th, 71st, 76th ... etc time steps (you will know which step numbers tje sampling will be carried  out when you list the content of the `<prefix>.sample` folder), and user creates a probe file under `<prefix>.sample` directory and name it `probe-66`, when the program reaches the 66-th step, it will examine the content of the probe file, and check if any recognized keywords are found. The only recognized keywords to be typed inside a probe file are `save_mps` and `save_1pdm`, which are to be assigned with true or false. For example, if `probe-66` contains
 ```
 save_mps true
 save_1pdm false
@@ -344,17 +344,44 @@ the program will save the MPS but not the 1pdm when it reaches the 66-th time po
 
 
 ### Restarting a TDDMRG simulation
-Time evolution simulations using TDDMRG can take days or even weeks on ~50 cores already. For this reason, it is essential that users know how to restart a terminated TDDMRG job. Let's suppose that 
+Time evolution simulations using TDDMRG can take days or even weeks on ~50 cores already. For this reason, it is essential that users know how to restart a terminated TDDMRG job. Let's suppose that the TDDMRG simulation prepared with an input script above is terminated when the time reaches 4.0 atomic unit of time. You can run another TDDMRG simulation starting from the last MPS saved in a previous TDDMRG run, such as this one. To restart this simulation, make a new directory as a subdirectory of the previous TDDMRG simulation. Copy the previous TDDMRG input file into the newly created restart directory, make the following changes
+```python
+complex_MPS_type = 'logbook'
+wfn_sym = 'logbook'
+nelCAS = 'logbook'
+twos = 'logbook'
+te_inmps_dir = abspath(T0_PATH + '/H2O.mps_t')
+te_inmps_fname = 'mps_info.bin'
+te_max_D = 'logbook'
+tinit = 4.0
+tmax = 'logbook'
+dt = [fdt]
+te_method = 'logbook'
+krylov_size = 'logbook'
+te_sample = 'logbook'
+te_in_singlet_embed = 'logbook'
+```
+and add the following lines under the `do_timeevo` conditional block
+```python
+mps_act0_dir = 'logbook'
+mps_act0_fname = 'logbook'
+mps_act0_cpx = 'logbook'
+mps_act0_multi = 'logbook'
+```
 
 
+
+## Tools for analyses
 
 
 
 ## Input parameters
 The definitions of input parameters recognized by TDDMRG-CM are listed below. Some advices to keep in mind:
 <ol>												  
-  <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter if this parameter is needed somewhere else in the input file.</li>
+  <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter is if this parameter is needed somewhere else in the input file.</li>
   <li>Use absolute paths for input parameters recognized by TDDMRG-CM. Consider using <code>os.path.abspath</code> to help you resolve the absolute path of a relative path.</li>
+  <li>Don&#39t set the sampling times (through  <code>te_sample</code>) too close one after another (i.e., having too frequent printings of time-dependent quantities) if you set <code>te_save_mps</code> to <code>'overwrite'</code> (the default) or <code>'sample'</code>. As for the <code>'overwrite'</code> option, this increases the risk of corrupting the saved MPS files when the program is terminated (e.g. due to time runout) while a MPS saving process is still ongoing, a complete MPS saving process can span a few minutes. Since, the previous MPS is overwritten, if the current MPS is not successfully saved, you have basically lost ability to restart the simulation. While for <code>'sampled'</code>, too frequent MPS savings can take up a huge space.</li>
+  <li>Even if you follow the previous advice about sampling time, the option <code>'overwrite'</code> is still not totally fail-proof as program termination can happen when a MPS saving is in progress. As a general advice, if your simulation has been running for several days, consider saving the time-dependent MPS at a close future (e.g. 1-2 time steps ahead) using the [proble file](time-dependent-quantities) to serve as a safe checkpoint. Do this again after several days of further program run if it has not finished yet.
 </ol>
 These input parameters may be categorized into general input (needed by all three functionalities), ground state, annihilation operation, and time evolution.
 
@@ -883,7 +910,7 @@ These input parameters may be categorized into general input (needed by all thre
 
 <details>
   <summary><code>te_save_mps</code> (optional)</summary>
-  <strong>Default</strong>:
+  <strong>Default</strong>: <code>'overwrite'</code>
   <br>
   Determines how often the instantaneous MPS should be saved. The available options are:
   <ol>
