@@ -321,9 +321,9 @@ if do_timeevo:
     te_in_singlet_embed = (True, nelCAS-1)
 ```
 
-The parameter `complex_MPS_type` is set to `'full'` because the initial state is in full complex representation (due to the use of `ann_out_singlet_embed = True` in the annihilation simulation). `wfn_sym` is set to `'B1'` because $B_1$ the symmetry of the output MPS of the annihilation simulation, this can be checked in the `Quantum number information:` section in the annihilation output. `nelCAS` is given an explicit value of `8` instead of `7`. This is because the initial state is also in singlet-embedding representation. This also affects the value assigned to `twos`, which is `0`.
+The parameter `complex_MPS_type` is set to `'full'` because the initial state is in full complex representation (due to the use of `ann_out_singlet_embed = True` in the annihilation simulation). `wfn_sym` is set to `'B1'` because $B_1$ is the symmetry of the output MPS of the annihilation simulation, this can be checked in the `Quantum number information:` section in the annihilation output. `nelCAS` is given an explicit value of `8` instead of `7`. This is because the initial state is also in singlet-embedding representation. This also affects the value assigned to `twos`, which is `0`.
 
-Parameters for time evolution is given under the `do_timeevo` block. Since entanglement will increase with time, the bond dimension is set to `600` which is higher than that of the initial state. For this example, we chose `tdvp` as the time integrator, another option is `rk4`, which, however, is less efficient than `tdvp`, and the printing interval of time-dependent quantities (see below) is every `5 * 0.04 = 0.2` atomic unit of time. The parameter `te_in_singlet_embed` tells the program that the initial MPS is in singlet-embedding format and that the actual MPS (that is embedded in a larger singlet MPS) has `nelCAS-1 = 7` electrons.
+Parameters for time evolution is given under the `do_timeevo` block. Since entanglement will increase with time, the bond dimension is set to `600` which is higher than that of the initial state. For this example, we chose `tdvp` as the time integrator, another option is `rk4`, which, however, is less efficient than `tdvp`, and the printing interval of time-dependent quantities (see below) is every `5 * 0.04 = 0.2` atomic unit of time. The parameter `te_in_singlet_embed` tells the program that the initial MPS is in singlet-embedding format and that the actual MPS (that is embedded in a larger singlet MPS) has `nelCAS-1 = 7` active electrons.
 
 Similar to the case of annihilation task, the time evolution task also defines two input parameters that control the program on where to look for the initial MPS: `te_inmps_dir` (for the directory) and `te_inmps_fname` (for the MPS info file). `te_inmps_fname` is omitted above because its default value is `ANN_MPS_INFO`, which coincides with the default value for `def_ann_outmps_fname`, the parameter that controls the filename of output MPS info file of an annihilation task.
 
@@ -331,7 +331,14 @@ Similar to the case of annihilation task, the time evolution task also defines t
 
 
 ### Time-depedent quantities
-There are three quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charge, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG-CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. By default the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS at a certain future time by using 'probe files'.
+There are four quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charges, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG-CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are printed into `<prefix>.mp`, `<prefix>.<n>.low`, and `<prefix>.ac`, respectively. Here, `n` is an integer starting from 1 that signifies the part number of the Lowdin partial charge files. There can be more than one Lowdin partial charge file depending on the number of atoms in the molecule. While the RDMs are saved in `<prefix>.sample/tevo-<m>` folders where `m` is a time point number. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are also saved into a numpy file, named `<prefix>.mp.npy`, `<prefix>.low.npy`, and `<prefix>.ac.npy`, respectively, for easier use in further analyses.
+
+By default, the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS and 1RDM at a certain future time by using 'probe files'. Probe files must be named `probe-<n>`, here `n`n is the step number. As an example, at present, the time evolution is processing the 60-th time step, if the sampling time points coincide with, e.g. the 61st, 66th, 71st, 76th ... etc time steps (you will know which step numbers tje sampling will be carried  out when you list the content of the `<prefix>.sample` folder), and user creates a probe file under `<prefix>.sample` directory and name it `probe-66`, when the program reaches the 66-th step, it will examine the content of the probe file, and check if any recognized keywords are found. The only recognized keywords to be typed inside a probe file are `save_mps` and `save_1pdm`, which are to be assigned with true or false. For example, if `probe-66` contains
+```
+save_mps true
+save_1pdm false
+```
+the program will save the MPS but not the 1pdm when it reaches the 66-th time point. The saved MPS and 1RDM are located under `<prefix>.sample/tevo-66`. Absent of a keyword is interpreted to have a `false` value, that is, had we not typed the second line, it would have the same effect of informing the program to save the MPS but not the 1RDM. Instead of `true`, one can use `t`, `1`, `yes`, or `y`. Likewise, `f`, `0`,  `no`, and `n` have the same effect as a `false`.
 
 
 
@@ -340,9 +347,6 @@ There are three quantities that are printed by default throughout the time evolu
 ### Restarting a TDDMRG simulation
 Time evolution simulations using TDDMRG can take days or even weeks on ~50 cores already. For this reason, it is essential that users know how to restart a terminated TDDMRG job. Let's suppose that 
 
-
-
-## Probe file
 
 
 
