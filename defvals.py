@@ -1,5 +1,4 @@
 
-
 def_memory = 1E9
 def_verbose_lvl = 4
 def_prev_logbook = None

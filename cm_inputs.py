@@ -70,6 +70,12 @@ def get_inputs(inp_file):
     #   source file <pyscf_root>/pyscf/symm/param.py.
     inputs['wfn_sym'] = wfn_sym
 
+    # scratch:
+    try:
+        inputs['scratch'] = scratch
+    except NameError:
+        inputs['scratch'] = 'DEFINE_LATER'
+    
     # prev_logbook:
     #   The path to an existing logbook. This is used when you want to use the values of
     #   several input parameters from another simulation.

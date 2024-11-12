@@ -1,0 +1,70 @@
+#!/bin/bash
+#SBATCH --job-name H2O
+#SBATCH -o H2O.slurm.out
+#SBATCH --partition=test
+#SBATCH --nodes=1
+#SBATCH --time=01:00:00
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=5
+#SBATCH --mem=0
+#SBATCH --mail-type END,FAIL
+#SBATCH --mail-user iwahyutama@ucmerced.edu
+#SBATCH --no-requeue   ##NOTE: no restart after node failure
+# #SBATCH -p mainq
+
+cd $SLURM_SUBMIT_DIR
+
+
+thisDir=`pwd`
+SCRATCHDIR="/localscratch/iwahyutama/${SLURM_JOBID}_${SLURM_JOB_NAME}"
+export PYSCF_TMPDIR=$SCRATCHDIR
+mkdir -p $SCRATCHDIR
+
+
+
+echo "===================================================="
+echo "        Job ID is:        $SLURM_JOBID"
+echo "        Job name is:      $SLURM_JOB_NAME"
+echo "        Hostname is:      "`hostname`
+echo "        This dir is:      $thisDir"
+echo "        CPUs per Task is: $SLURM_CPUS_PER_TASK"
+echo "        loadedmodules:    $LOADEDMODULES"
+export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+echo "===================================================="
+early(){
+    echo "??????????????????????????"
+    echo "?? JOB TERMINATED EARLY ??"
+    echo "??????????????????????????"
+    #cleanUp
+    rm -rf $SCRATCHDIR
+}
+trap 'early' 1 2 9 15
+
+echo "removing previous slurm output"
+rm -f slurm*.out
+
+echo "python"
+which python3
+
+echo "===================================================="
+echo "= starting at `date`"
+echo "===================================================="
+export PYTHONUNBUFFERED=1
+export MKL_THREADING_LAYER=GNU 
+
+
+
+######### simulation
+quota -s > H2O.out
+get_orbs  H2O.py  >> H2O.out  2>&1
+quota -s >> H2O.out
+
+echo "===================================================="
+
+
+rm -rf $SCRATCHDIR
+
+echo "===================================================="
+echo "= done at `date`"
+echo "===================================================="

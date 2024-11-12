@@ -270,4 +270,11 @@ cython_debug/
 *.out
 *.app
 
+# Example simulations
+*.gs-mps/
+*.ann-mps/
+*.mps_t/
+tevo-*/
+*.jsub
+
 # End of https://mrkandreev.name/snippets/gitignore-generator/#C,C++,Linux,Python,Fortran

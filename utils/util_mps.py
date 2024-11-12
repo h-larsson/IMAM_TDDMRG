@@ -219,6 +219,10 @@ def saveMPStoDir(mps:bs.MPS|bs.MultiMPS, mpsSaveDir:str, MPI:MPICommunicator=Non
             copyIt(fnam, mpsSaveDir, MPI)
             if MPI is not None:
                 MPI.barrier()
+
+    _print('The current MPS has been successfully saved under ' +
+           os.path.abspath(mpsSaveDir) + '.')
+    
     return
 #################################################
 

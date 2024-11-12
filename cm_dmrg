@@ -120,8 +120,12 @@ _print('OMP_PLACES = ', os.environ.get("OMP_PLACES"))
 _print('OMP_PROC_BIND = ', os.environ.get("OMP_PROC_BIND"))
 
 #==== Scratch folder ====#
-def_scratch = WDIR + '/' + inputs['prefix'] + '.tmp'
-scratch = os.environ.get("ITDDMRG_TMPDIR", def_scratch)
+if inputs['scratch'] == 'DEFINE_LATER':
+    scratch = WDIR + '/' + inputs['prefix'] + '.tmp'
+    scratch = os.environ.get("ITDDMRG_TMPDIR", scratch)
+else:
+    scratch = inputs['scratch']
+logbook.update({'scratch':scratch})
 _print('Scratch directory = ', scratch)
 _print('Complex MPS type = ', inputs['complex_MPS_type'])
 
