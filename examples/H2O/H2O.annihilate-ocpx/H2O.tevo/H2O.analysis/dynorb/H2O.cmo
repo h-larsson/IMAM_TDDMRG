@@ -1,0 +1,894 @@
+Disk quotas for user iwahyutama (uid 100295): 
+     Filesystem   space   quota   limit   grace   files   quota   limit   grace
+storage01-ib:/scratch
+                     0K    500G    512G               1       0       0        
+storage01-ib:/data
+                   147G    500G    512G            586k       0       0        
+storage02-ib:/home
+                 24949M  71680M  76800M            550k       0       0        
+
+
+
+====================
+>>>>>> Step 1 <<<<<<
+====================
+
+
+
+
+====================
+>>>>>> Step 2 <<<<<<
+====================
+
+nCore =  1
+nCAS =  23
+No. of electrons =  10
+No. of CAS electrons =  7
+No. of AOs =  24
+Sz =  0.0
+Orbital path =  /home/iwahyutama/Programs/TDDMRG_CM/examples/H2O/H2O.orbitals/H2O.orb.npy
+Path containing time evolution data =  ('../../H2O.sample', '../../H2O.restart1/H2O.sample')
+No. of samples =  101
+0) Time point: 0.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-001
+    Trace of the loaded cation 1RDM =   7.00000000 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.55836578e-02
+    Average of abs. of imaginary components = 0.00000000e+00
+1) Time point: 0.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-010
+    Trace of the loaded cation 1RDM =   7.00000041 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.57302607e-02
+    Average of abs. of imaginary components = 1.04443438e-03
+2) Time point: 0.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-015
+    Trace of the loaded cation 1RDM =   7.00000120 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.61461756e-02
+    Average of abs. of imaginary components = 1.92772220e-03
+3) Time point: 0.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-020
+    Trace of the loaded cation 1RDM =   7.00000194 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.67346251e-02
+    Average of abs. of imaginary components = 2.54267071e-03
+4) Time point: 0.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-025
+    Trace of the loaded cation 1RDM =   7.00000273 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.73707431e-02
+    Average of abs. of imaginary components = 2.83655617e-03
+5) Time point: 1.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-030
+    Trace of the loaded cation 1RDM =   7.00000351 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79470079e-02
+    Average of abs. of imaginary components = 2.84272996e-03
+6) Time point: 1.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-035
+    Trace of the loaded cation 1RDM =   7.00000426 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.84111784e-02
+    Average of abs. of imaginary components = 2.72475510e-03
+7) Time point: 1.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-040
+    Trace of the loaded cation 1RDM =   7.00000500 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.87062908e-02
+    Average of abs. of imaginary components = 2.54479623e-03
+8) Time point: 1.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-045
+    Trace of the loaded cation 1RDM =   7.00000572 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.88347103e-02
+    Average of abs. of imaginary components = 2.29108052e-03
+9) Time point: 1.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-050
+    Trace of the loaded cation 1RDM =   7.00000639 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.88695536e-02
+    Average of abs. of imaginary components = 2.11312882e-03
+10) Time point: 2.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-055
+    Trace of the loaded cation 1RDM =   7.00000704 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.88169071e-02
+    Average of abs. of imaginary components = 2.06374234e-03
+11) Time point: 2.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-060
+    Trace of the loaded cation 1RDM =   7.00000764 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.87062272e-02
+    Average of abs. of imaginary components = 2.17087743e-03
+12) Time point: 2.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-065
+    Trace of the loaded cation 1RDM =   7.00000822 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.85527831e-02
+    Average of abs. of imaginary components = 2.37540456e-03
+13) Time point: 2.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-070
+    Trace of the loaded cation 1RDM =   7.00000879 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.84243207e-02
+    Average of abs. of imaginary components = 2.50822234e-03
+14) Time point: 2.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-075
+    Trace of the loaded cation 1RDM =   7.00000935 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.82965328e-02
+    Average of abs. of imaginary components = 2.53072608e-03
+15) Time point: 3.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-080
+    Trace of the loaded cation 1RDM =   7.00000988 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.82043319e-02
+    Average of abs. of imaginary components = 2.33636852e-03
+16) Time point: 3.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-085
+    Trace of the loaded cation 1RDM =   7.00001041 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.81348843e-02
+    Average of abs. of imaginary components = 2.03755575e-03
+17) Time point: 3.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-090
+    Trace of the loaded cation 1RDM =   7.00001091 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80653693e-02
+    Average of abs. of imaginary components = 1.75440949e-03
+18) Time point: 3.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-095
+    Trace of the loaded cation 1RDM =   7.00001141 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.79926990e-02
+    Average of abs. of imaginary components = 1.66027924e-03
+19) Time point: 3.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-100
+    Trace of the loaded cation 1RDM =   7.00001189 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79746890e-02
+    Average of abs. of imaginary components = 1.66279980e-03
+20) Time point: 4.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-105
+    Trace of the loaded cation 1RDM =   7.00001239 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.79895638e-02
+    Average of abs. of imaginary components = 1.70784866e-03
+21) Time point: 4.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-110
+    Trace of the loaded cation 1RDM =   7.00001289 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80439953e-02
+    Average of abs. of imaginary components = 1.84218933e-03
+22) Time point: 4.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-115
+    Trace of the loaded cation 1RDM =   7.00001340 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.81813420e-02
+    Average of abs. of imaginary components = 1.92601742e-03
+23) Time point: 4.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-120
+    Trace of the loaded cation 1RDM =   7.00001391 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.83736300e-02
+    Average of abs. of imaginary components = 1.99460000e-03
+24) Time point: 4.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-125
+    Trace of the loaded cation 1RDM =   7.00001440 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.85754263e-02
+    Average of abs. of imaginary components = 2.04606763e-03
+25) Time point: 5.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-130
+    Trace of the loaded cation 1RDM =   7.00001490 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.87192847e-02
+    Average of abs. of imaginary components = 2.00373927e-03
+26) Time point: 5.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-135
+    Trace of the loaded cation 1RDM =   7.00001540 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.88864912e-02
+    Average of abs. of imaginary components = 2.04080909e-03
+27) Time point: 5.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-140
+    Trace of the loaded cation 1RDM =   7.00001589 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.89571972e-02
+    Average of abs. of imaginary components = 2.19257601e-03
+28) Time point: 5.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-145
+    Trace of the loaded cation 1RDM =   7.00001638 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.89459977e-02
+    Average of abs. of imaginary components = 2.36204942e-03
+29) Time point: 5.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-150
+    Trace of the loaded cation 1RDM =   7.00001687 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.89033869e-02
+    Average of abs. of imaginary components = 2.36464361e-03
+30) Time point: 6.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-155
+    Trace of the loaded cation 1RDM =   7.00001732 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.87830502e-02
+    Average of abs. of imaginary components = 2.21336260e-03
+ 
+
+
+ >>>>>>>>>>>>>>>>>>>>>-<<<<<<<<<<<<<<<<<<<<<
+ >>>> WARNING <<>> WARNING <<>> WARNING <<<<
+ >>>>>>>>>>>>>>>>>>>>>-<<<<<<<<<<<<<<<<<<<<<
+   The data loaded from 
+       ../../H2O.restart1/H2O.sample/tevo-001
+   has a time point identical to the previous time point. Duplicate time point =    6.00000000
+ 
+
+
+   Data at this identical time point is consistent with the previous time point. This is good.
+
+31) Time point: 6.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-006
+    Trace of the loaded cation 1RDM =   7.00001779 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.85454406e-02
+    Average of abs. of imaginary components = 2.08049816e-03
+32) Time point: 6.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-011
+    Trace of the loaded cation 1RDM =   7.00001828 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.82533293e-02
+    Average of abs. of imaginary components = 2.02532247e-03
+33) Time point: 6.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-016
+    Trace of the loaded cation 1RDM =   7.00001875 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80603651e-02
+    Average of abs. of imaginary components = 1.84888555e-03
+34) Time point: 6.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-021
+    Trace of the loaded cation 1RDM =   7.00001925 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79041083e-02
+    Average of abs. of imaginary components = 1.70704386e-03
+35) Time point: 7.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-026
+    Trace of the loaded cation 1RDM =   7.00001977 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.77672121e-02
+    Average of abs. of imaginary components = 1.63867111e-03
+36) Time point: 7.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-031
+    Trace of the loaded cation 1RDM =   7.00002028 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.76448957e-02
+    Average of abs. of imaginary components = 1.79290818e-03
+37) Time point: 7.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-036
+    Trace of the loaded cation 1RDM =   7.00002080 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.75485546e-02
+    Average of abs. of imaginary components = 1.98330422e-03
+38) Time point: 7.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-041
+    Trace of the loaded cation 1RDM =   7.00002129 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.75466186e-02
+    Average of abs. of imaginary components = 2.14395848e-03
+39) Time point: 7.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-046
+    Trace of the loaded cation 1RDM =   7.00002180 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.77282167e-02
+    Average of abs. of imaginary components = 2.12858619e-03
+40) Time point: 8.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-051
+    Trace of the loaded cation 1RDM =   7.00002231 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79037238e-02
+    Average of abs. of imaginary components = 2.00044140e-03
+41) Time point: 8.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-056
+    Trace of the loaded cation 1RDM =   7.00002280 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80183800e-02
+    Average of abs. of imaginary components = 1.95820264e-03
+42) Time point: 8.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-061
+    Trace of the loaded cation 1RDM =   7.00002328 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.80268564e-02
+    Average of abs. of imaginary components = 2.05772680e-03
+43) Time point: 8.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-066
+    Trace of the loaded cation 1RDM =   7.00002377 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80058844e-02
+    Average of abs. of imaginary components = 2.10477735e-03
+44) Time point: 8.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-071
+    Trace of the loaded cation 1RDM =   7.00002425 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80145727e-02
+    Average of abs. of imaginary components = 2.13195224e-03
+45) Time point: 9.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-076
+    Trace of the loaded cation 1RDM =   7.00002472 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79823171e-02
+    Average of abs. of imaginary components = 2.16154875e-03
+46) Time point: 9.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-081
+    Trace of the loaded cation 1RDM =   7.00002517 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.79949597e-02
+    Average of abs. of imaginary components = 2.23315245e-03
+47) Time point: 9.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-086
+    Trace of the loaded cation 1RDM =   7.00002563 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80190120e-02
+    Average of abs. of imaginary components = 2.34295795e-03
+48) Time point: 9.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-091
+    Trace of the loaded cation 1RDM =   7.00002609 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80250221e-02
+    Average of abs. of imaginary components = 2.44733199e-03
+49) Time point: 9.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-096
+    Trace of the loaded cation 1RDM =   7.00002655 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80403708e-02
+    Average of abs. of imaginary components = 2.50789165e-03
+50) Time point: 10.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-101
+    Trace of the loaded cation 1RDM =   7.00002700 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80099253e-02
+    Average of abs. of imaginary components = 2.38213785e-03
+51) Time point: 10.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-106
+    Trace of the loaded cation 1RDM =   7.00002744 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.80050044e-02
+    Average of abs. of imaginary components = 2.15467713e-03
+52) Time point: 10.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-111
+    Trace of the loaded cation 1RDM =   7.00002786 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80268111e-02
+    Average of abs. of imaginary components = 1.83133808e-03
+53) Time point: 10.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-116
+    Trace of the loaded cation 1RDM =   7.00002827 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.79953925e-02
+    Average of abs. of imaginary components = 1.54740319e-03
+54) Time point: 10.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-121
+    Trace of the loaded cation 1RDM =   7.00002868 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.80703669e-02
+    Average of abs. of imaginary components = 1.19560866e-03
+55) Time point: 11.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-126
+    Trace of the loaded cation 1RDM =   7.00002909 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.81435381e-02
+    Average of abs. of imaginary components = 1.08365164e-03
+56) Time point: 11.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-131
+    Trace of the loaded cation 1RDM =   7.00002951 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.81571061e-02
+    Average of abs. of imaginary components = 1.28996466e-03
+57) Time point: 11.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-136
+    Trace of the loaded cation 1RDM =   7.00002996 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.82493459e-02
+    Average of abs. of imaginary components = 1.61846042e-03
+58) Time point: 11.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-141
+    Trace of the loaded cation 1RDM =   7.00003042 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.83350994e-02
+    Average of abs. of imaginary components = 1.82297407e-03
+59) Time point: 11.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-146
+    Trace of the loaded cation 1RDM =   7.00003091 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.84378131e-02
+    Average of abs. of imaginary components = 2.02636104e-03
+60) Time point: 12.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-151
+    Trace of the loaded cation 1RDM =   7.00003141 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.85167333e-02
+    Average of abs. of imaginary components = 2.13288472e-03
+61) Time point: 12.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-156
+    Trace of the loaded cation 1RDM =   7.00003190 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.85340744e-02
+    Average of abs. of imaginary components = 2.15410504e-03
+62) Time point: 12.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-161
+    Trace of the loaded cation 1RDM =   7.00003238 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.85061595e-02
+    Average of abs. of imaginary components = 2.19239641e-03
+63) Time point: 12.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-166
+    Trace of the loaded cation 1RDM =   7.00003286 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.83566130e-02
+    Average of abs. of imaginary components = 2.14031629e-03
+64) Time point: 12.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-171
+    Trace of the loaded cation 1RDM =   7.00003332 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.81223858e-02
+    Average of abs. of imaginary components = 1.98803732e-03
+65) Time point: 13.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-176
+    Trace of the loaded cation 1RDM =   7.00003379 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.77836762e-02
+    Average of abs. of imaginary components = 2.10542756e-03
+66) Time point: 13.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-181
+    Trace of the loaded cation 1RDM =   7.00003429 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.74274910e-02
+    Average of abs. of imaginary components = 2.18253180e-03
+67) Time point: 13.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-186
+    Trace of the loaded cation 1RDM =   7.00003478 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.72442689e-02
+    Average of abs. of imaginary components = 2.19239245e-03
+68) Time point: 13.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-191
+    Trace of the loaded cation 1RDM =   7.00003528 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.71953249e-02
+    Average of abs. of imaginary components = 2.11034175e-03
+69) Time point: 13.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-196
+    Trace of the loaded cation 1RDM =   7.00003579 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.72177125e-02
+    Average of abs. of imaginary components = 2.03083601e-03
+70) Time point: 14.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-201
+    Trace of the loaded cation 1RDM =   7.00003630 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.72536692e-02
+    Average of abs. of imaginary components = 2.00000934e-03
+71) Time point: 14.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-206
+    Trace of the loaded cation 1RDM =   7.00003679 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.73584853e-02
+    Average of abs. of imaginary components = 1.98072722e-03
+72) Time point: 14.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-211
+    Trace of the loaded cation 1RDM =   7.00003726 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.75000188e-02
+    Average of abs. of imaginary components = 1.95944704e-03
+73) Time point: 14.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-216
+    Trace of the loaded cation 1RDM =   7.00003770 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.76226847e-02
+    Average of abs. of imaginary components = 1.91120300e-03
+74) Time point: 14.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-221
+    Trace of the loaded cation 1RDM =   7.00003813 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.78596522e-02
+    Average of abs. of imaginary components = 1.82662532e-03
+75) Time point: 15.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-226
+    Trace of the loaded cation 1RDM =   7.00003856 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.81064645e-02
+    Average of abs. of imaginary components = 1.90851312e-03
+76) Time point: 15.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-231
+    Trace of the loaded cation 1RDM =   7.00003898 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.83029279e-02
+    Average of abs. of imaginary components = 1.90801993e-03
+77) Time point: 15.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-236
+    Trace of the loaded cation 1RDM =   7.00003940 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.84596221e-02
+    Average of abs. of imaginary components = 1.77134833e-03
+78) Time point: 15.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-241
+    Trace of the loaded cation 1RDM =   7.00003981 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.85810471e-02
+    Average of abs. of imaginary components = 1.67940165e-03
+79) Time point: 15.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-246
+    Trace of the loaded cation 1RDM =   7.00004023 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.86690752e-02
+    Average of abs. of imaginary components = 1.71510289e-03
+80) Time point: 16.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-251
+    Trace of the loaded cation 1RDM =   7.00004067 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.86794484e-02
+    Average of abs. of imaginary components = 1.81833642e-03
+81) Time point: 16.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-256
+    Trace of the loaded cation 1RDM =   7.00004111 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.86537654e-02
+    Average of abs. of imaginary components = 1.96403051e-03
+82) Time point: 16.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-261
+    Trace of the loaded cation 1RDM =   7.00004158 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.85952288e-02
+    Average of abs. of imaginary components = 2.23890682e-03
+83) Time point: 16.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-266
+    Trace of the loaded cation 1RDM =   7.00004203 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.85303869e-02
+    Average of abs. of imaginary components = 2.36977186e-03
+84) Time point: 16.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-271
+    Trace of the loaded cation 1RDM =   7.00004250 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.84576379e-02
+    Average of abs. of imaginary components = 2.32107332e-03
+85) Time point: 17.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-276
+    Trace of the loaded cation 1RDM =   7.00004296 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.83982914e-02
+    Average of abs. of imaginary components = 2.13753516e-03
+86) Time point: 17.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-281
+    Trace of the loaded cation 1RDM =   7.00004343 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.83019263e-02
+    Average of abs. of imaginary components = 1.81957825e-03
+87) Time point: 17.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-286
+    Trace of the loaded cation 1RDM =   7.00004391 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.82372554e-02
+    Average of abs. of imaginary components = 1.47836749e-03
+88) Time point: 17.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-291
+    Trace of the loaded cation 1RDM =   7.00004439 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.81506304e-02
+    Average of abs. of imaginary components = 1.22219399e-03
+89) Time point: 17.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-296
+    Trace of the loaded cation 1RDM =   7.00004488 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.80834867e-02
+    Average of abs. of imaginary components = 1.06803700e-03
+90) Time point: 18.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-301
+    Trace of the loaded cation 1RDM =   7.00004537 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.80304389e-02
+    Average of abs. of imaginary components = 1.39055576e-03
+91) Time point: 18.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-306
+    Trace of the loaded cation 1RDM =   7.00004584 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.79907140e-02
+    Average of abs. of imaginary components = 1.65141704e-03
+92) Time point: 18.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-311
+    Trace of the loaded cation 1RDM =   7.00004632 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.80079300e-02
+    Average of abs. of imaginary components = 1.77039113e-03
+93) Time point: 18.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-316
+    Trace of the loaded cation 1RDM =   7.00004681 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.81810117e-02
+    Average of abs. of imaginary components = 1.77556100e-03
+94) Time point: 18.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-321
+    Trace of the loaded cation 1RDM =   7.00004730 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.84194435e-02
+    Average of abs. of imaginary components = 1.81778167e-03
+95) Time point: 19.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-326
+    Trace of the loaded cation 1RDM =   7.00004779 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.87160409e-02
+    Average of abs. of imaginary components = 1.84878063e-03
+96) Time point: 19.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-331
+    Trace of the loaded cation 1RDM =   7.00004830 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.89514311e-02
+    Average of abs. of imaginary components = 1.85576371e-03
+97) Time point: 19.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-336
+    Trace of the loaded cation 1RDM =   7.00004883 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.90889596e-02
+    Average of abs. of imaginary components = 1.79110971e-03
+98) Time point: 19.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-341
+    Trace of the loaded cation 1RDM =   7.00004937 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.91139677e-02
+    Average of abs. of imaginary components = 1.64009785e-03
+99) Time point: 19.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-346
+    Trace of the loaded cation 1RDM =   7.00004994 (Re),   0.00000000 (Im)
+    Average of abs. of real components = 1.90159726e-02
+    Average of abs. of imaginary components = 1.58987892e-03
+100) Time point: 20.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-351
+    Trace of the loaded cation 1RDM =   7.00005052 (Re),  -0.00000000 (Im)
+    Average of abs. of real components = 1.87974027e-02
+    Average of abs. of imaginary components = 1.82255191e-03
+
+Trace of averaged hole DM =  0.9999999999999967
+Orthogonality test of natural orbitals:
+  Trace =  22.999999999999993
+  Off-diagonal sum =  -5.542233338928781e-13
+
+vvvvvvvvvv
+Density-matrix-adpated orbitals have been saved to ./H2O.dm.npy.
+^^^^^^^^^^
+
+
+
+DM-adapted orbitals AO coeffients:
+Orbital properties:
+-------------------------------------------------------------------------------------------------------------------------------
+  No.     Occupation         Energy     Irrep.    Six largest coefficients (value, center, spher.)
+-------------------------------------------------------------------------------------------------------------------------------
+    1            N/A            N/A     A1 / 0    (1.000926, O0, s)  (-0.002626, O0, s)  (-0.001709, O0, z)  
+                                                  (0.001257, O0, s)  (0.000619, H1, y)  (-0.000619, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    2            N/A            N/A     B1 / 2    (0.586269, O0, x)  (0.533249, O0, x)  (0.040191, H2, x)  
+                                                  (0.040191, H1, x)  (-0.014327, O0, xz)  (0.000000, H2, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    3            N/A            N/A     B2 / 3    (-0.556649, H2, s)  (0.556649, H1, s)  (-0.354995, H2, s)  
+                                                  (0.354995, H1, s)  (0.124751, O0, y)  (0.046428, H1, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    4            N/A            N/A     B2 / 3    (0.809681, O0, y)  (0.534134, H2, s)  (-0.534134, H1, s)  
+                                                  (0.175093, O0, y)  (-0.102594, H2, s)  (0.102594, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    5            N/A            N/A     A1 / 0    (-0.544577, O0, z)  (-0.422842, O0, s)  (0.283305, H2, s)  
+                                                  (0.283305, H1, s)  (0.281951, H2, s)  (0.281951, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    6            N/A            N/A     A1 / 0    (-0.892584, O0, z)  (-0.260013, H2, s)  (-0.260013, H1, s)  
+                                                  (0.227085, O0, s)  (0.115918, H2, y)  (-0.115918, H1, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    7            N/A            N/A     A1 / 0    (1.014080, O0, s)  (0.544020, O0, z)  (-0.464891, O0, s)  
+                                                  (-0.318246, O0, s)  (-0.184416, O0, z)  (0.102533, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    8            N/A            N/A     A1 / 0    (1.155073, O0, s)  (0.460108, O0, z)  (-0.421685, O0, z)  
+                                                  (0.315911, O0, s)  (-0.298110, O0, s)  (-0.136204, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    9            N/A            N/A     B1 / 2    (1.022351, O0, x)  (-0.899940, O0, x)  (-0.086800, H2, x)  
+                                                  (-0.086800, H1, x)  (-0.044361, O0, xz)  (0.000000, H2, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   10            N/A            N/A     B2 / 3    (-1.735331, O0, y)  (-1.294374, H2, s)  (1.294374, H1, s)  
+                                                  (0.685670, O0, y)  (-0.204631, H2, s)  (0.204631, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   11            N/A            N/A     A1 / 0    (-2.356947, O0, s)  (1.280960, O0, s)  (0.913682, H2, s)  
+                                                  (0.913682, H1, s)  (0.788465, O0, z)  (0.578525, O0, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   12            N/A            N/A     A1 / 0    (2.129491, O0, s)  (-1.411711, O0, z)  (-1.367302, H1, s)  
+                                                  (-1.367302, H2, s)  (0.663991, H1, y)  (-0.663991, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   13            N/A            N/A     B2 / 3    (1.150722, H2, s)  (-1.150722, H1, s)  (0.989182, O0, y)  
+                                                  (0.671486, O0, y)  (0.632763, H1, y)  (0.632763, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   14            N/A            N/A     A2 / 1    (-0.828473, O0, xy)  (0.234666, H2, x)  (-0.234666, H1, x)  
+                                                  (0.000000, H2, z)  (0.000000, O0, yz)  (0.000000, O0, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   15            N/A            N/A     A1 / 0    (-0.616538, H2, s)  (-0.616538, H1, s)  (0.572619, O0, s)  
+                                                  (-0.366036, H2, z)  (-0.366036, H1, z)  (0.299684, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   16            N/A            N/A     A1 / 0    (1.854295, O0, s)  (0.949147, H1, y)  (-0.949147, H2, y)  
+                                                  (-0.700846, H2, z)  (-0.700846, H1, z)  (-0.645712, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   17            N/A            N/A     B1 / 2    (0.844897, H2, x)  (0.844897, H1, x)  (-0.790740, O0, x)  
+                                                  (0.096281, O0, xz)  (0.064864, O0, x)  (0.000000, H2, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   18            N/A            N/A     B1 / 2    (1.043409, O0, xz)  (0.182671, H2, x)  (0.182671, H1, x)  
+                                                  (-0.165305, O0, x)  (0.043193, O0, x)  (0.000000, H2, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   19            N/A            N/A     B2 / 3    (-0.785159, H2, s)  (0.785159, H1, s)  (0.652150, H2, s)  
+                                                  (-0.652150, H1, s)  (-0.424309, H1, y)  (-0.424309, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   20            N/A            N/A     A1 / 0    (-0.917008, O0, z^2)  (-0.705217, O0, x2-y2)  (0.644124, O0, s)  
+                                                  (-0.532610, H1, z)  (-0.532610, H2, z)  (-0.344640, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   21            N/A            N/A     A1 / 0    (-1.375583, O0, s)  (0.967322, O0, x2-y2)  (0.839422, H1, s)  
+                                                  (0.839422, H2, s)  (0.725921, O0, z)  (-0.574600, O0, z^2)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   22            N/A            N/A     B2 / 3    (-1.263028, O0, yz)  (1.019404, O0, y)  (0.754184, H2, s)  
+                                                  (-0.754184, H1, s)  (0.693395, H1, y)  (0.693395, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   23            N/A            N/A     B2 / 3    (-1.155742, O0, y)  (-0.743791, H2, z)  (0.743791, H1, z)  
+                                                  (-0.511708, H2, s)  (0.511708, H1, s)  (0.361144, H1, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   24            N/A            N/A     A2 / 1    (-0.746697, H2, x)  (0.746697, H1, x)  (-0.699229, O0, xy)  
+                                                  (0.000000, H2, z)  (0.000000, O0, yz)  (0.000000, O0, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ 
+*** Irrep. distribution ***
+     A1    11
+     B1     4
+     B2     7
+     A2     2
+
+
+
+DM-adapted orbital multipole components:
+----------------------------------------------------------------------------------------------------------
+  No.            x          y          z         xx         yy         zz         xy         yz         xz
+----------------------------------------------------------------------------------------------------------
+    1     0.000000   0.000000   0.201963   0.017734   0.017737   0.058524   0.000000   0.000000   0.000000
+    2     0.000000   0.000000   0.151394   1.481116   0.549925   0.540500   0.000000  -0.000000   0.000000
+    3     0.000000  -0.000000  -0.754750   1.063804   4.744184   1.676952   0.000000   0.000000   0.000000
+    4     0.000000  -0.000000  -0.066861   0.498914   1.859613   0.709265   0.000000  -0.000000   0.000000
+    5     0.000000   0.000000  -0.888810   1.050004   2.589566   2.657759   0.000000   0.000000   0.000000
+    6     0.000000  -0.000000  -0.257234   0.444402   0.888078   0.848855   0.000000  -0.000000   0.000000
+    7     0.000000  -0.000000   0.963414   1.166880   1.419568   1.963418   0.000000   0.000000   0.000000
+    8     0.000000   0.000000   0.567575   0.452870   0.537273   0.844035   0.000000  -0.000000   0.000000
+    9     0.000000  -0.000000   0.121481   1.923757   0.792835   0.719629   0.000000   0.000000   0.000000
+   10     0.000000  -0.000000  -0.334137   1.641700   6.015207   2.696552   0.000000   0.000000   0.000000
+   11     0.000000  -0.000000  -0.831632   2.373023   4.707627   3.499375   0.000000  -0.000000   0.000000
+   12     0.000000   0.000000  -0.438760   1.278367   1.522017   1.638824   0.000000   0.000000   0.000000
+   13     0.000000   0.000000  -0.216436   0.524563   2.275690   1.171217   0.000000  -0.000000   0.000000
+   14     0.000000  -0.000000   0.015789   0.706567   0.942443   0.339222   0.000000   0.000000   0.000000
+   15     0.000000  -0.000000  -0.637473   0.776490   2.588893   1.295001   0.000000  -0.000000   0.000000
+   16     0.000000   0.000000  -0.894223   0.740827   3.920031   1.929783   0.000000   0.000000   0.000000
+   17     0.000000   0.000000  -0.533074   1.595666   2.444644   1.192781   0.000000   0.000000   0.000000
+   18     0.000000   0.000000   0.210049   0.653262   0.267245   0.674308   0.000000   0.000000   0.000000
+   19     0.000000  -0.000000  -0.568531   1.166463   4.560369   1.887454   0.000000  -0.000000   0.000000
+   20     0.000000   0.000000   0.045829   0.269659   1.267994   0.886255   0.000000  -0.000000   0.000000
+   21     0.000000   0.000000   0.157627   0.756132   0.455925   0.667973   0.000000  -0.000000   0.000000
+   22     0.000000   0.000000   0.026058   0.474311   2.186769   1.232699   0.000000   0.000000   0.000000
+   23     0.000000  -0.000000  -0.651274   0.525853   2.892132   1.792616   0.000000  -0.000000   0.000000
+   24     0.000000   0.000000  -0.662872   0.974723   2.515258   1.022952   0.000000   0.000000   0.000000
+
+
+DM-adapted orbital atomic populations:
+----------------------------------------
+  No.           O1         H2         H3
+----------------------------------------
+    1     0.990695   0.004653   0.004653
+    2     0.920535   0.039733   0.039733
+    3     0.272840   0.363580   0.363580
+    4     0.706007   0.146997   0.146997
+    5     0.452269   0.273865   0.273865
+    6     0.765748   0.117126   0.117126
+    7     0.650488   0.174756   0.174756
+    8     0.918357   0.040822   0.040822
+    9     0.935826   0.032087   0.032087
+   10     0.610779   0.194610   0.194610
+   11     0.592739   0.203630   0.203630
+   12     0.398353   0.300823   0.300823
+   13     0.344849   0.327576   0.327576
+   14     0.769598   0.115201   0.115201
+   15     0.191367   0.404317   0.404317
+   16     0.269130   0.365435   0.365435
+   17     0.148086   0.425957   0.425957
+   18     0.995553   0.002223   0.002223
+   19     0.193980   0.403010   0.403010
+   20     0.853066   0.073467   0.073467
+   21     0.917787   0.041106   0.041106
+   22     0.740072   0.129964   0.129964
+   23     0.131473   0.434263   0.434263
+   24     0.230402   0.384799   0.384799
+
+
+
+
+====================
+>>>>>> Step 3 <<<<<<
+====================
+
+nCore =  1
+No. of electrons =  10
+No. of AOs =  24
+Sz =  0.0
+Computing correction orbitals:
+No. of retained vectors =  14  out of  14  vectors.
+Computing excitation orbitals:
+No. of retained vectors =  5  out of  23  vectors.
+Number of atomic orbitals =  24
+Number of core orbitals =  1
+Number of base orbitals =  4
+Number of correction orbitals =  14
+Number of excitation orbitals =  5
+Frobenius norms analysis (they should be numerically zero):
+  Frobenius norm of overlap matrix between base and correction orbitals =  3.742264e-13
+  Frobenius norm of overlap matrix between correction and excitation orbitals =  1.270301e-14
+  Frobenius norm of overlap matrix between base and excitation orbitals =  7.213987e-15
+Orthogonality test of the output orbitals:
+  Trace = 24.00000000  
+  Off-diagonal sum = -0.00000000  
+
+vvvvvvvvvv
+Hole-density-matrix-adpated orbitals have been saved to ./H2O.hdm.npy.
+^^^^^^^^^^
+
+
+
+Hole-DM-adapted orbitals AO coeffients:
+Orbital properties:
+-------------------------------------------------------------------------------------------------------------------------------
+  No.     Occupation         Energy     Irrep.    Six largest coefficients (value, center, spher.)
+-------------------------------------------------------------------------------------------------------------------------------
+    1            N/A            N/A     A1 / 0    (1.000926, O0, s)  (-0.002626, O0, s)  (-0.001709, O0, z)  
+                                                  (0.001257, O0, s)  (0.000619, H1, y)  (-0.000619, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    2            N/A            N/A     B1 / 2    (0.628550, O0, x)  (0.496496, O0, x)  (0.032951, H2, x)  
+                                                  (0.032951, H1, x)  (-0.017901, O0, xz)  (0.000000, H2, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    3            N/A            N/A     A1 / 0    (0.552860, O0, z)  (0.354701, O0, z)  (-0.247735, H2, s)  
+                                                  (-0.247735, H1, s)  (0.205543, O0, s)  (-0.043601, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    4            N/A            N/A     B2 / 3    (0.493830, O0, y)  (-0.335835, H2, s)  (0.335835, H1, s)  
+                                                  (0.196319, O0, y)  (-0.089924, H2, s)  (0.089924, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    5            N/A            N/A     B2 / 3    (0.881003, O0, y)  (0.575634, H2, s)  (-0.575634, H1, s)  
+                                                  (0.180619, H2, s)  (-0.180619, H1, s)  (0.060637, O0, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    6            N/A            N/A     B1 / 2    (-0.966755, O0, x)  (0.951814, O0, x)  (0.090242, H2, x)  
+                                                  (0.090242, H1, x)  (0.042790, O0, xz)  (-0.000000, O0, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    7            N/A            N/A     B1 / 2    (0.859796, H1, x)  (0.859796, H2, x)  (-0.803684, O0, x)  
+                                                  (0.415669, O0, xz)  (0.074171, O0, x)  (-0.000000, O0, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    8            N/A            N/A     A1 / 0    (-2.013007, O0, s)  (1.404601, H1, s)  (1.404601, H2, s)  
+                                                  (1.200132, O0, z)  (0.572329, O0, s)  (0.312859, O0, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+    9            N/A            N/A     A1 / 0    (-0.907936, O0, s)  (0.886065, O0, s)  (0.681064, O0, z)  
+                                                  (0.657709, H1, s)  (0.657709, H2, s)  (-0.376117, O0, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   10            N/A            N/A     A1 / 0    (0.729408, O0, z)  (-0.418763, O0, z)  (-0.410010, O0, s)  
+                                                  (0.374820, H2, s)  (0.374820, H1, s)  (0.150266, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   11            N/A            N/A     A1 / 0    (0.674847, O0, s)  (-0.666435, O0, z)  (0.514905, O0, s)  
+                                                  (0.483376, O0, z)  (-0.456041, H1, s)  (-0.456041, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   12            N/A            N/A     A1 / 0    (2.244131, O0, s)  (-1.357636, O0, s)  (-0.656463, O0, s)  
+                                                  (-0.476303, H1, s)  (-0.476303, H2, s)  (0.098630, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   13            N/A            N/A     A1 / 0    (-1.174531, O0, s)  (0.883315, O0, z)  (-0.683786, H1, y)  
+                                                  (0.683786, H2, y)  (0.526332, H1, s)  (0.526332, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   14            N/A            N/A     A1 / 0    (-1.743119, O0, s)  (-0.921895, H1, y)  (0.921895, H2, y)  
+                                                  (0.698884, H1, z)  (0.698884, H2, z)  (0.598566, O0, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   15            N/A            N/A     A2 / 1    (-0.828473, O0, xy)  (0.234666, H2, x)  (-0.234666, H1, x)  
+                                                  (0.000000, O0, yz)  (0.000000, O0, y)  (0.000000, H2, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   16            N/A            N/A     B2 / 3    (-1.986841, O0, y)  (-1.127035, H2, s)  (1.127035, H1, s)  
+                                                  (0.642687, H1, s)  (-0.642687, H2, s)  (-0.411967, H1, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   17            N/A            N/A     B2 / 3    (-0.947654, H1, s)  (0.947654, H2, s)  (0.788892, H1, s)  
+                                                  (-0.788892, H2, s)  (-0.495257, H1, y)  (-0.495257, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   18            N/A            N/A     B2 / 3    (1.037248, H1, s)  (-1.037248, H2, s)  (-0.786915, H1, y)  
+                                                  (-0.786915, H2, y)  (-0.733041, O0, y)  (0.616308, H1, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   19            N/A            N/A     B2 / 3    (-1.127215, O0, yz)  (-0.786046, H1, s)  (0.786046, H2, s)  
+                                                  (0.606901, O0, y)  (0.324505, H1, y)  (0.324505, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   20            N/A            N/A     B1 / 2    (0.961881, O0, xz)  (-0.088825, H2, x)  (-0.088825, H1, x)  
+                                                  (0.088508, O0, x)  (0.020907, O0, x)  (0.000000, O0, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   21            N/A            N/A     A1 / 0    (1.056320, O0, z^2)  (0.672820, O0, s)  (-0.600489, O0, z)  
+                                                  (-0.410946, H2, s)  (-0.410946, H1, s)  (-0.284256, H2, y)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   22            N/A            N/A     A1 / 0    (1.500706, O0, s)  (-1.186998, O0, x2-y2)  (-0.857831, H1, s)  
+                                                  (-0.857831, H2, s)  (-0.472691, H2, z)  (-0.472691, H1, z)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   23            N/A            N/A     A2 / 1    (-0.746697, H2, x)  (0.746697, H1, x)  (-0.699229, O0, xy)  
+                                                  (0.000000, O0, x)  (-0.000000, O0, y)  (0.000000, H1, s)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+   24            N/A            N/A     B2 / 3    (-1.403443, O0, y)  (0.797556, H1, s)  (-0.797556, H2, s)  
+                                                  (0.712039, H1, z)  (-0.712039, H2, z)  (0.365949, O0, yz)  
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ 
+*** Irrep. distribution ***
+     A1    11
+     B1     4
+     B2     7
+     A2     2
+
+
+
+Hole-DM-adapted orbital multipole components:
+----------------------------------------------------------------------------------------------------------
+  No.            x          y          z         xx         yy         zz         xy         yz         xz
+----------------------------------------------------------------------------------------------------------
+    1     0.000000   0.000000   0.201963   0.017734   0.017737   0.058524   0.000000   0.000000   0.000000
+    2     0.000000  -0.000000   0.157724   1.253652   0.458376   0.459970   0.000000  -0.000000   0.000000
+    3     0.000000   0.000000  -0.143642   0.419875   0.753043   1.306122   0.000000  -0.000000   0.000000
+    4     0.000000   0.000000  -0.198625   0.420063   1.790015   0.581971   0.000000   0.000000   0.000000
+    5     0.000000  -0.000000  -0.346707   0.369926   2.031891   0.901177   0.000000   0.000000   0.000000
+    6     0.000000  -0.000000   0.114634   2.149487   0.885423   0.800118   0.000000   0.000000  -0.000000
+    7    -0.000000   0.000000  -0.536703   1.595675   2.452930   1.161182   0.000000  -0.000000  -0.000000
+    8     0.000000   0.000000  -0.647739   1.502113   1.351756   1.388880   0.000000  -0.000000  -0.000000
+    9    -0.000000   0.000000  -0.017811   1.598846   3.017769   2.491134   0.000000  -0.000000  -0.000000
+   10     0.000000   0.000000  -0.880193   1.071918   2.719509   2.237141  -0.000000   0.000000  -0.000000
+   11    -0.000000  -0.000000   0.347842   1.013184   1.714526   1.712300   0.000000  -0.000000  -0.000000
+   12    -0.000000   0.000000   0.189900   1.425073   1.937080   2.023652  -0.000000  -0.000000  -0.000000
+   13     0.000000  -0.000000  -0.370462   0.511908   2.757203   1.588400  -0.000000  -0.000000  -0.000000
+   14    -0.000000   0.000000  -0.912711   0.745607   3.896504   1.925840   0.000000  -0.000000  -0.000000
+   15     0.000000   0.000000   0.015789   0.706567   0.942443   0.339222   0.000000   0.000000  -0.000000
+   16    -0.000000   0.000000  -0.055046   1.435018   5.053747   2.556416   0.000000   0.000000  -0.000000
+   17     0.000000  -0.000000  -0.809382   1.385685   5.963159   2.234958  -0.000000  -0.000000  -0.000000
+   18    -0.000000   0.000000  -0.770474   1.298881   5.547460   2.168045   0.000000  -0.000000  -0.000000
+   19     0.000000   0.000000   0.023240   0.359979   1.351883   1.106672  -0.000000  -0.000000   0.000000
+   20    -0.000000  -0.000000   0.214196   0.654988   0.257921   0.705947   0.000000   0.000000  -0.000000
+   21    -0.000000  -0.000000   0.143027   0.485779   0.592852   0.986621  -0.000000   0.000000  -0.000000
+   22     0.000000  -0.000000   0.078104   0.534350   1.156731   0.571188  -0.000000  -0.000000  -0.000000
+   23     0.000000  -0.000000  -0.662872   0.974723   2.515258   1.022952  -0.000000   0.000000  -0.000000
+   24     0.000000   0.000000  -0.408939   0.626056   2.795810   1.617516   0.000000  -0.000000   0.000000
+
+
+Hole-DM-adapted orbital atomic populations:
+----------------------------------------
+  No.           O1         H2         H3
+----------------------------------------
+    1     0.990695   0.004653   0.004653
+    2     0.933589   0.033205   0.033205
+    3     0.773606   0.113197   0.113197
+    4     0.616484   0.191758   0.191758
+    5     0.544573   0.227713   0.227713
+    6     0.922110   0.038945   0.038945
+    7     0.194179   0.402911   0.402911
+    8     0.429361   0.285319   0.285319
+    9     0.507292   0.246354   0.246354
+   10     0.462422   0.268789   0.268789
+   11     0.775026   0.112487   0.112487
+   12     0.822443   0.088778   0.088778
+   13     0.198548   0.400726   0.400726
+   14     0.266014   0.366993   0.366993
+   15     0.769598   0.115201   0.115201
+   16     0.642409   0.178795   0.178795
+   17     0.085966   0.457017   0.457017
+   18     0.208166   0.395917   0.395917
+   19     0.690862   0.154569   0.154569
+   20     0.950122   0.024939   0.024939
+   21     0.931050   0.034475   0.034475
+   22     0.843542   0.078229   0.078229
+   23     0.230402   0.384799   0.384799
+   24     0.211540   0.394230   0.394230
+
+Disk quotas for user iwahyutama (uid 100295): 
+     Filesystem   space   quota   limit   grace   files   quota   limit   grace
+storage01-ib:/scratch
+                     0K    500G    512G               1       0       0        
+storage01-ib:/data
+                   147G    500G    512G            586k       0       0        
+storage02-ib:/home
+                 24949M  71680M  76800M            550k       0       0        

@@ -1,0 +1,439 @@
+Disk quotas for user iwahyutama (uid 100295): 
+     Filesystem   space   quota   limit   grace   files   quota   limit   grace
+storage01-ib:/scratch
+                     0K    500G    512G               1       0       0        
+storage01-ib:/data
+                   147G    500G    512G            586k       0       0        
+storage02-ib:/home
+                 24949M  71680M  76800M            550k       0       0        
+
+
+
+
+*** Printing hole density in 3D space ***
+0) Time point: 0.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-001
+    Trace of the loaded cation 1RDM =   7.00000000 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-001/hdens_vol-000.tvl.cube
+1) Time point: 0.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-010
+    Trace of the loaded cation 1RDM =   7.00000041 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-010/hdens_vol-001.tvl.cube
+2) Time point: 0.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-015
+    Trace of the loaded cation 1RDM =   7.00000120 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-015/hdens_vol-002.tvl.cube
+3) Time point: 0.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-020
+    Trace of the loaded cation 1RDM =   7.00000194 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-020/hdens_vol-003.tvl.cube
+4) Time point: 0.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-025
+    Trace of the loaded cation 1RDM =   7.00000273 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-025/hdens_vol-004.tvl.cube
+5) Time point: 1.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-030
+    Trace of the loaded cation 1RDM =   7.00000351 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-030/hdens_vol-005.tvl.cube
+6) Time point: 1.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-035
+    Trace of the loaded cation 1RDM =   7.00000426 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-035/hdens_vol-006.tvl.cube
+7) Time point: 1.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-040
+    Trace of the loaded cation 1RDM =   7.00000500 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-040/hdens_vol-007.tvl.cube
+8) Time point: 1.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-045
+    Trace of the loaded cation 1RDM =   7.00000572 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-045/hdens_vol-008.tvl.cube
+9) Time point: 1.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-050
+    Trace of the loaded cation 1RDM =   7.00000639 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-050/hdens_vol-009.tvl.cube
+10) Time point: 2.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-055
+    Trace of the loaded cation 1RDM =   7.00000704 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-055/hdens_vol-010.tvl.cube
+11) Time point: 2.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-060
+    Trace of the loaded cation 1RDM =   7.00000764 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-060/hdens_vol-011.tvl.cube
+12) Time point: 2.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-065
+    Trace of the loaded cation 1RDM =   7.00000822 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-065/hdens_vol-012.tvl.cube
+13) Time point: 2.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-070
+    Trace of the loaded cation 1RDM =   7.00000879 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-070/hdens_vol-013.tvl.cube
+14) Time point: 2.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-075
+    Trace of the loaded cation 1RDM =   7.00000935 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-075/hdens_vol-014.tvl.cube
+15) Time point: 3.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-080
+    Trace of the loaded cation 1RDM =   7.00000988 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-080/hdens_vol-015.tvl.cube
+16) Time point: 3.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-085
+    Trace of the loaded cation 1RDM =   7.00001041 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-085/hdens_vol-016.tvl.cube
+17) Time point: 3.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-090
+    Trace of the loaded cation 1RDM =   7.00001091 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-090/hdens_vol-017.tvl.cube
+18) Time point: 3.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-095
+    Trace of the loaded cation 1RDM =   7.00001141 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-095/hdens_vol-018.tvl.cube
+19) Time point: 3.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-100
+    Trace of the loaded cation 1RDM =   7.00001189 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-100/hdens_vol-019.tvl.cube
+20) Time point: 4.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-105
+    Trace of the loaded cation 1RDM =   7.00001239 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-105/hdens_vol-020.tvl.cube
+21) Time point: 4.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-110
+    Trace of the loaded cation 1RDM =   7.00001289 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-110/hdens_vol-021.tvl.cube
+22) Time point: 4.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-115
+    Trace of the loaded cation 1RDM =   7.00001340 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-115/hdens_vol-022.tvl.cube
+23) Time point: 4.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-120
+    Trace of the loaded cation 1RDM =   7.00001391 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-120/hdens_vol-023.tvl.cube
+24) Time point: 4.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-125
+    Trace of the loaded cation 1RDM =   7.00001440 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-125/hdens_vol-024.tvl.cube
+25) Time point: 5.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-130
+    Trace of the loaded cation 1RDM =   7.00001490 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-130/hdens_vol-025.tvl.cube
+26) Time point: 5.20000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-135
+    Trace of the loaded cation 1RDM =   7.00001540 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-135/hdens_vol-026.tvl.cube
+27) Time point: 5.40000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-140
+    Trace of the loaded cation 1RDM =   7.00001589 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-140/hdens_vol-027.tvl.cube
+28) Time point: 5.60000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-145
+    Trace of the loaded cation 1RDM =   7.00001638 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-145/hdens_vol-028.tvl.cube
+29) Time point: 5.80000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-150
+    Trace of the loaded cation 1RDM =   7.00001687 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-150/hdens_vol-029.tvl.cube
+30) Time point: 6.00000 fs
+    Cation RDM1 loaded from ../../H2O.sample/tevo-155
+    Trace of the loaded cation 1RDM =   7.00001732 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.sample/tevo-155/hdens_vol-030.tvl.cube
+ 
+
+
+ >>>>>>>>>>>>>>>>>>>>>-<<<<<<<<<<<<<<<<<<<<<
+ >>>> WARNING <<>> WARNING <<>> WARNING <<<<
+ >>>>>>>>>>>>>>>>>>>>>-<<<<<<<<<<<<<<<<<<<<<
+   The data loaded from 
+       ../../H2O.restart1/H2O.sample/tevo-001
+   has a time point identical to the previous time point. Duplicate time point =    6.00000000
+ 
+
+
+   Data at this identical time point is consistent with the previous time point. This is good.
+
+31) Time point: 6.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-006
+    Trace of the loaded cation 1RDM =   7.00001779 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-006/hdens_vol-031.tvl.cube
+32) Time point: 6.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-011
+    Trace of the loaded cation 1RDM =   7.00001828 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-011/hdens_vol-032.tvl.cube
+33) Time point: 6.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-016
+    Trace of the loaded cation 1RDM =   7.00001875 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-016/hdens_vol-033.tvl.cube
+34) Time point: 6.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-021
+    Trace of the loaded cation 1RDM =   7.00001925 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-021/hdens_vol-034.tvl.cube
+35) Time point: 7.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-026
+    Trace of the loaded cation 1RDM =   7.00001977 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-026/hdens_vol-035.tvl.cube
+36) Time point: 7.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-031
+    Trace of the loaded cation 1RDM =   7.00002028 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-031/hdens_vol-036.tvl.cube
+37) Time point: 7.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-036
+    Trace of the loaded cation 1RDM =   7.00002080 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-036/hdens_vol-037.tvl.cube
+38) Time point: 7.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-041
+    Trace of the loaded cation 1RDM =   7.00002129 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-041/hdens_vol-038.tvl.cube
+39) Time point: 7.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-046
+    Trace of the loaded cation 1RDM =   7.00002180 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-046/hdens_vol-039.tvl.cube
+40) Time point: 8.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-051
+    Trace of the loaded cation 1RDM =   7.00002231 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-051/hdens_vol-040.tvl.cube
+41) Time point: 8.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-056
+    Trace of the loaded cation 1RDM =   7.00002280 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-056/hdens_vol-041.tvl.cube
+42) Time point: 8.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-061
+    Trace of the loaded cation 1RDM =   7.00002328 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-061/hdens_vol-042.tvl.cube
+43) Time point: 8.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-066
+    Trace of the loaded cation 1RDM =   7.00002377 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-066/hdens_vol-043.tvl.cube
+44) Time point: 8.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-071
+    Trace of the loaded cation 1RDM =   7.00002425 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-071/hdens_vol-044.tvl.cube
+45) Time point: 9.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-076
+    Trace of the loaded cation 1RDM =   7.00002472 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-076/hdens_vol-045.tvl.cube
+46) Time point: 9.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-081
+    Trace of the loaded cation 1RDM =   7.00002517 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-081/hdens_vol-046.tvl.cube
+47) Time point: 9.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-086
+    Trace of the loaded cation 1RDM =   7.00002563 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-086/hdens_vol-047.tvl.cube
+48) Time point: 9.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-091
+    Trace of the loaded cation 1RDM =   7.00002609 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-091/hdens_vol-048.tvl.cube
+49) Time point: 9.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-096
+    Trace of the loaded cation 1RDM =   7.00002655 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-096/hdens_vol-049.tvl.cube
+50) Time point: 10.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-101
+    Trace of the loaded cation 1RDM =   7.00002700 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-101/hdens_vol-050.tvl.cube
+51) Time point: 10.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-106
+    Trace of the loaded cation 1RDM =   7.00002744 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-106/hdens_vol-051.tvl.cube
+52) Time point: 10.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-111
+    Trace of the loaded cation 1RDM =   7.00002786 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-111/hdens_vol-052.tvl.cube
+53) Time point: 10.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-116
+    Trace of the loaded cation 1RDM =   7.00002827 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-116/hdens_vol-053.tvl.cube
+54) Time point: 10.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-121
+    Trace of the loaded cation 1RDM =   7.00002868 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-121/hdens_vol-054.tvl.cube
+55) Time point: 11.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-126
+    Trace of the loaded cation 1RDM =   7.00002909 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-126/hdens_vol-055.tvl.cube
+56) Time point: 11.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-131
+    Trace of the loaded cation 1RDM =   7.00002951 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-131/hdens_vol-056.tvl.cube
+57) Time point: 11.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-136
+    Trace of the loaded cation 1RDM =   7.00002996 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-136/hdens_vol-057.tvl.cube
+58) Time point: 11.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-141
+    Trace of the loaded cation 1RDM =   7.00003042 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-141/hdens_vol-058.tvl.cube
+59) Time point: 11.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-146
+    Trace of the loaded cation 1RDM =   7.00003091 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-146/hdens_vol-059.tvl.cube
+60) Time point: 12.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-151
+    Trace of the loaded cation 1RDM =   7.00003141 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-151/hdens_vol-060.tvl.cube
+61) Time point: 12.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-156
+    Trace of the loaded cation 1RDM =   7.00003190 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-156/hdens_vol-061.tvl.cube
+62) Time point: 12.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-161
+    Trace of the loaded cation 1RDM =   7.00003238 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-161/hdens_vol-062.tvl.cube
+63) Time point: 12.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-166
+    Trace of the loaded cation 1RDM =   7.00003286 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-166/hdens_vol-063.tvl.cube
+64) Time point: 12.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-171
+    Trace of the loaded cation 1RDM =   7.00003332 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-171/hdens_vol-064.tvl.cube
+65) Time point: 13.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-176
+    Trace of the loaded cation 1RDM =   7.00003379 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-176/hdens_vol-065.tvl.cube
+66) Time point: 13.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-181
+    Trace of the loaded cation 1RDM =   7.00003429 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-181/hdens_vol-066.tvl.cube
+67) Time point: 13.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-186
+    Trace of the loaded cation 1RDM =   7.00003478 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-186/hdens_vol-067.tvl.cube
+68) Time point: 13.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-191
+    Trace of the loaded cation 1RDM =   7.00003528 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-191/hdens_vol-068.tvl.cube
+69) Time point: 13.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-196
+    Trace of the loaded cation 1RDM =   7.00003579 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-196/hdens_vol-069.tvl.cube
+70) Time point: 14.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-201
+    Trace of the loaded cation 1RDM =   7.00003630 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-201/hdens_vol-070.tvl.cube
+71) Time point: 14.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-206
+    Trace of the loaded cation 1RDM =   7.00003679 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-206/hdens_vol-071.tvl.cube
+72) Time point: 14.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-211
+    Trace of the loaded cation 1RDM =   7.00003726 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-211/hdens_vol-072.tvl.cube
+73) Time point: 14.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-216
+    Trace of the loaded cation 1RDM =   7.00003770 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-216/hdens_vol-073.tvl.cube
+74) Time point: 14.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-221
+    Trace of the loaded cation 1RDM =   7.00003813 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-221/hdens_vol-074.tvl.cube
+75) Time point: 15.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-226
+    Trace of the loaded cation 1RDM =   7.00003856 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-226/hdens_vol-075.tvl.cube
+76) Time point: 15.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-231
+    Trace of the loaded cation 1RDM =   7.00003898 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-231/hdens_vol-076.tvl.cube
+77) Time point: 15.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-236
+    Trace of the loaded cation 1RDM =   7.00003940 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-236/hdens_vol-077.tvl.cube
+78) Time point: 15.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-241
+    Trace of the loaded cation 1RDM =   7.00003981 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-241/hdens_vol-078.tvl.cube
+79) Time point: 15.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-246
+    Trace of the loaded cation 1RDM =   7.00004023 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-246/hdens_vol-079.tvl.cube
+80) Time point: 16.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-251
+    Trace of the loaded cation 1RDM =   7.00004067 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-251/hdens_vol-080.tvl.cube
+81) Time point: 16.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-256
+    Trace of the loaded cation 1RDM =   7.00004111 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-256/hdens_vol-081.tvl.cube
+82) Time point: 16.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-261
+    Trace of the loaded cation 1RDM =   7.00004158 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-261/hdens_vol-082.tvl.cube
+83) Time point: 16.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-266
+    Trace of the loaded cation 1RDM =   7.00004203 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-266/hdens_vol-083.tvl.cube
+84) Time point: 16.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-271
+    Trace of the loaded cation 1RDM =   7.00004250 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-271/hdens_vol-084.tvl.cube
+85) Time point: 17.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-276
+    Trace of the loaded cation 1RDM =   7.00004296 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-276/hdens_vol-085.tvl.cube
+86) Time point: 17.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-281
+    Trace of the loaded cation 1RDM =   7.00004343 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-281/hdens_vol-086.tvl.cube
+87) Time point: 17.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-286
+    Trace of the loaded cation 1RDM =   7.00004391 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-286/hdens_vol-087.tvl.cube
+88) Time point: 17.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-291
+    Trace of the loaded cation 1RDM =   7.00004439 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-291/hdens_vol-088.tvl.cube
+89) Time point: 17.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-296
+    Trace of the loaded cation 1RDM =   7.00004488 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-296/hdens_vol-089.tvl.cube
+90) Time point: 18.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-301
+    Trace of the loaded cation 1RDM =   7.00004537 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-301/hdens_vol-090.tvl.cube
+91) Time point: 18.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-306
+    Trace of the loaded cation 1RDM =   7.00004584 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-306/hdens_vol-091.tvl.cube
+92) Time point: 18.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-311
+    Trace of the loaded cation 1RDM =   7.00004632 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-311/hdens_vol-092.tvl.cube
+93) Time point: 18.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-316
+    Trace of the loaded cation 1RDM =   7.00004681 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-316/hdens_vol-093.tvl.cube
+94) Time point: 18.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-321
+    Trace of the loaded cation 1RDM =   7.00004730 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-321/hdens_vol-094.tvl.cube
+95) Time point: 19.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-326
+    Trace of the loaded cation 1RDM =   7.00004779 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-326/hdens_vol-095.tvl.cube
+96) Time point: 19.20000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-331
+    Trace of the loaded cation 1RDM =   7.00004830 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-331/hdens_vol-096.tvl.cube
+97) Time point: 19.40000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-336
+    Trace of the loaded cation 1RDM =   7.00004883 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-336/hdens_vol-097.tvl.cube
+98) Time point: 19.60000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-341
+    Trace of the loaded cation 1RDM =   7.00004937 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-341/hdens_vol-098.tvl.cube
+99) Time point: 19.80000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-346
+    Trace of the loaded cation 1RDM =   7.00004994 (Re),   0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-346/hdens_vol-099.tvl.cube
+100) Time point: 20.00000 fs
+    Cation RDM1 loaded from ../../H2O.restart1/H2O.sample/tevo-351
+    Trace of the loaded cation 1RDM =   7.00005052 (Re),  -0.00000000 (Im)
+    Printing hole density into cube file ../../H2O.restart1/H2O.sample/tevo-351/hdens_vol-100.tvl.cube
+Disk quotas for user iwahyutama (uid 100295): 
+     Filesystem   space   quota   limit   grace   files   quota   limit   grace
+storage01-ib:/scratch
+                     0K    500G    512G               1       0       0        
+storage01-ib:/data
+                   147G    500G    512G            586k       0       0        
+storage02-ib:/home
+                 24949M  71680M  76800M            550k       0       0        

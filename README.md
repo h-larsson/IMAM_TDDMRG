@@ -2,9 +2,9 @@
 
 # TDDMRG-CM
 
-TDDMRG-CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG-CM.
+TDDMRG-CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG-CM. The typical workflow of TDDMRG-CM is that first the user runs a ground state DMRG calculation for a certain molecule. The converged ground state MPS is then fed into the annihilation operator simulation to remove an electron from a particular orbital in the ground state MPS. The output MPS of the annihilation operator task will then be used as the initial state for the subsequent TDDMRG simulation.
 
-To run the program, you need to prepare an input file containing the list of input parameters with their assigned values. The recognized input parameters are defined [below](#input-parameters). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
+Before running TDDMRG-CM, you need to prepare an input file containing the list of input parameters with their assigned values. The program is then run by executing `TDDMRG_CM/cm_dmrg input_file.py`. The recognized input parameters are defined [below](#input-parameters). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
 ```python
 import numpy as np
 ...
@@ -13,6 +13,17 @@ gs_occs = np.diag(rdm)
 ...
 ```
 The program views the variable `rdm` as an intermediate variable, and hence will not be affected by it nor aborts even though it is an unrecognized input variable. While allowing for a flexible input value determination, the downside of the above input design, however, is that any syntactical error inside the input file is not always indicated with the location where it happens.
+
+
+## ATTENTION - Change in input variable names
+Some older versions of TDDMRG-CM have a different naming for several input variables. These changed input parameters are
+1. `inp_coordinates` --> `atoms`
+2. `inp_basis` --> `basis`
+3. `inp_symmetry` --> `group`
+4. `inp_ecp` --> `ecp`
+where the keywords on the right of the arrows are the current ones. If you find an input script for TDDMRG-CM in which the keywords on the left of the arrows appear, and want to run it using the current version of TDDMRG-CM, then change them to their new names.
+
+
 
 ## Ground state DMRG
 
@@ -377,6 +388,7 @@ Since this simulation is to start from the previous TDDMRG, `te_inmps_dir` is se
 Apart from the main three functionalities described above, TDDMRG-CM also provides tools for analyzing the dynamics or for generating orbitals adapted to the dynamics (see [this preprint](https://arxiv.org/abs/2409.05959v2)). 
 
 ### Hole density
+The isosurface of hole density during the time evolution can be calculated using `TDDMRG_CM.observables.hole_dens.eval_volume`. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/hole_density/H2O.py` for an example of how to use it. If hole density slices are desired, users can use `TDDMRG_CM.observables.hole_dens.eval_xyplane`, `TDDMRG_CM.observables.hole_dens.eval_xzplane`, or `TDDMRG_CM.observables.hole_dens.eval_yzplane` to calculate the slice on a plane parallel to the xy, xz, or yz plane, respectively. While `TDDMRG_CM.observables.hole_dens.eval_xyplane` is available to calculate the slices at an arbitrary plane.
 
 ### Orbital occupancies
 
@@ -483,7 +495,7 @@ These input parameters may be categorized into general input (needed by all thre
   <summary><code>verbose_lvl</code> (optional)</summary>
   <strong>Default</strong>: 4
   <br>
-  A integer that controls the verbosity level of the output.
+  An integer that controls the verbosity level of the output.
 </details>
 
 <details>

@@ -28,7 +28,7 @@ if do_timeevo:
     te_inmps_fname = 'mps_info.bin'
     te_max_D = 'logbook'
     te_inmps_cpx = True
-    tinit = 4.0
+    tinit = 6.0
     tmax = 'logbook'
     fdt = 0.04
     dt = [fdt]

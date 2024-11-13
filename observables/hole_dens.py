@@ -236,6 +236,48 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
                 nelCAS=None, tnorm0=False, tnorm1=True, prefix='volume_hole', 
                 simtime_thr=1E-11, verbose=2, logbook=None):
 
+    '''
+    Evaluates the hole density in 3D space at each time point and then prints it
+    to a cube file for later plotting.
+
+    Args:
+      rdm0: numpy.ndarray of shape (2,nCAS,nCAS)
+        The 1RDM of the ground state of the neutral molecule. The first
+        dimension corresponds to the spin channel.
+      nc: 3-element tuple
+        Specifies the number of points to evaluate the hole density in space.
+
+    Kwargs:
+      mol: Mole object
+        Mole object describing the molecule.
+      tdir: tuple of strings
+        The strings are the paths to the different parts of the
+        simulation. There can be more than one part if there are restarts.
+      orb: numpy.ndarray of shape (mol.nao, nCore+nCAS)
+        The AO coefficients of active orbitals. The rows correspond to the AO
+        index while the columns correspond to the orbital index.
+      nCore: int
+        The number of core orbitals.
+      nCAS: int
+        The number of active orbitals.
+      nelCAS: int
+        The number of active electrons.
+      tnorm0: bool
+        If True, rdm0 will be normalized.
+      tnorm1: bool
+        If True, the time-dependent 1RDM of the cation at each time point will
+        be normalized.
+      prefix: string
+        The prefix for the generated cube files.
+      simtime_thr: float
+        The threshold to determine if two subsequent time points are identical.
+      verbose: int
+        Verbosity level of the ouput.
+      logbook: dict
+        Logbook file from a previous TDDMRG simulation. If mol, nCore, nCAS,
+        nelCAS, orb, and tdir are None or not given, logbook must be given from
+        which their values will be extracted.
+    '''
     assert len(nc) == 3
     
     if mol is None:
