@@ -17,10 +17,12 @@ The program views the variable `rdm` as an intermediate variable, and hence will
 
 ## ATTENTION - Change in input variable names
 Some older versions of TDDMRG-CM have a different naming for several input variables. These changed input parameters are
+
 1. `inp_coordinates` --> `atoms`
 2. `inp_basis` --> `basis`
 3. `inp_symmetry` --> `group`
 4. `inp_ecp` --> `ecp`
+
 where the keywords on the right of the arrows are the current ones. If you find an input script for TDDMRG-CM in which the keywords on the left of the arrows appear, and want to run it using the current version of TDDMRG-CM, then change them to their new names.
 
 
@@ -385,15 +387,16 @@ Since this simulation is to start from the previous TDDMRG, `te_inmps_dir` is se
 
 
 ## Tools for analyses
-Apart from the main three functionalities described above, TDDMRG-CM also provides tools for analyzing the dynamics or for generating orbitals adapted to the dynamics (see [this preprint](https://arxiv.org/abs/2409.05959v2)). 
+Apart from the main three functionalities described above, TDDMRG-CM also provides tools for analyzing the dynamics or for generating orbitals adapted to the dynamics (see [this preprint](https://arxiv.org/abs/2409.05959v2)).
 
 ### Hole density
-The isosurface of hole density during the time evolution can be calculated using `TDDMRG_CM.observables.hole_dens.eval_volume`. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/hole_density/H2O.py` for an example of how to use it. If hole density slices are desired, users can use `TDDMRG_CM.observables.hole_dens.eval_xyplane`, `TDDMRG_CM.observables.hole_dens.eval_xzplane`, or `TDDMRG_CM.observables.hole_dens.eval_yzplane` to calculate the slice on a plane parallel to the xy, xz, or yz plane, respectively. While `TDDMRG_CM.observables.hole_dens.eval_xyplane` is available to calculate the slices at an arbitrary plane.
+The volumetric of hole density during the time evolution can be calculated using `TDDMRG_CM.observables.hole_dens.eval_volume`. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/hole_density/H2O.py` for an example of how to use it. The volumetric hole density data (in `*.cube` file format) at each sampling time point calculated by `TDDMRG_CM.observables.hole_dens.eval_volume` will be printed into the respective sampling time `<prefix>.sample/tevo-*` directory with an extension `.tvl.cube`. If hole density slices are desired, users can use `TDDMRG_CM.observables.hole_dens.eval_xyplane`, `TDDMRG_CM.observables.hole_dens.eval_xzplane`, or `TDDMRG_CM.observables.hole_dens.eval_yzplane` to calculate the slice on a plane parallel to the xy, xz, or yz plane, respectively. While `TDDMRG_CM.observables.hole_dens.eval_plane` is available to calculate the slices at any arbitrary plane. The slice data at each sampling time point calculated by the four aforementioned in-plane evaluator functions will be printed into the respective sampling time `<prefix>.sample/tevo-*` directory with an extension `.tpl`.
 
 ### Orbital occupancies
+Occupancies of arbitrary orbitals at each sampling time point can be computed by using `TDDMRG_CM.observables.td_hocc.calc` function. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/occupancies/H2O.py` for an example of how to use it. The time-dependent occupancies are printed into a file with an extension of `.thoc`. Note that the orbitals whose occupancies are computed must be expanded by the same AO basis as that used in the TDDMRG simulation.
 
 ### Dynamics-adapted orbitals
-
+There are two dynamics-adapted orbitals supported by TDDMRG-CM: DM-adapted and hole-DM-adapted orbitals. These two types of orbitals are introduced in [this preprint](https://arxiv.org/abs/2409.05959v2). See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/dynorb/H2O.py` for an example of how to obtain them from a previous TDDMRG simulation. 
 
 
 ## Input parameters
