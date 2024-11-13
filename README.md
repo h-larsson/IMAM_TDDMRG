@@ -21,7 +21,7 @@ After making sure that PySCF and BLOCK2 have been successfully installed, perfor
 
 
 ## Running a TDDMRG_CM simulation
-Once installed, the program is then run by executing `TDDMRG_CM/cm_dmrg input_file.py`, where `input_file.py` is a Python script containing [input parameters](#input-parameters) for your simulation. You will most likely want to run TDDMRG_CM in parallel, ***at the moment, TDDMRG_CM only supports shared memory parallel execution***.
+Once installed, the program can be run by executing `cm_dmrg input_file.py`, where `input_file.py` is a Python script containing [input parameters](#input-parameters) for your simulation. You will most likely want to run TDDMRG_CM in parallel, ***at the moment, TDDMRG_CM only supports shared memory parallel execution***.
 
 The typical workflow of TDDMRG_CM is that first the user decides which molecule to simulate, determines its geometry, and calculates the site orbitals and save their atomic orbital (AO) coefficients (e.g. computed using PySCF) as a matrix in a numpy array file. The user runs a ground state DMRG calculation for the chosen molecule using the previously determined geometry and orbitals. The converged ground state MPS is then fed into the annihilation operator simulation to remove an electron from a particular orbital in the ground state MPS. The output MPS of the annihilation operator task will then be used as the initial state for the subsequent TDDMRG simulation.
 
