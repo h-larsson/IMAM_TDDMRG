@@ -1,10 +1,29 @@
 
 
-# TDDMRG-CM
+# TDDMRG_CM
 
-TDDMRG-CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG-CM. The typical workflow of TDDMRG-CM is that first the user runs a ground state DMRG calculation for a certain molecule. The converged ground state MPS is then fed into the annihilation operator simulation to remove an electron from a particular orbital in the ground state MPS. The output MPS of the annihilation operator task will then be used as the initial state for the subsequent TDDMRG simulation.
+TDDMRG_CM is a Python program designed to make the workflow of simulating charge migration using the time-dependent density matrix renormalization group (TDDMRG) easy and straightforward. It consists of three main functionalities: ground state DMRG, application of annihilation operator, and time evolution using TDDMRG. This program is built on top of BLOCK2 (https://github.com/block-hczhai/block2-preview) and PySCF (https://github.com/pyscf/pyscf), therefore, these two programs must already be installed before using TDDMRG_CM. 
 
-Before running TDDMRG-CM, you need to prepare an input file containing the list of input parameters with their assigned values. The program is then run by executing `TDDMRG_CM/cm_dmrg input_file.py`. The recognized input parameters are defined [below](#input-parameters). The input parsing environment of TDDMRG-CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
+
+## Installation from GitHub
+After making sure that PySCF and BLOCK2 have been successfully installed, perform the following steps to install TDDMRG_CM
+
+1. Create the directory where your local TDDMRG_CM git repository will be cloned (downloaded) to, and go to this directory.
+2. Run `git clone https://github.com/iswhy/TDDMRG_CM.git`, a directory called `TDDMRG_CM` will be created.
+3. Add the following lines to your `~/.bashrc` file
+```
+export PYTHONPATH=/path/to/TDDMRG_CM:$PYTHONPATH
+export PATH=/path/to/TDDMRG_CM:$PATH
+export PATH=/path/to/TDDMRG_CM/orbs_generate:$PATH
+export PATH=/path/to/TDDMRG_CM/observables:$PATH
+```
+where the `/path/to/TDDMRG_CM` is to be replaced with the actual path leading to the `TDDMRG_CM` directory resulting from Step 2 above.
+
+
+## Running a TDDMRG_CM simulation
+Once installed, the program is then run by executing `TDDMRG_CM/cm_dmrg input_file.py`, where `input_file.py` is a Python script containing [input parameters](#input-parameters) for your simulation. The typical workflow of TDDMRG_CM is that first the user decides which molecule to simulate, determine its geometry, and calculates the site orbitals and save their atomic orbital (AO) coefficients (e.g. computed using PySCF) as a matrix in a numpy array file. The the user runs a ground state DMRG calculation for the chosen molecule. The converged ground state MPS is then fed into the annihilation operator simulation to remove an electron from a particular orbital in the ground state MPS. The output MPS of the annihilation operator task will then be used as the initial state for the subsequent TDDMRG simulation.
+
+The recognized input parameters are defined [below](#input-parameters). The input parsing environment of TDDMRG_CM has been designed so that input files are essentially a normal Python `*.py` file.  This offers high flexibility for users in providing the values of input parameters to the program. Since it is an ordinary Python file, you can write the code to calculate the value of a certain input parameter right inside the input file. As an example, you want to initiate the ground state DMRG iterations from an MPS having a certain set of orbital occupancies (see `gs_occs` input definition below), and these occupancies are obtained from a separate (and less accurate) quantum chemistry calculation. Let's say that this other calculation returns a one-particle reduced density matrix (RDM) as a matrix named `rdm.npy` in the parent folder. Then, you can give a value to the `gs_occs` input parameter in the following manner inside your input file.
 ```python
 import numpy as np
 ...
@@ -16,20 +35,20 @@ The program views the variable `rdm` as an intermediate variable, and hence will
 
 
 ## ATTENTION - Change in input variable names
-Some older versions of TDDMRG-CM have a different naming for several input variables. These changed input parameters are
+Some older versions of TDDMRG_CM have a different naming for several input variables. These changed input parameters are
 
 1. `inp_coordinates` --> `atoms`
 2. `inp_basis` --> `basis`
 3. `inp_symmetry` --> `group`
 4. `inp_ecp` --> `ecp`
 
-where the keywords on the right of the arrows are the current ones. If you find an input script for TDDMRG-CM in which the keywords on the left of the arrows appear, and want to run it using the current version of TDDMRG-CM, then change them to their new names.
+where the keywords on the right of the arrows are the current ones. If you find an input script for TDDMRG_CM in which the keywords on the left of the arrows appear, and want to run it using the current version of TDDMRG_CM, then change them to their new names.
 
 
 
 ## Ground state DMRG
 
-This task computes the ground state energy using DMRG algorithm and optionally saves the final ground state MPS. The Python script below shows an example of a simple ground state calculation of the water molecule using TDDMRG-CM
+This task computes the ground state energy using DMRG algorithm and optionally saves the final ground state MPS. The Python script below shows an example of a simple ground state calculation of the water molecule using TDDMRG_CM
 ```python
 
 complex_MPS_type = 'hybrid'
@@ -141,7 +160,7 @@ ed. A logbook file stores information about the value of many variables (includi
 
 
 ## Annihilation operator
-Since charge migration happens in an ionized state, an important component of TDDMRG-CM is the application of annihilation operator to the MPS of an un-ionized state. The Python script below is an example of input file for annihilation operator task where the input MPS is the ground state MPS calculated above. Before creating this input file for annihilation task, make a directory under the directory of the ground state calculation previously, then create the input file under this new directory.
+Since charge migration happens in an ionized state, an important component of TDDMRG_CM is the application of annihilation operator to the MPS of an un-ionized state. The Python script below is an example of input file for annihilation operator task where the input MPS is the ground state MPS calculated above. Before creating this input file for annihilation task, make a directory under the directory of the ground state calculation previously, then create the input file under this new directory.
 ```python
 import numpy as np
 from os.path import abspath
@@ -187,7 +206,7 @@ which result in `prev_logbook = '../H2O.lb'` tells the program to load the logbo
 
 The input parameters responsible for informing the program where to look for the input MPS are `ann_inmps_dir` (for the directory) and `ann_inmps_fname` (for the filename containing the information about the input MPS). The value assigned to `ann_inmps_fname` must be a file located under the directory path assigned to `ann_inmps_dir`. In the snippet above, only `ann_inmps_dir` is explicitly given, while `ann_inmps_fname` is omitted. Its omission means that the program will use its default value, `GS_MPS_INFO`, which coincides with the default value for `gs_outmps_fname`, the parameter that controls the filename of MPS info file saved by the ground state task.
 
-Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG-CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
+Orbital ordering for annihilation task should be the same as the ordering of orbitals in the input MPS, which was in turn calculated during a ground state task. This why we have used `orb_order = 'logbook:orb_order_id'`. Note that the assigned value is not just `'logbook'`---had we used this, the program will pull an entry named `'orb_order'` from the loaded logbook, whose value is `'genetic'`, as calculated during the previous ground state task, and will prompt the program to recalculate the ordering using the genetic algorithm. The use of `X = 'logbook:var_name'` means that the program pulls the value of a variable named `var_name` and assigns it to the variable `X`. In our example, we are looking for a variable named `orb_order_id` because this variable stores the ordering indices calculated during the previous ground state simulation. TDDMRG_CM provides several utility functions to analyze or preview the content of a logbook file. See the example below.
 ```python
 from TDDMRG_CM.utils import util_logbook
 lb = util_logbook.read('H2O.lb')     # Loading a logbook given its path.
@@ -343,7 +362,7 @@ Similar to the case of annihilation task, the time evolution task also defines t
 
 
 ### Time-dependent quantities
-There are four quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charges, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG-CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are printed into `<prefix>.mp`, `<prefix>.<n>.low`, and `<prefix>.ac`, respectively. Here, `n` is an integer starting from 1 that signifies the part number of the Lowdin partial charge files. There can be more than one Lowdin partial charge file depending on the number of atoms in the molecule. While the RDMs are saved in `<prefix>.sample/tevo-<m>` folders where `m` is a time point number. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are also saved into a numpy file, named `<prefix>.mp.npy`, `<prefix>.low.npy`, and `<prefix>.ac.npy`, respectively, for easier use in further analyses.
+There are four quantities that are printed by default throughout the time evolution, they are dipole and quadrupole moments, Lowdin partial charges, autocorrelation function, and 1-particle RDM (1RDM). The 1RDM can then be used to calculate other observables not available in TDDMRG_CM which do not depend on higher order RDMs. These quantities are printed at the sampling time points, which is controlled by `te_sample` except for the autocorrelation function, which is printed at every time step. Refer to the definition of `te_sample` below for the available options and convention on which time points exactly are the above quantites printed. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are printed into `<prefix>.mp`, `<prefix>.<n>.low`, and `<prefix>.ac`, respectively. Here, `n` is an integer starting from 1 that signifies the part number of the Lowdin partial charge files. There can be more than one Lowdin partial charge file depending on the number of atoms in the molecule. While the RDMs are saved in `<prefix>.sample/tevo-<m>` folders where `m` is a time point number. The dipole and quadupole moments, Lowdin partial charges, and autocorrelation functions are also saved into a numpy file, named `<prefix>.mp.npy`, `<prefix>.low.npy`, and `<prefix>.ac.npy`, respectively, for easier use in further analyses.
 
 By default, the time-dependent MPS is also saved at the time points set by `te_sample`. In the default behavior, or when `te_sample = 'overwrite'`, the MPS from the previous sampling point is overwritten by the MPS at the current sampling point (see `te_save_mps`). It is also possible to save the time-dependent MPS and 1RDM at a certain future time by using 'probe files'. Probe files must be named `probe-<n>`, here `n`n is the step number. As an example, at present, the time evolution is processing the 60-th time step, if the sampling time points coincide with, e.g. the 61st, 66th, 71st, 76th ... etc time steps (you will know which step numbers tje sampling will be carried  out when you list the content of the `<prefix>.sample` folder), and user creates a probe file under `<prefix>.sample` directory and name it `probe-66`, when the program reaches the 66-th step, it will examine the content of the probe file, and check if any recognized keywords are found. The only recognized keywords to be typed inside a probe file are `save_mps` and `save_1pdm`, which are to be assigned with true or false. For example, if `probe-66` contains
 ```
@@ -387,7 +406,7 @@ Since this simulation is to start from the previous TDDMRG, `te_inmps_dir` is se
 
 
 ## Tools for analyses
-Apart from the main three functionalities described above, TDDMRG-CM also provides tools for analyzing the dynamics or for generating orbitals adapted to the dynamics (see [this preprint](https://arxiv.org/abs/2409.05959v2)).
+Apart from the main three functionalities described above, TDDMRG_CM also provides tools for analyzing the dynamics or for generating orbitals adapted to the dynamics (see [this preprint](https://arxiv.org/abs/2409.05959v2)).
 
 ### Hole density
 The volumetric of hole density during the time evolution can be calculated using `TDDMRG_CM.observables.hole_dens.eval_volume`. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/hole_density/H2O.py` for an example of how to use it. The volumetric hole density data (in `*.cube` file format) at each sampling time point calculated by `TDDMRG_CM.observables.hole_dens.eval_volume` will be printed into the respective sampling time `<prefix>.sample/tevo-*` directory with an extension `.tvl.cube`. If hole density slices are desired, users can use `TDDMRG_CM.observables.hole_dens.eval_xyplane`, `TDDMRG_CM.observables.hole_dens.eval_xzplane`, or `TDDMRG_CM.observables.hole_dens.eval_yzplane` to calculate the slice on a plane parallel to the xy, xz, or yz plane, respectively. While `TDDMRG_CM.observables.hole_dens.eval_plane` is available to calculate the slices at any arbitrary plane. The slice data at each sampling time point calculated by the four aforementioned in-plane evaluator functions will be printed into the respective sampling time `<prefix>.sample/tevo-*` directory with an extension `.tpl`.
@@ -396,14 +415,14 @@ The volumetric of hole density during the time evolution can be calculated using
 Hole occupancies of arbitrary orbitals at each sampling time point can be computed by using `TDDMRG_CM.observables.td_hocc.calc` function. See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/occupancies/H2O.py` for an example of how to use it. The time-dependent hole occupancies are printed into a file with an extension of `.thoc`. Note that the orbitals whose hole occupancies are computed must be expanded by the same AO basis as that used in the TDDMRG simulation.
 
 ### Dynamics-adapted orbitals
-There are two dynamics-adapted orbitals supported by TDDMRG-CM: DM-adapted and hole-DM-adapted orbitals. These two types of orbitals are introduced in [this preprint](https://arxiv.org/abs/2409.05959v2). See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/dynorb/H2O.py` for an example of how to obtain them from a previous TDDMRG simulation. 
+There are two dynamics-adapted orbitals supported by TDDMRG_CM: DM-adapted and hole-DM-adapted orbitals. These two types of orbitals are introduced in [this preprint](https://arxiv.org/abs/2409.05959v2). See the script `TDDMRG_CM/examples/H2O/H2O.annihilate-ocpx/H2O.tevo/H2O.analysis/dynorb/H2O.py` for an example of how to obtain them from a previous TDDMRG simulation. 
 
 
 ## Input parameters
-The definitions of input parameters recognized by TDDMRG-CM are listed below. Some advices to keep in mind:
+The definitions of input parameters recognized by TDDMRG_CM are listed below. Some advices to keep in mind:
 <ol>												  
   <li>Use logbook file as much as possible. One exception in which logbook cannot be used to get the value of a certain parameter is if this parameter is needed somewhere else in the input file.</li>
-  <li>Use absolute paths for input parameters recognized by TDDMRG-CM that accept a path, e.g. <code>orb_path</code>. Consider using <code>os.path.abspath</code> to help you resolve the absolute path of a relative path.</li>
+  <li>Use absolute paths for input parameters recognized by TDDMRG_CM that accept a path, e.g. <code>orb_path</code>. Consider using <code>os.path.abspath</code> to help you resolve the absolute path of a relative path.</li>
   <li>Don&#39t set the sampling times (through  <code>te_sample</code>) too close one after another (i.e., having too frequent printings of time-dependent quantities) if you set <code>te_save_mps</code> to <code>'overwrite'</code> (the default) or <code>'sample'</code>. As for the <code>'overwrite'</code> option, this increases the risk of corrupting the saved MPS files when the program is terminated (e.g. due to time runout) while a MPS saving process is still ongoing, a complete MPS saving process can span a few minutes. Since, the previous MPS is overwritten, if the current MPS is not successfully saved, you have basically lost ability to restart the simulation. While for <code>'sampled'</code>, too frequent MPS savings can take up a huge space.</li>
   <li>Even if you follow the previous advice about sampling time, the option <code>'overwrite'</code> is still not totally fail-proof as program termination can still happen when a MPS saving is in progress. As a general advice, if your simulation has been running for ~3 days, consider saving the time-dependent MPS at a close future (e.g. 1-2 sampling time points ahead) using the proble file to serve as a checkpoint and ensure that the MPS saving is completed by making sure that the line <code>The current MPS has been successfully saved under /path/to/probe/file/directory</code> is printed in the output. MPSs saved through probe files will not get overwritten since they are saved in their respective <code>&ltprefix&gt.sample/tevo-*</code> directory. If instead the program terminates during a MPS saving set through a probe file, the previous &#39normally&#39 saved MPS in <code>&ltprefix&gt.mps_t</code> can be used for restart since it does not get overwritten. Do this again after several days of further program run if it has not finished yet.
 </ol>
