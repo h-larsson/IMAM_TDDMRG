@@ -202,7 +202,9 @@ We highly recommend to use an absolute path rather than a relative path for any 
 
 The input parameters responsible for informing the program where to look for the input MPS for annihilation operator tasks are `ann_inmps_dir` (for the directory) and `ann_inmps_fname` (for the filename containing the information about the input MPS). The value assigned to `ann_inmps_fname` must be a file located under the directory path assigned to `ann_inmps_dir`. In the snippet above, only `ann_inmps_dir` is explicitly given, while `ann_inmps_fname` is omitted. Its omission means that the program will use its default value, `GS_MPS_INFO`, which coincides with the default value for `gs_outmps_fname`, the parameter that controls the filename of MPS info file saved by the ground state task.
 
-In the above input for annihilation operator task, an electron is annihilated from an orbital whose coefficient in the basis of the site orbitals are given by `ann_orb`. Since it contains zeros except for the 3rd and 9th elements, which are equal to `np.sqrt(2)`, the annihilation orbital is thus an in-phase, equal-strength superposition between Hartree-Fock HOMO (index `3`) and LUMO+5 (index `9`). The output of annihilation operator task contains the following table in the beginning of the simulation.
+In the above input for annihilation operator task, an electron is annihilated from an orbital whose coefficient in the basis of the site orbitals are given by `ann_orb`. Since it contains zeros except for the 3rd and 9th elements, which are equal to `np.sqrt(2)`, the annihilation orbital is thus an in-phase, equal-strength superposition between Hartree-Fock HOMO (index `3`) and LUMO+5 (index `9`). 
+
+The output of annihilation operator task contains the following table in the beginning of the simulation.
 ```
  Occupations before annihilation:
  ---------------------------------------------------------------------------------------------------
@@ -227,7 +229,7 @@ In the above input for annihilation operator task, an electron is annihilated fr
   Sum       4.00000000      4.00000000                                        4.00000000         4.00000000
  ---------------------------------------------------------------------------------------------------
 ```
-This table lists the occupancies of the site orbitals (2nd and 3rd columns), the irrep type and index of the corresponding site orbital (4th column), orbital coefficients in the `ann_orb` (5th column), and the occupancies of natural orbitals (6th and 8th columns) in the input MPS. The last row displays the number of electrons in each spin channel, which must equal the value assigned to `nelCAS`.
+This table lists the occupancies of the site orbitals (2nd and 3rd columns), the irrep type and index of the corresponding site orbital (4th column), orbital coefficients in the `ann_orb` (5th column), and the occupancies of natural orbitals (6th and 8th columns) in the input MPS. The last row displays the number of electrons in each spin channel, which must equal the value assigned to `nelCAS`. Toward the end of the output, you will also find a similar table 
 ```
  Occupations after annihilation:
  ---------------------------------------------------------------------------------------------------
@@ -252,9 +254,9 @@ This table lists the occupancies of the site orbitals (2nd and 3rd columns), the
   Sum       3.50000000      3.50000000                                        3.50000000         3.50000000
  ---------------------------------------------------------------------------------------------------
 ```
-Toward the end of the output, you will also find a similar table except that now the occupancies are calculated with respect to the output MPS resulting from the action of the annihilation operator on the input MPS. As can be seen, the total occupancy of the 3rd site orbital (HOMO) has been reduced by about one. The total number of electrons after annihilation process is seen to be exactly equal to `nelCAS-1`.
+except that now the occupancies are calculated with respect to the output MPS resulting from the action of the annihilation operator on the input MPS. As can be seen, the total occupancy of the 3rd site orbital (HOMO) has been reduced by about one. The total number of electrons after annihilation process is seen to be exactly equal to `nelCAS-1`.
 
-Near the beginning, you can find the information about the quantum numbers of the input and output MPSs. In the above simulation, this part looks like
+Near the beginning of the output, you can find the information about the quantum numbers of the input and output MPSs.
 ```
  Quantum number information:
   - Input MPS =  < N=8 S=0 PG=0 >
