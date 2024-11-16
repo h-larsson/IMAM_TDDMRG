@@ -1,0 +1,31 @@
+
+Brief descriptions of several subdirectories under ./. The subdirectories ./H2O.annihilate* below all contain annihilation operation simulations, but they differ in the complex representations, non-singlet representation, and the bond dimension schedule used for the simulations.
+
+
+./H2O.annihilate
+Contains annihilation operator simulation with:
+  - no singlet embedding,
+  - real output,
+  - D schedule that increases only up to the desired value.
+
+./H2O.annihilate-bad_d
+Contains annihilation operator simulation with:
+  - No singlet embedding,
+  - real output,
+  - D schedule that increases only up to the desired value.
+
+./H2O.annihilate-ocpx
+Contains annihilation operator simulation with:
+  - With singlet embedding,
+  - complex output,
+  - D schedule that increases up to a value larger than the desired value.
+
+./H2O.annihilate-ocpx-nose
+Contains annihilation operator simulation with:
+  - No singlet embedding,
+  - complex output,
+  - D schedule that increases up to a value larger than the desired value.
+
+./H2O.orbitals
+Contains orbital calculations for H2O using HF. Orbitals under this directory are used as the site/active orbitals for all example simulations in TDDMRG_CM/examples/H2O.
+
