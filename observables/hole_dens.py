@@ -56,7 +56,7 @@ def eval_yzplane(rdm0, x, boundy, boundz, yzorig=(0.0, 0.0), mol=None, tdir=None
 def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=None, 
                orb=None, nCore=None, nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
                prefix='plane_hole', print_cart=False, simtime_thr=1E-11, verbose=2,
-               logbook=None):
+               logbook=None, rem=False):
 
     '''
     nelCAS:
@@ -157,9 +157,9 @@ def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=
                 f'Current time point = {tt[i]:13.8f}.'
 
         #==== Remove existing *.tdh files ====#
-        oldfiles = glob.glob(rdm1_dir[i] + '/*' + EXT1)
-        for f in oldfiles:
-            os.remove(f)
+        if rem:
+            oldfiles = glob.glob(rdm1_dir[i] + '/*' + EXT1)
+            for f in oldfiles: os.remove(f)
             
         #==== Load cation RDM1 ====#
         rdm1 = np.load(rdm1_dir[i] + '/1pdm.npy')
@@ -234,7 +234,7 @@ def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=
 ####################################################
 def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, 
                 nelCAS=None, tnorm0=False, tnorm1=True, prefix='volume_hole', 
-                simtime_thr=1E-11, verbose=2, logbook=None):
+                simtime_thr=1E-11, verbose=2, logbook=None, rem=False):
 
     '''
     Evaluates the hole density in 3D space at each time point and then prints it
@@ -242,8 +242,8 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
 
     Args:
       rdm0: numpy.ndarray of shape (2,nCAS,nCAS)
-        The 1RDM of the ground state of the neutral molecule. The first
-        dimension corresponds to the spin channel.
+        The 1RDM of the ground state of the neutral molecule in site orbitals
+        basis. The first dimension corresponds to the spin channel.
       nc: 3-element tuple
         Specifies the number of points to evaluate the hole density in space.
 
@@ -257,7 +257,8 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
         The AO coefficients of active orbitals. The rows correspond to the AO
         index while the columns correspond to the orbital index.
       nCore: int
-        The number of core orbitals.
+        The number of core orbitals contained making up the first nCore columns
+        of orb.
       nCAS: int
         The number of active orbitals.
       nelCAS: int
@@ -305,10 +306,7 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
         rdm0 = np.sum(rdm0, axis=0) * (nelCAS+1) / tr
     else:
         rdm0 = np.sum(rdm0, axis=0)
-    natocc, natorb_ = symm.eigh(rdm0, osym)
-    natocc = natocc.real
-    natorb = orb @ natorb_
-    rdm0_ao = (natorb * natocc) @ natorb.conj().T     # rdm0_ao is the RDM in pseudo-AO rep.
+    rdm0_ao = orb @ rdm0 @ orb.T      # rdm0_ao is the RDM in pseudo-AO rep.
 
     #==== Calculate and print hole density ====#
     k = 0
@@ -320,9 +318,9 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
                 f'Current time point = {tt[i]:13.8f}.'
 
         #==== Remove existing *.tdh files ====#
-        oldfiles = glob.glob(rdm1_dir[i] + '/*' + EXT2)
-        for f in oldfiles:
-            os.remove(f)
+        if rem:
+            oldfiles = glob.glob(rdm1_dir[i] + '/*' + EXT2)
+            for f in oldfiles: os.remove(f)
             
         #==== Load cation RDM1 ====#
         rdm1 = np.load(rdm1_dir[i] + '/1pdm.npy')
@@ -344,10 +342,7 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
             echeck = np.linalg.eigvalsh(rdm1)
                         
             #==== RDM1 of cation in pseudo-AO basis ====#
-            natocc, natorb_ = symm.eigh(rdm1, osym)
-            natocc = natocc.real
-            natorb = orb @ natorb_
-            rdm1_ao = (natorb * natocc) @ natorb.conj().T
+            rdm1_ao = orb @ rdm1 @ orb.T
 
             #==== Print to cube files ====#
             cubename = rdm1_dir[i] + '/' + prefix + '-' + str(k).zfill(ndigit) + EXT2
@@ -380,6 +375,30 @@ def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None,
 
         #==== Increment general (non-unique) time point index ====#
         kk += 1
+####################################################
+
+
+####################################################
+def eval_volume_orb(rdm0, nc, orbx, mol=None, tdir=None, orb=None, nCore=None, 
+                    nCAS=None, nelCAS=None, tnorm0=False, tnorm1=True, 
+                    prefix='volume_hole_orb', simtime_thr=1E-11, verbose=2, 
+                    logbook=None, rem=False):
+
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+    ovl = mol.intor('int1e_ovlp')
+    if nCAS is None:
+        nCAS = logbook['nCAS']
+    if nCore is None:
+        nCore = logbook['nCore']
+    if orb is None:
+        orb = np.load(logbook['orb_path'])[:,nCore:nCore+nCAS]
+
+    f = orbx @ orbx.T @ ovl @ orb
+
+    eval_volume(rdm0, nc, mol, tdir, f, nCore, nCAS, nelCAS, tnorm0, tnorm1,
+                prefix, simtime_thr, verbose, logbook, rem)
+    
 ####################################################
 
 

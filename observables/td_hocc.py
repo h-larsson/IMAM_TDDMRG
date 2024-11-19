@@ -10,7 +10,16 @@ EXT1 = '.thoc'
 ####################################################
 def calc(orbx, rpdm, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None,
          prefix='occup', simtime_thr=1E-11, logbook=None):
-
+    '''
+    Calculates occupancies of a set of orbitals in a state given its 1RDM.
+    
+    Args:
+      orbx: numpy.ndarray of shape (mol.nao, nCAS)
+        The orbitals whose occupancies will be calculated.
+      rpdm: numpy.ndarray of shape (2, nCAS, nCAS)
+        The 1RDM used to calculate reference occupancies.
+    '''
+    
     if mol is None:
         mol = util_atoms.mole(logbook)
     if nCore is None:
