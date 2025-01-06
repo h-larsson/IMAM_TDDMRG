@@ -92,9 +92,10 @@ except ImportError:
 #OLD_CPX     except ImportError:
 #OLD_CPX         hasMPI = False
 
-import tools; tools.init(SX)
+from block2.pyblock2 import tools as b2tools; b2tools.init(SX)
+#OLD import tools; tools.init(SX)
 #from tools import saveMPStoDir, mkDir
-from tools import mkDir
+#OLD from tools import mkDir
 from TDDMRG_CM.utils.util_print import getVerbosePrinter
 from TDDMRG_CM.utils.util_print import print_section, print_warning, print_describe_content, print_matrix
 from TDDMRG_CM.utils.util_print import print_orb_occupations, print_pcharge, print_mpole, print_bond_order
@@ -186,10 +187,10 @@ class MYTDDMRG:
         #==== Create scratch directory ====#
         if self.mpi is not None:
             if self.mpi.rank == 0:
-                mkDir(scratch)
+                b2tools.mkDir(scratch)
             self.mpi.barrier()
         else:
-            mkDir(scratch)
+            b2tools.mkDir(scratch)
 
         if self.verbose >= 2:
             _print(b2.Global.frame)
@@ -427,7 +428,7 @@ class MYTDDMRG:
                 
 
         #==== New interface ====#
-        from pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
+        from b2.pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
         if spin_symmetry == 'su2': symm_type = [SymmetryTypes.SU2]
         elif spin_symmetry == 'sz': symm_type = [SymmetryTypes.SZ]
         if comp == 'full': symm_type += [SymmetryTypes.CPX]
@@ -832,7 +833,7 @@ class MYTDDMRG:
         _print('')
         _print('Saving the ground state MPS files under ' + outmps_dir)
         if outmps_dir != self.scratch:
-            mkDir(outmps_dir)
+            b2tools.mkDir(outmps_dir)
         mps_info.save_data(outmps_dir + "/" + outmps_name)
         saveMPStoDir(mps, outmps_dir, self.mpi)
         _print('Output ground state max. bond dimension = ', mps.info.bond_dim)
@@ -1351,7 +1352,7 @@ class MYTDDMRG:
         #==== Save the output MPS ====#
         _print('')
         if outmps_dir != self.scratch:
-            mkDir(outmps_dir)
+            b2tools.mkDir(outmps_dir)
         rkets.info.save_data(outmps_dir + "/" + outmps_name)
         _print('Saving output MPS files under ' + outmps_dir)
         saveMPStoDir(rkets, outmps_dir, self.mpi)
@@ -1578,10 +1579,10 @@ class MYTDDMRG:
         if save_mps == 'overwrite': logbook.update({'mps_dir_ow':mps_dir_ow})
         if self.mpi is not None:
             if self.mpi.rank == 0:
-                if save_mps == 'overwrite': mkDir(mps_dir_ow)
+                if save_mps == 'overwrite': b2tools.mkDir(mps_dir_ow)
                 self.mpi.barrier()
         else:
-            if save_mps == 'overwrite': mkDir(mps_dir_ow)
+            if save_mps == 'overwrite': b2tools.mkDir(mps_dir_ow)
             
 
         if comp == 'full':
@@ -1973,10 +1974,10 @@ class MYTDDMRG:
                 save_dir = sample_dir + '/tevo-' + str(it+1).zfill(ndigit)
                 if self.mpi is not None:
                     if self.mpi.rank == 0:
-                        mkDir(save_dir)
+                        b2tools.mkDir(save_dir)
                         self.mpi.barrier()
                 else:
-                    mkDir(save_dir)
+                    b2tools.mkDir(save_dir)
 
                 #==== Saving MPS ====#
                 if save_mps_end:
