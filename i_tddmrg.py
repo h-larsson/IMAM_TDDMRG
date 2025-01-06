@@ -92,7 +92,7 @@ except ImportError:
 #OLD_CPX     except ImportError:
 #OLD_CPX         hasMPI = False
 
-from block2.pyblock2 import tools as b2tools; b2tools.init(SX)
+from pyblock2 import tools as b2tools; b2tools.init(SX)
 #OLD import tools; tools.init(SX)
 #from tools import saveMPStoDir, mkDir
 #OLD from tools import mkDir
@@ -428,7 +428,7 @@ class MYTDDMRG:
                 
 
         #==== New interface ====#
-        from b2.pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
+        from pyblock2.driver.core import DMRGDriver, SymmetryTypes, MPOAlgorithmTypes
         if spin_symmetry == 'su2': symm_type = [SymmetryTypes.SU2]
         elif spin_symmetry == 'sz': symm_type = [SymmetryTypes.SZ]
         if comp == 'full': symm_type += [SymmetryTypes.CPX]
