@@ -1,6 +1,6 @@
 import numpy as np
 from pyscf import gto, lo, symm
-from util_orbs import sort_orbs
+from TDDMRG_CM.orbs_generate.util_orbs import sort_orbs
 
 
 loc_type_err = 'localize: The value of the argument \'loc_type\' is undefined, ' + \

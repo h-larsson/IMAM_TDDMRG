@@ -469,3 +469,18 @@ def orbital_reorder_mrci_circ():
     raise NotImplementedError('The function orbital_reorder_mrci_circ is' + 
                               'not implemented yet.')
 #################################################
+
+
+#################################################
+def get_orb_sym(mol, orb):
+    
+    sym = []
+    for i in range(0, orb.shape[1]):
+        try:
+            sym += [symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb,
+                                        orb[:,i:i+1])[0]]
+        except:
+            sym += ['UNSYM']
+
+    return sym
+#################################################

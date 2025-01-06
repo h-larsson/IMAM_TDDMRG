@@ -59,6 +59,8 @@ def get_IBO(mol=None, oiao=None, mo_ref=None, by_symm=False, align_groups=None,
 
     #==== Alignment ====#
     if align_groups is not None:
+        # >> It looks like the function of align_groups overlaps with by_symm. <<
+
         # The task in this block is to determine mix_coef that satisfies:
         #     I = mo_ref.T @ ovl @ ibo_new
         # where
@@ -89,7 +91,7 @@ def get_IBO(mol=None, oiao=None, mo_ref=None, by_symm=False, align_groups=None,
 
 ##########################################################################
 def get_IBOC(mol=None, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=False, 
-             align_groups=None, ortho_thr=1E-8, logbook=None):
+             align_groups=None, ortho_thr=1E-8, proj_thr=1E-10, logbook=None):
     '''
     This function calculates the set of vectors orthogonal to IBOs (calculated by get_IBO)
     that are also spanned by IAOs.
@@ -143,9 +145,11 @@ def get_IBOC(mol=None, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=Fals
     # input vector.
     Q_proj = np.eye(ibo_.shape[0]) - ibo_ @ ibo_.T
     iboc = Q_proj @ oiao_
-    norms = np.einsum('ij, ji -> i', iboc.T, iboc)
-    iboc = iboc / np.sqrt(norms)
+    norms = np.linalg.norm(iboc, axis=0)
+    iboc = iboc[:, norms > proj_thr]
+    iboc = iboc / norms[norms > proj_thr]
 
+    
     #==== Orthogonalize IBOC via SVD ====#
     if by_symm:
         # As it turns out, orthogonalization through SVD does not necessarily conserve
@@ -155,7 +159,8 @@ def get_IBOC(mol=None, oiao=None, ibo=None, mo_ref=None, loc='IBO', by_symm=Fals
         # each symmetry block of iboc obtained above, hence preserving the symmetry
         # of these iboc's.
         o = np.array([])
-        iboc_s = np.array( symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, x@iboc) )
+        #iboc_s = np.array( symm.label_orb_symm(mol, mol.irrep_name, mol.symm_orb, x@iboc) )
+        iboc_s = np.array(util_qm.get_orb_sym(mol, x@iboc))
         n_ortho = 0
         for s in set(iboc_s):
             U, sv, Vt = np.linalg.svd(iboc[:,iboc_s == s], full_matrices=False)

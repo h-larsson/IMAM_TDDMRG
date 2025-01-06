@@ -37,7 +37,7 @@ def analyze(mol, ocoeff, oocc=None, oerg=None):
     if ns == 1:
         mo_c[0,:,:] = ocoeff.copy()
     elif ns == 2:
-        mo_c = ocoeff.cop()
+        mo_c = ocoeff.copy()
 
     #==== Orbital symmetry ====#
     issym = True
