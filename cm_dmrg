@@ -237,25 +237,32 @@ if hasMPI:
     
 #==== Reorder orbitals ====#
 if MAIN_PROCESS:
-    # ==== Genetic or Fiedler ====#
-    if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler':
-        _print('Orbital ordering will be computed by the program using ' +
-               inputs['orb_order'] + ' algorithm.')
-        if inputs['orb_order'] == 'genetic':
-            ord_method = 'gaopt'
-        elif inputs['orb_order'] == 'fiedler':
-            ord_method = 'fiedler'        
-        if inputs['mrci'] is not None:
-            print_mrci_warning()
-            i1 = inputs['nCore']
-            i2 = inputs['nCore'] + inputs['nCAS']
-            re_idx = orbital_reorder_mrci(ord_method, mol,
-                                          inputs['nCAS']-inputs['mrci']['nactive2'],
-                                          inputs['mrci']['nactive2'], inputs['nelCAS'],
-                                          inputs['mrci']['order'], orbs[:,i1:i2])
+    #==== Genetic, Fiedler, or path name ====#
+    if isinstance(inputs['orb_order'], str):
+        #==== Genetic or Fiedler ====#
+        if inputs['orb_order'] == 'genetic' or inputs['orb_order'] == 'fiedler':
+            _print('Orbital ordering will be computed by the program using ' +
+                   inputs['orb_order'] + ' algorithm.')
+            if inputs['orb_order'] == 'genetic':
+                ord_method = 'gaopt'
+            elif inputs['orb_order'] == 'fiedler':
+                ord_method = 'fiedler'        
+            if inputs['mrci'] is not None:
+                print_mrci_warning()
+                i1 = inputs['nCore']
+                i2 = inputs['nCore'] + inputs['nCAS']
+                re_idx = orbital_reorder_mrci(ord_method, mol,
+                                              inputs['nCAS']-inputs['mrci']['nactive2'],
+                                              inputs['mrci']['nactive2'], inputs['nelCAS'],
+                                              inputs['mrci']['order'], orbs[:,i1:i2])
+            else:
+                re_idx = orbital_reorder(h1e, g2e, method=ord_method)
+        #==== Load from an .npy file ====#
         else:
-            re_idx = orbital_reorder(h1e, g2e, method=ord_method)
+            _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
+            re_idx = np.load(inputs['orb_order'])
 
+    #==== Linear or circular ====#
     elif isinstance(inputs['orb_order'], dict):
         i1 = inputs['nCore']
         i2 = inputs['nCore'] + inputs['nCAS']
@@ -302,17 +309,16 @@ if MAIN_PROCESS:
                    for i in inputs['orb_order'])
         _print('Orbital ordering is provided directly in the input.')
         re_idx = np.array(inputs['orb_order'])
-            
-    #==== Load from an .npy file ====#
-    else:
-        _print('Loading orbital ordering from ' + inputs['orb_order'] + '.')
-        re_idx = np.load(inputs['orb_order'])
         
+    else:
+        raise ValueError('The specified value for \'orb_order\', ' + inputs['orb_order'] +
+                         ', is not recognized.')
+            
+    
     _print('\nCAS orbitals ordering = ', re_idx)
     if not all(isinstance(idx, (int, np.int8, np.int16, np.int32, np.int64)) \
                for idx in re_idx):
-        raise ValueError('All elements of the \'orb_order\' input must ' +
-                         'be an integer.')
+        raise ValueError('All elements of the ordering array must be an integer.')
 
     #==== Save orbital ordering ====#
     np.save(WDIR + '/' + inputs['prefix'] + '.ord', re_idx)
