@@ -59,6 +59,9 @@ def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=
                logbook=None, rem=False):
 
     '''
+    Evaluates hole density in a plane at each time point and then prints it to
+    a file for later plotting.
+
     nelCAS:
        Number of active electrons in the time-dependent wavefunction (the wavefunction  
        that the cation RDM1 loaded from tdir is calculated from).
@@ -232,6 +235,36 @@ def eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll=0.0, mol=None, tdir=
 
 
 ####################################################
+def eval_plane_orb(rdm0, uvec, disp, orig, bound1, bound2, orbx, roll=0.0, mol=None, 
+                   tdir=None, orb=None, nCore=None, nCAS=None, nelCAS=None, 
+                   tnorm0=False, tnorm1=True, prefix='plane_hole_orb', print_cart=False, 
+                   simtime_thr=1E-11, verbose=2, logbook=None, rem=False):
+
+    '''
+    Evaluates hole density in a plane at each time point using density matrix 
+    that has been projected to the space spanned by orbx and then prints it to
+    a file for later plotting.
+    '''
+    
+    if mol is None:
+        mol = util_atoms.mole(logbook)
+    ovl = mol.intor('int1e_ovlp')
+    if nCAS is None:
+        nCAS = logbook['nCAS']
+    if nCore is None:
+        nCore = logbook['nCore']
+    if orb is None:
+        orb = np.load(logbook['orb_path'])[:,nCore:nCore+nCAS]
+
+    f = orbx @ orbx.T @ ovl @ orb
+
+    eval_plane(rdm0, uvec, disp, orig, bound1, bound2, roll, mol, tdir, f, nCore,
+               nCAS, nelCAS, tnorm0, tnorm1, prefix, print_cart, simtime_thr, 
+               verbose, logbook, rem)
+####################################################
+
+
+####################################################
 def eval_volume(rdm0, nc, mol=None, tdir=None, orb=None, nCore=None, nCAS=None, 
                 nelCAS=None, tnorm0=False, tnorm1=True, prefix='volume_hole', 
                 simtime_thr=1E-11, verbose=2, logbook=None, rem=False):
@@ -384,6 +417,12 @@ def eval_volume_orb(rdm0, nc, orbx, mol=None, tdir=None, orb=None, nCore=None,
                     prefix='volume_hole_orb', simtime_thr=1E-11, verbose=2, 
                     logbook=None, rem=False):
 
+    '''
+    Evaluates hole density in 3D space at each time point using density matrix 
+    that has been projected to the space spanned by orbx and then prints it to
+    a cube file for later plotting.
+    '''
+    
     if mol is None:
         mol = util_atoms.mole(logbook)
     ovl = mol.intor('int1e_ovlp')
