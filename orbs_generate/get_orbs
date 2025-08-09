@@ -48,8 +48,8 @@ if inputs['dump_inputs']:
 
 
 #==== Setting up the system ====#
-mol = gto.M(atom=inputs['inp_coordinates'], basis=inputs['inp_basis'], ecp=inputs['inp_ecp'],
-            symmetry=inputs['inp_symmetry'], charge=inputs['charge'], spin=inputs['twosz'])
+mol = gto.M(atom=inputs['atoms'], basis=inputs['basis'], ecp=inputs['inp_ecp'],
+            symmetry=inputs['group'], charge=inputs['charge'], spin=inputs['twosz'])
 na, nb = mol.nelec
 pg = mol.groupname.lower()
 n_mo = mol.nao

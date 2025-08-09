@@ -7,8 +7,8 @@ def get_inputs(inp_file):
     inputs = {}
 
     #==== General parameters ====#
-    inputs['inp_coordinates'] = inp_coordinates
-    inputs['inp_basis'] = inp_basis
+    inputs['atoms'] = atoms
+    inputs['basis'] = basis
     inputs['charge'] = charge
     inputs['twosz'] = twosz
 
@@ -44,9 +44,9 @@ def get_inputs(inp_file):
     except NameError:
         inputs['inp_ecp'] = defvals.def_inp_ecp
     try:
-        inputs['inp_symmetry'] = inp_symmetry
+        inputs['group'] = group
     except NameError:
-        inputs['inp_symmetry'] = defvals.def_inp_symmetry
+        inputs['group'] = defvals.def_group
     try:
         inputs['save_dir'] = save_dir
     except NameError:

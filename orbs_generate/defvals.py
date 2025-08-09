@@ -3,7 +3,7 @@
 def_source = None
 def_dump_inputs = False
 def_inp_ecp = None
-def_inp_symmetry = 'c1'
+def_group = 'c1'
 def_save_dir = '.'
 def_init_orbs = None
 def_init_occs = None
