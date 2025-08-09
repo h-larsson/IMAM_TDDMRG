@@ -107,7 +107,7 @@ Mmps =  400 Ndav =   2 E =    -76.2393734097 Error = 2.03e-07 FLOPS = 9.64e+09 T
      1     1     0   -24.15991434     2.06e-05
      2     2     0   -24.15991604     3.15e-07
 ```
-Note that the bond dimensions between the sites from the last site (the sites are denoted by `<-- Site = ...` increases up to 400 and stays constant afterwards. This is because the bond dimension schedule (`D_gs`) has been set to stay at 400 starting from the 9-th macro iteration, while the snippet above shows the 13-th macro iteration.
+The above snippet shows a backward micro iteration since it starts from the last site, site number 22 (the number of sites, 23, is given by `nCAS`). Note that, the bond dimension (denoted by `Mmps`) is capped at 400. This is because at the shown 11-th macro iteration, the maximum bond dimension is 400. The input parameter `D_gs` is used to set the schedule for the applied maximum bond dimension as the macro iteration progresses.
 
 At the end of the calculation, several standard quantum chemical quantities are printed, such as orbital occupancies, multipole moments, and bond orders of some significant bonds
 ```
